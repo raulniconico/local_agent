@@ -1,0 +1,174 @@
+# coffee-can
+
+A simple app for logging hand-brew coffee: keep a profile per bag of beans,
+then log each brewing session (dripper, grinder, water, per-stage pours) and
+rate the result. Comes with both a desktop GUI and a CLI -- same data, same
+underlying code, pick whichever you prefer on a given day.
+
+## Install (Ubuntu)
+
+```bash
+sudo apt install pipx        # if not already installed
+pipx ensurepath               # once, then restart your shell
+cd coffee
+pipx install .                # pulls in PySide6 (Qt), pytesseract, Pillow -- may take a minute
+coffeecan-install-launcher    # one-time: adds "Coffee Can" to your app menu
+```
+
+The bean page's *Scan Label...* feature needs the Tesseract OCR binary on
+your system (`pytesseract` is just a wrapper around it):
+
+```bash
+sudo apt install tesseract-ocr
+```
+
+Camera capture (*Scan Label... > Take Photo...*) needs a working camera and
+PySide6's QtMultimedia bindings; if either is unavailable, that one option is
+disabled with a message -- *Choose Photo File...* and everything else in the
+app are unaffected.
+
+**Optional: higher-accuracy scanning via the Claude API.** Local OCR maps
+label text to fields with regex/keyword heuristics, which struggles with
+unusual layouts. If you `pip install anthropic` and set `ANTHROPIC_API_KEY`
+in your shell, *Scan Label...* asks Claude to read the photo directly instead
+-- far more reliable at figuring out which text is the origin vs. the roaster
+vs. the process, at the cost of an API key, network access, sending the
+photo off-device, and a small per-scan charge (`ANTHROPIC_OCR_MODEL`,
+default `claude-opus-5`, can be overridden to a cheaper model). This is
+fully optional: without the package or key set, or if the request fails for
+any reason, it silently falls back to local Tesseract OCR.
+
+This installs `coffeecan` (CLI) and `coffeecan-gui` (desktop window) on your
+`PATH`. To upgrade after editing the source: `pipx install --force .`. To
+remove: `pipx uninstall coffee-can`, and if you ran
+`coffeecan-install-launcher`, also delete its two leftover files:
+
+```bash
+rm -f ~/.local/share/applications/coffee-can.desktop \
+      ~/.local/share/icons/hicolor/scalable/apps/coffee-can.svg
+```
+
+Data is stored in `~/.local/share/coffee-can/` (a SQLite database plus a copy
+of any uploaded photos/PDFs), independent of where the source lives -- the
+GUI and the CLI read and write the exact same files. If you had this app
+installed under its old name ("coffee-journal"), the first launch after
+upgrading moves `~/.local/share/coffee-journal/` to the new location
+automatically -- nothing to do by hand.
+
+## GUI
+
+Launch it from the app menu ("Coffee Can") after running
+`coffeecan-install-launcher`, or run `coffeecan-gui` directly. The app icon
+and overall theme (`gui/theme.py`) are green; if you'd already run
+`coffeecan-install-launcher` before an icon update, rerun it to refresh the
+copy under `~/.local/share/icons/`.
+
+The main window is a welcome screen: the logo/title header, a **Coffee
+Profiles** card (the bean table), and a resizable row of three panes (drag
+the dividers between them) -- a **Profile** card (your name/email/avatar,
+edited via the gear button in its corner), a **Brewing Activity** card (a
+GitHub-style contribution calendar, `gui/widgets.py`'s `ContributionCalendar`,
+showing the last ~3 months as a color-graded grid, one cell per day; hover a
+cell for the exact date and count), and a **Flavor Profile** card averaging
+the nine flavor axes across every brewing session you've ever logged.
+
+In the Coffee Profiles card, *New Profile* opens a form -- a bean row is
+created the moment the dialog opens (blank name until you type one; *Save*
+falls back to "Untitled" if it's still empty), so pages and sessions work
+immediately with no save-first step. Closing a brand-new profile without
+ever touching it (no name, no fields, no pages, no sessions) quietly deletes
+the empty draft instead of leaving it in the list. *Add Photo/PDF...* opens a
+real file picker (up to 5 pages per profile, shown as a swipeable carousel);
+*Rotate* only changes how a page is displayed, the original file on disk is
+never modified. *Scan Label...* offers *Take Photo...* (live camera capture)
+or *Choose Photo File...*, then reads the photo (Claude's vision API if
+you've set it up -- see below -- otherwise local Tesseract OCR via `ocr.py`)
+and shows the guessed name/origin/variety/altitude/roaster/producer/process/
+roast date in an editable review dialog -- nothing is written until you
+click *Apply*, and blank fields there are left untouched. It's a best-effort
+reading of a photographed label, not a scanner, so always check its guesses.
+*Process* is a dropdown seeded from `assets/processes.json` (Washed,
+Natural, Honey, Anaerobic, and dozens of other named processes).
+
+Below the profile form, a **Flavor Profile** block shows a radar chart for
+that specific bean: *Generate from Sessions* averages the nine flavor axes
+across its own brewing sessions (grey/blank if it has none yet), or *Set
+Manually...* opens a slider-per-axis picker to fix the shown profile by hand
+regardless of session data.
+
+Brewing sessions live inside that same profile dialog, under a *Brewing
+sessions* table scoped to that bean -- there's no separate global sessions
+view, since a session only ever makes sense in the context of the coffee it
+was brewed from. Like profiles, a session row is created the moment *New
+Session* opens (so *Add Stage* works immediately), and an empty one is
+discarded on Close the same way. From there: a session form (date, dripper,
+filter paper, grinder, grind size, water ppm, humidity, dose in grams --
+brew details default to whatever you used last time for that bean), an *Add
+Stage* button (temperature via a -10-110°C slider with a synced spinbox for
+typing an exact value, defaulting to 90; water in grams; time via an
+hh:mm:ss picker; circling/agitation as free text) with a stages table you
+can remove rows from, and an evaluation section: a *Scored* checkbox + 0-5
+spinner, a note field, and nine 0-5 flavor sliders (Fruity, Floral, Sweet,
+Nutty/Cocoa, Spices, Roasted, Cereal, Green/Vegetative, Sour/Fermented) that
+redraw a live radar chart as you drag them. *Edit / View* / *Delete* work
+the same way on the selected session.
+
+*Dripper*, *Filter Paper*, *Grinder*, and *Process* are all dropdowns, each
+seeded from its own bundled JSON file (`assets/drippers.json`,
+`assets/filters.json`, `assets/grinders.json`, `assets/processes.json`).
+Pick *Other (type manually)...* on any of them to add one that's missing --
+it's saved to `~/.local/share/coffee-can/{drippers,filters,grinders,
+processes}.json` and shows up in that dropdown from then on.
+
+## CLI
+
+Prefer scripting or a terminal? Everything above is also available as
+`coffeecan` subcommands, driven by guided prompts instead of forms.
+
+### Coffee bean profiles
+
+```bash
+coffeecan bean add                 # guided prompts: name, origin, variety, altitude,
+                                    # roaster, producer, process, roast date, up to
+                                    # 5 photos/PDFs of the bag or spec sheet
+coffeecan bean edit <id-or-name>   # resume a draft or update any field later
+coffeecan bean list                # table of all profiles
+coffeecan bean show <id-or-name>   # full detail + its brewing sessions
+coffeecan bean delete <id-or-name>
+```
+
+Every field except the coffee's name is optional -- leave a prompt blank to
+skip it. Answers are saved to disk as soon as you enter them, so if you stop
+partway through (Ctrl-C, or answering "no" when asked to mark it complete)
+the profile is kept as a **draft** and `coffeecan bean edit` picks up where
+you left off.
+
+### Brewing sessions
+
+```bash
+coffeecan brew add <bean-id-or-name>   # date, dripper, filter paper, grinder,
+                                        # grind size, water ppm, humidity, dose,
+                                        # then as many pour stages as you like
+                                        # (temperature, water, time, circling),
+                                        # then a 0-5 score and a tasting note
+coffeecan brew edit <session-id>       # resume a draft, add more stages, or evaluate later
+coffeecan brew list [--bean <id-or-name>]
+coffeecan brew show <session-id>
+coffeecan brew delete <session-id>
+```
+
+Sessions follow the same draft-as-you-go behavior as bean profiles.
+
+## Development
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -e .
+coffeecan bean add     # CLI
+coffeecan-gui          # desktop window
+```
+
+No test suite is configured; verify changes by exercising the CLI/GUI
+directly. `coffeecan`, `coffeecan-gui`, `coffeecan-install-launcher`, and the
+`repo.py`/`db.py`/`paths.py`/`formatting.py` modules they share all live
+under `src/coffee_can/`.
