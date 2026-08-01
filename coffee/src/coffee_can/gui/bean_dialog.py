@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from PySide6.QtCore import QSize, QStandardPaths, Qt
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QDialog,
@@ -144,54 +144,6 @@ class _ScanReviewDialog(QDialog):
         self.accept()
 
 
-class _ShareTipsDialog(QDialog):
-    """Shown after a share-card PNG is saved: a preview plus quick pointers
-    on how to actually get it in front of someone -- posting it directly
-    works for stories/messaging, but a QR code or a hosted link is often the
-    better call when the image itself won't fit (packaging, a menu, print)."""
-
-    def __init__(self, pixmap, saved_path: str, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Share Image Saved")
-        self.resize(420, 660)
-
-        preview_label = QLabel()
-        preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        preview_label.setPixmap(pixmap.scaledToHeight(420, Qt.TransformationMode.SmoothTransformation))
-
-        path_label = QLabel(f"Saved to:\n{saved_path}")
-        path_label.setWordWrap(True)
-        path_label.setStyleSheet("color: #8E8E93; font-size: 11px;")
-
-        tips = QLabel(
-            "<b>Sharing ideas</b><br>"
-            "&bull; <b>Instagram/Facebook/Snapchat Story or WhatsApp Status:</b> "
-            "post this image directly -- it's already sized to fill the screen.<br>"
-            "&bull; <b>Messaging apps (iMessage, Telegram, etc.):</b> just attach "
-            "the PNG, no resizing needed.<br>"
-            "&bull; <b>On packaging, a cafe menu, or anywhere space is tight:</b> "
-            "a small QR code linking to a hosted copy of this image (or page) "
-            "works better than trying to shrink the image itself.<br>"
-            "&bull; <b>Printing:</b> at 1080x1920 it's roughly 300 DPI at a "
-            "3.6x6.4 in size -- fine for a small card or tag, not a full page."
-        )
-        tips.setWordWrap(True)
-        tips.setStyleSheet("font-size: 12px;")
-
-        close_btn = QPushButton("Close")
-        close_btn.setProperty("variant", "primary")
-        close_btn.clicked.connect(self.accept)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(14)
-        layout.addWidget(preview_label)
-        layout.addWidget(path_label)
-        layout.addWidget(tips)
-        layout.addStretch()
-        layout.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignRight)
-
-
 class BeanDialog(QDialog):
     """Edits a bean profile. A bean row is always persisted immediately --
     if bean_id isn't given, one is created on the spot with a blank name --
@@ -315,6 +267,13 @@ class BeanDialog(QDialog):
             "QPushButton:pressed { background-color: #CFCFD4; }"
         )
         share_btn.clicked.connect(self._share_bean)
+        top_bar = QWidget()
+        top_bar.setObjectName("topBar")
+        top_bar.setStyleSheet("#topBar { background-color: white; }")
+        top = QHBoxLayout(top_bar)
+        top.setContentsMargins(20, 12, 20, 12)
+        top.addStretch()
+        top.addWidget(share_btn)
 
         save_btn = QPushButton("Save")
         save_btn.setProperty("variant", "primary")
@@ -326,7 +285,6 @@ class BeanDialog(QDialog):
         bottom_bar.setStyleSheet("#bottomBar { background-color: white; }")
         bottom = QHBoxLayout(bottom_bar)
         bottom.setContentsMargins(20, 12, 20, 12)
-        bottom.addWidget(share_btn)
         bottom.addStretch()
         bottom.addWidget(save_btn)
         bottom.addWidget(close_btn)
@@ -349,6 +307,7 @@ class BeanDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+        layout.addWidget(top_bar)
         layout.addWidget(scroll, 1)
         layout.addWidget(bottom_bar)
 
@@ -465,7 +424,7 @@ class BeanDialog(QDialog):
         ImageViewerDialog(Path(item["file_path"]), item["rotation"], parent=self).exec()
 
     def _share_bean(self):
-        from .share_card import render_share_card
+        from .share_card import render_share_card, save_share_image
 
         try:
             pixmap = render_share_card(self.conn, self.bean_id)
@@ -474,18 +433,7 @@ class BeanDialog(QDialog):
             return
 
         name = self.name_edit.text().strip() or "coffee"
-        safe_name = "".join(c if c.isalnum() or c in "-_ " else "_" for c in name).strip() or "coffee"
-        pictures_dir = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.PicturesLocation)
-        default_path = str(Path(pictures_dir or str(Path.home())) / f"{safe_name}-share.png")
-
-        path, _ = QFileDialog.getSaveFileName(self, "Save share image", default_path, "PNG Image (*.png)")
-        if not path:
-            return
-        if not pixmap.save(path, "PNG"):
-            QMessageBox.warning(self, "Save failed", f"Couldn't write the image to {path}.")
-            return
-
-        _ShareTipsDialog(pixmap, path, parent=self).exec()
+        save_share_image(self, pixmap, name)
 
     def _refresh_sessions(self):
         sessions = repo.list_sessions(self.conn, bean_id=self.bean_id)

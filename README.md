@@ -89,6 +89,12 @@ vLLM does not yet support very new Python versions, so `setup.sh` provisions
 its own isolated Python 3.12 via [`uv`](https://docs.astral.sh/uv/) — it will
 not touch your system Python or any other project's environment.
 
+**For the `extract_text_from_image` coffee tool (either backend):** an
+`ANTHROPIC_API_KEY`, even under `LLM_PROVIDER=vllm` — it's a direct Claude
+vision API call, independent of the chat backend. Everything
+else works without it; only image OCR needs it, and it fails with an
+actionable message rather than crashing if it's missing.
+
 ## Setup
 
 ```bash
@@ -249,6 +255,46 @@ effectively a non-issue — the `read_document` truncation
 Paths may be relative (resolved against `AGENT_WORKSPACE`) or absolute (which
 must still land inside it).
 
+### Coffee-can tools
+
+`app/coffee_tools.py` bridges into the sibling [`coffee/`](coffee) project (a
+bean-profile and hand-brew tracker) by importing its `repo`/`db` modules
+straight off `coffee/src` — not by installing `coffee-can` as a package, since
+that would pull in its GUI dependency (PySide6) for no benefit here. Both
+projects share the same SQLite database coffee-can's own CLI/GUI use
+(`~/.local/share/coffee-can/coffee.db` by default), so records created here
+show up there too.
+
+- **`list_coffee_beans()`** / **`list_coffee_brew_sessions(bean="")`** — list
+  existing profiles/sessions, optionally filtered by bean (id or exact name).
+- **`create_coffee_bean(name, origin="", variety="", altitude="", roaster="", producer="", process="", roast_date="")`**
+  — registers a new bean profile and marks it complete. Always creates a new
+  row; check `list_coffee_beans` first to avoid duplicates.
+- **`add_coffee_bean_image(bean, path)`** — copies a photo already in the
+  workspace (`.jpg`/`.jpeg`/`.png`/`.webp`/`.pdf`) into coffee-can's own
+  storage as a page image on that bean, so it shows up in coffee-can's own
+  GUI/CLI too. The agent calls this with the same photo it just OCR'd so a
+  bean filled in from a bag-label photo keeps that photo attached — up to a
+  few pages per bean (`coffee_can.paths.MAX_IMAGES_PER_BEAN`).
+- **`create_coffee_brew_session(bean, brew_date="", dripper="", filter_paper="", grinder="", grind_size="", water_ppm="", humidity="", dose_g=None, score=None, note="")`**
+  — registers a brewing session against an existing bean (by id or name).
+- **`add_coffee_brew_stage(session_id, temperature_c=None, water_g=None, time_seconds=None, circling="")`**
+  — appends one pour/stage to an existing session.
+- **`extract_text_from_image(path)`** — OCRs a photo in the workspace (bag
+  label, handwritten brew note) via a direct Claude API vision call and
+  returns the transcribed text for the model to parse itself. **Requires
+  `ANTHROPIC_API_KEY` regardless of `LLM_PROVIDER`** — set it in `.env` even if
+  you're on the `vllm` backend, since this is an independent API call, not a
+  turn of the main chat model. Uses `ANTHROPIC_OCR_MODEL` (defaults to
+  `claude-opus-5`, same as the chat model default but configurable
+  separately). The model is expected to review/confirm extracted fields with
+  you before registering anything, since OCR is best-effort, and each call
+  sends the photo to the Claude API.
+
+There's no dedicated file-import tool: for CSV/spreadsheet/text sources, the
+agent reads the file with `read_document` and works out bean/session fields
+itself before calling the `create_coffee_*` tools.
+
 ## The sandbox
 
 Every tool call resolves its path through `_resolve()` in `app/tools.py`, which
@@ -401,9 +447,15 @@ agent/
 ├── serve_vllm.sh      # starts the vLLM OpenAI-compatible server
 ├── requirements.txt
 ├── .env.example
-└── app/
-    ├── config.py      # reads .env, resolves the workspace root
-    ├── tools.py       # search_files / read_document / write_document + sandbox
-    ├── graph.py       # system prompt, build_llm() backend switch, ReAct agent
-    └── main.py        # CLI chat loop
+├── app/
+│   ├── config.py      # reads .env, resolves the workspace root
+│   ├── tools.py       # search_files / read_document / write_document + sandbox
+│   ├── coffee_tools.py # bean/brew-session registration + image OCR, via ../coffee
+│   ├── graph.py       # system prompt, build_llm() backend switch, ReAct agent
+│   └── main.py        # CLI chat loop
+└── coffee/            # sibling project: coffee-can bean/brew tracker (CLI + GUI)
+    └── src/coffee_can/
+        ├── repo.py, db.py, paths.py  # SQLite storage, imported by app/coffee_tools.py
+        ├── ocr.py, claude_ocr.py     # coffee-can's own OCR (not used by app/ -- it OCRs directly via Claude)
+        └── gui/, cli.py              # PySide6 GUI and click CLI (not used by app/)
 ```

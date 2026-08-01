@@ -48,12 +48,37 @@ def search_files(query: str, mode: Literal["name", "content"] = "name", max_resu
     return "\n".join(results) if results else "No matching files found."
 
 
+def _read_xlsx(full_path: Path) -> str:
+    from openpyxl import load_workbook
+
+    wb = load_workbook(str(full_path), read_only=True, data_only=True)
+    lines = []
+    for sheet in wb.worksheets:
+        lines.append(f"# {sheet.title}")
+        for row in sheet.iter_rows(values_only=True):
+            lines.append(",".join("" if v is None else str(v) for v in row))
+    return "\n".join(lines)
+
+
+def _read_xls(full_path: Path) -> str:
+    import xlrd
+
+    wb = xlrd.open_workbook(str(full_path))
+    lines = []
+    for sheet in wb.sheets():
+        lines.append(f"# {sheet.name}")
+        for row_idx in range(sheet.nrows):
+            lines.append(",".join(str(cell) for cell in sheet.row_values(row_idx)))
+    return "\n".join(lines)
+
+
 @tool
 def read_document(path: str) -> str:
     """Read and extract plain text from a file in the workspace.
 
-    Supports .txt, .md, .pdf and .docx. Returns up to ~12000 characters;
-    longer files are truncated with a notice.
+    Supports .txt, .md, .pdf, .docx, and spreadsheets (.xlsx, .xls -- each
+    sheet is rendered as comma-separated rows). Returns up to ~12000
+    characters; longer files are truncated with a notice.
     """
     try:
         full_path = _resolve(path)
@@ -71,8 +96,12 @@ def read_document(path: str) -> str:
     elif suffix == ".docx":
         doc = DocxDocument(str(full_path))
         text = "\n".join(p.text for p in doc.paragraphs)
+    elif suffix in {".xlsx", ".xlsm"}:
+        text = _read_xlsx(full_path)
+    elif suffix == ".xls":
+        text = _read_xls(full_path)
     else:
-        return f"Unsupported file type '{suffix}'. Supported: .txt, .md, .pdf, .docx"
+        return f"Unsupported file type '{suffix}'. Supported: .txt, .md, .pdf, .docx, .xlsx, .xls"
 
     if len(text) > MAX_CHARS:
         text = text[:MAX_CHARS] + f"\n\n[...truncated, {len(text) - MAX_CHARS} more characters...]"

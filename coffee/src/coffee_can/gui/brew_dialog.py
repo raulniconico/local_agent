@@ -1,6 +1,7 @@
 """Dialog for creating/editing a brewing session, plus its stage sub-dialog."""
 
-from PySide6.QtCore import QDate, Qt, QTime
+from PySide6.QtCore import QDate, QSize, Qt, QTime
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QDateEdit,
     QDialog,
@@ -28,7 +29,7 @@ from PySide6.QtWidgets import (
 
 from .. import repo
 from ..formatting import format_or_dash, format_seconds
-from .widgets import DripperCombo, FilterCombo, GrinderCombo, RadarChart, ToggleSwitch
+from .widgets import DripperCombo, FilterCombo, GrinderCombo, RadarChart, ToggleSwitch, share_icon_pixmap
 
 _TIME_FORMAT = "hh:mm:ss"
 
@@ -244,6 +245,25 @@ class BrewDialog(QDialog):
         eval_group = QGroupBox("Evaluation")
         eval_group.setLayout(eval_layout)
 
+        share_btn = QPushButton()
+        share_btn.setIcon(QIcon(share_icon_pixmap(20)))
+        share_btn.setIconSize(QSize(20, 20))
+        share_btn.setToolTip("Share this session as an image")
+        share_btn.setFixedSize(40, 40)
+        share_btn.setStyleSheet(
+            "QPushButton { padding: 0px; border-radius: 20px; background-color: #E5E5EA; }"
+            "QPushButton:hover { background-color: #DCDCE1; }"
+            "QPushButton:pressed { background-color: #CFCFD4; }"
+        )
+        share_btn.clicked.connect(self._share_session)
+        top_bar = QWidget()
+        top_bar.setObjectName("topBar")
+        top_bar.setStyleSheet("#topBar { background-color: white; }")
+        top = QHBoxLayout(top_bar)
+        top.setContentsMargins(20, 12, 20, 12)
+        top.addStretch()
+        top.addWidget(share_btn)
+
         save_btn = QPushButton("Save")
         save_btn.setProperty("variant", "primary")
         save_btn.clicked.connect(self._save)
@@ -275,6 +295,7 @@ class BrewDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+        layout.addWidget(top_bar)
         layout.addWidget(scroll, 1)
         layout.addWidget(bottom_bar)
 
@@ -355,7 +376,7 @@ class BrewDialog(QDialog):
         repo.delete_stage(self.conn, self._stage_ids[row])
         self._refresh_stages()
 
-    def _save(self):
+    def _persist(self):
         brew_date = self.date_edit.date().toString(_ISO_FORMAT)
         repo.update_session_field(self.conn, self.session_id, "brew_date", brew_date)
         for field, _ in SESSION_TEXT_FIELDS:
@@ -371,7 +392,28 @@ class BrewDialog(QDialog):
             repo.update_session_field(self.conn, self.session_id, field, self.flavor_sliders[field].value())
 
         self._load()
+
+    def _save(self):
+        self._persist()
         QMessageBox.information(self, "Saved", "Brewing session saved.")
+
+    def _share_session(self):
+        from .share_card import render_session_share_card, save_share_image
+
+        # Share the on-screen state, not whatever was last saved -- score,
+        # note, and flavor sliders in particular are easy to fill in and
+        # then reach for Share without an explicit Save first.
+        self._persist()
+
+        try:
+            pixmap = render_session_share_card(self.conn, self.session_id)
+        except Exception as exc:  # noqa: BLE001 -- rendering touches fonts, images, DB rows
+            QMessageBox.warning(self, "Couldn't generate image", f"Something went wrong: {exc}")
+            return
+
+        bean_name = self.bean_row["name"] or "coffee"
+        brew_date = self.date_edit.date().toString(_ISO_FORMAT)
+        save_share_image(self, pixmap, f"{bean_name}-{brew_date}")
 
     def _is_empty(self) -> bool:
         row = repo.get_session(self.conn, self.session_id)

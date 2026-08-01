@@ -72,13 +72,16 @@ class MainWindow(QMainWindow):
         activity_splitter.addWidget(self._build_profile_card())
         activity_splitter.addWidget(self._build_calendar_card())
         activity_splitter.addWidget(self._build_flavor_profile_card())
-        activity_splitter.setStretchFactor(0, 1)
-        activity_splitter.setStretchFactor(1, 1)
+        # Flavor Profile gets less width than Profile/Brewing Activity -- its
+        # radar chart doesn't need as much horizontal room as the other two
+        # cards' text content.
+        activity_splitter.setStretchFactor(0, 2)
+        activity_splitter.setStretchFactor(1, 2)
         activity_splitter.setStretchFactor(2, 1)
         layout.addWidget(activity_splitter)
         # setSizes() before the window is shown has no real width to split --
         # defer it a tick so it acts on the splitter's actual laid-out size.
-        QTimer.singleShot(0, lambda: activity_splitter.setSizes([1, 1, 1]))
+        QTimer.singleShot(0, lambda: activity_splitter.setSizes([2, 2, 1]))
 
         self.setCentralWidget(central)
 
