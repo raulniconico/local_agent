@@ -72,22 +72,33 @@ class MainWindow(QMainWindow):
         activity_splitter.addWidget(self._build_profile_card())
         activity_splitter.addWidget(self._build_calendar_card())
         activity_splitter.addWidget(self._build_flavor_profile_card())
-        # Flavor Profile gets less width than Profile/Brewing Activity -- its
-        # radar chart doesn't need as much horizontal room as the other two
-        # cards' text content.
-        activity_splitter.setStretchFactor(0, 2)
-        activity_splitter.setStretchFactor(1, 2)
-        activity_splitter.setStretchFactor(2, 1)
+        for index in range(activity_splitter.count()):
+            activity_splitter.setStretchFactor(index, 1)
         layout.addWidget(activity_splitter)
+        self.activity_splitter = activity_splitter
         # setSizes() before the window is shown has no real width to split --
         # defer it a tick so it acts on the splitter's actual laid-out size.
-        QTimer.singleShot(0, lambda: activity_splitter.setSizes([2, 2, 1]))
+        QTimer.singleShot(0, self._even_activity_columns)
 
         self.setCentralWidget(central)
 
         self._refresh_beans()
         self._refresh_activity()
         self._refresh_profile()
+
+    def _even_activity_columns(self):
+        """Give Profile / Brewing Activity / Flavor Profile one third each.
+
+        Equal stretch factors alone don't get there: setSizes() clamps every
+        pane up to its minimum width first and only then hands out what's
+        left, and Flavor Profile has by far the largest minimum (its radar
+        chart's 320px sizeHint), so it soaked up most of the leftover and
+        ended up roughly four times the width of Profile. Passing real pixel
+        thirds sizes the panes directly instead."""
+        splitter = self.activity_splitter
+        panes = splitter.count()
+        total = splitter.width() - splitter.handleWidth() * (panes - 1)
+        splitter.setSizes([total // panes] * panes)
 
     # --- header ---------------------------------------------------------
 

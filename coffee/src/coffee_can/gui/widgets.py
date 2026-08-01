@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import drippers, filters, grinders, processes
+from .theme import style_calendar_popup
 
 _ISO_FORMAT = "yyyy-MM-dd"
 
@@ -154,6 +155,7 @@ class OptionalDateEdit(QWidget):
 
         self.date_edit = QDateEdit()
         self.date_edit.setCalendarPopup(True)
+        style_calendar_popup(self.date_edit)
         self.date_edit.setDisplayFormat(_ISO_FORMAT)
         self.date_edit.setMaximumDate(QDate.currentDate())
         self.date_edit.setDate(QDate.currentDate())
@@ -173,7 +175,11 @@ class OptionalDateEdit(QWidget):
         self._update_style()
 
     def _update_style(self) -> None:
-        self.date_edit.setStyleSheet("" if self._is_set else "color: #8E8E93;")
+        # Scoped to QDateEdit rather than a bare `color:` -- a widget's
+        # stylesheet applies to its children too, and the calendar popup is
+        # one of them, so the unscoped version greyed out the popup's month
+        # and year labels against their green navigation bar.
+        self.date_edit.setStyleSheet("" if self._is_set else "QDateEdit { color: #8E8E93; }")
 
     def text(self) -> str:
         return self.date_edit.date().toString(_ISO_FORMAT) if self._is_set else ""

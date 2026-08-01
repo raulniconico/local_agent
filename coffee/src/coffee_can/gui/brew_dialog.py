@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 
 from .. import repo
 from ..formatting import format_or_dash, format_seconds
+from .theme import style_calendar_popup
 from .widgets import DripperCombo, FilterCombo, GrinderCombo, RadarChart, ToggleSwitch, share_icon_pixmap
 
 _TIME_FORMAT = "hh:mm:ss"
@@ -143,6 +144,7 @@ class BrewDialog(QDialog):
 
         self.date_edit = QDateEdit()
         self.date_edit.setCalendarPopup(True)
+        style_calendar_popup(self.date_edit)
         self.date_edit.setDisplayFormat(_ISO_FORMAT)
         self.date_edit.setMaximumDate(QDate.currentDate())
         self.date_edit.setDate(QDate.currentDate())
@@ -266,7 +268,7 @@ class BrewDialog(QDialog):
 
         save_btn = QPushButton("Save")
         save_btn.setProperty("variant", "primary")
-        save_btn.clicked.connect(self._save)
+        save_btn.clicked.connect(self._persist)
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(self.close)
         bottom_bar = QWidget()
@@ -392,10 +394,6 @@ class BrewDialog(QDialog):
             repo.update_session_field(self.conn, self.session_id, field, self.flavor_sliders[field].value())
 
         self._load()
-
-    def _save(self):
-        self._persist()
-        QMessageBox.information(self, "Saved", "Brewing session saved.")
 
     def _share_session(self):
         from .share_card import render_session_share_card, save_share_image

@@ -553,7 +553,6 @@ class BeanDialog(QDialog):
             repo.update_bean_field(self.conn, self.bean_id, field, value)
 
         self._load(self.bean_id)
-        QMessageBox.information(self, "Saved", "Profile saved.")
 
     def _is_empty(self) -> bool:
         row = repo.get_bean(self.conn, self.bean_id)

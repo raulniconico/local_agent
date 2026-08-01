@@ -5,6 +5,13 @@ primary/destructive variants (set via the `variant` dynamic property), and
 the iOS systemGreen accent throughout.
 """
 
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QTextCharFormat
+
+#: The logo green. Inlined throughout STYLESHEET (QSS has no variables); named
+#: here for the bits of theming that have to happen in Python instead.
+ACCENT = "#34C759"
+
 STYLESHEET = """
 QMainWindow, QDialog, QMessageBox {
     background-color: #F2F2F7;
@@ -58,10 +65,32 @@ QDateEdit::down-arrow, QComboBox::down-arrow {
     height: 0;
     margin-right: 8px;
 }
+QCalendarWidget QWidget#qt_calendar_navigationbar {
+    background-color: #34C759;
+    border-top-left-radius: 9px;
+    border-top-right-radius: 9px;
+}
 QCalendarWidget QToolButton {
-    color: #1C1C1E;
+    color: #FFFFFF;
     background-color: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 10px;
     font-weight: 600;
+}
+QCalendarWidget QToolButton:hover, QCalendarWidget QToolButton:pressed {
+    background-color: #30B953;
+}
+QCalendarWidget QToolButton::menu-indicator {
+    image: none;
+}
+QCalendarWidget QSpinBox {
+    background-color: #FFFFFF;
+    border: none;
+    border-radius: 6px;
+    color: #1C1C1E;
+    selection-background-color: #BEEAC5;
+    selection-color: #1C1C1E;
 }
 
 QSlider::groove:horizontal {
@@ -183,3 +212,24 @@ QMessageBox QPushButton {
     min-width: 76px;
 }
 """
+
+
+def style_calendar_popup(date_edit) -> None:
+    """Green the weekend columns of a QDateEdit's calendar popup.
+
+    Everything else about the popup is covered by STYLESHEET, but Qt colors
+    Saturday/Sunday -- both the weekday header and every date in those two
+    columns -- with a hard-coded red QTextCharFormat that no QSS rule can
+    reach. Left alone it's the loudest color in the popup, which makes the
+    date picker look like it's flagging an error.
+
+    Call this on every QDateEdit with setCalendarPopup(True). The popup's
+    QCalendarWidget is created lazily, so this has to run after
+    setCalendarPopup() -- calling it before builds the widget too early and
+    the format is discarded.
+    """
+    weekend_format = QTextCharFormat()
+    weekend_format.setForeground(QColor(ACCENT))
+    calendar = date_edit.calendarWidget()
+    for day in (Qt.DayOfWeek.Saturday, Qt.DayOfWeek.Sunday):
+        calendar.setWeekdayTextFormat(day, weekend_format)
