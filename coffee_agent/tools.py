@@ -5,7 +5,7 @@ from docx import Document as DocxDocument
 from langchain_core.tools import tool
 from pypdf import PdfReader
 
-from .config import WORKSPACE_ROOT
+from config import WORKSPACE_ROOT
 
 MAX_CHARS = 12000
 TEXT_EXTENSIONS = {".txt", ".md", ".py", ".csv", ".json", ".rst"}

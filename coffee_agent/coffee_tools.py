@@ -8,7 +8,7 @@ import the package directly rather than pip-installing the whole distribution.
 
 Field extraction from a file or image is left to the model: these tools hand
 it raw text (via read_document / extract_text_from_image) and structured
-create/list primitives, the same division of labor as the rest of app/tools.py.
+create/list primitives, the same division of labor as the rest of tools.py.
 
 Image OCR goes through the Claude API directly (not coffee_can.ocr's local
 Tesseract), for the same reason coffee_can's own claude_ocr.py prefers it over
@@ -26,8 +26,8 @@ from typing import Optional
 
 from langchain_core.tools import tool
 
-from .config import ANTHROPIC_OCR_MODEL
-from .tools import _resolve
+from config import ANTHROPIC_OCR_MODEL
+from tools import _resolve
 
 _COFFEE_SRC = Path(__file__).resolve().parent.parent / "coffee" / "src"
 if str(_COFFEE_SRC) not in sys.path:

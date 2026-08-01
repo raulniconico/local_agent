@@ -3,15 +3,19 @@ import os
 from langchain_core.language_models import BaseChatModel
 from langgraph.prebuilt import create_react_agent
 
-from .config import (
+from config import (
     ANTHROPIC_MAX_TOKENS,
     ANTHROPIC_MODEL,
     LLM_PROVIDER,
     MODEL_ID,
+    QWEN_API_KEY,
+    QWEN_BASE_URL,
+    QWEN_MAX_TOKENS,
+    QWEN_MODEL,
     VLLM_BASE_URL,
 )
-from .coffee_tools import COFFEE_TOOLS
-from .tools import TOOLS
+from coffee_tools import COFFEE_TOOLS
+from tools import TOOLS
 
 SYSTEM_PROMPT = (
     "You are a local file and paperwork assistant. You can search the user's "
@@ -40,13 +44,28 @@ SYSTEM_PROMPT = (
 
 def build_llm() -> BaseChatModel:
     if LLM_PROVIDER == "anthropic":
+        # Qwen (an OpenAI-compatible API) takes priority over Claude whenever
+        # both QWEN_API_KEY and QWEN_MODEL are set -- this is not a third
+        # LLM_PROVIDER value, just a swap-in replacement for the Claude call
+        # within the "anthropic" branch. Unset either one to fall back to Claude.
+        if QWEN_API_KEY and QWEN_MODEL:
+            from langchain_openai import ChatOpenAI
+
+            return ChatOpenAI(
+                model=QWEN_MODEL,
+                base_url=QWEN_BASE_URL,
+                api_key=QWEN_API_KEY,
+                max_tokens=QWEN_MAX_TOKENS,
+            )
+
         # Imported lazily so the local-only setup doesn't need langchain-anthropic.
         from langchain_anthropic import ChatAnthropic
 
         if not os.environ.get("ANTHROPIC_API_KEY"):
             raise ValueError(
-                "LLM_PROVIDER=anthropic but ANTHROPIC_API_KEY is empty. "
-                "Set it in .env or export it in your shell."
+                "LLM_PROVIDER=anthropic but neither QWEN_API_KEY/QWEN_MODEL nor "
+                "ANTHROPIC_API_KEY is set. Set one pair in .env or export it in "
+                "your shell."
             )
 
         # No temperature/top_p here: Claude Opus 5 rejects sampling parameters.
