@@ -99,6 +99,43 @@ def default_avatar_pixmap(size: int, background: str = "#D7F5DE", foreground: st
     return result
 
 
+def share_icon_pixmap(size: int, color: str = "#1C1C1E") -> QPixmap:
+    """A share glyph (arrow out of an open tray, the common iOS/Android
+    "share" shape) drawn in a solid color we control exactly -- for an
+    icon-only button, since a text/emoji glyph's color isn't reliably
+    controllable (see default_avatar_pixmap's docstring)."""
+    result = QPixmap(size, size)
+    result.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(result)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+    pen = QPen(QColor(color))
+    pen.setWidthF(max(1.4, size * 0.09))
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+    painter.setPen(pen)
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+
+    cx = size / 2
+    shaft_top = size * 0.08
+    shaft_bottom = size * 0.56
+    painter.drawLine(QPointF(cx, shaft_bottom), QPointF(cx, shaft_top))
+    head = size * 0.2
+    painter.drawLine(QPointF(cx, shaft_top), QPointF(cx - head, shaft_top + head))
+    painter.drawLine(QPointF(cx, shaft_top), QPointF(cx + head, shaft_top + head))
+
+    tray_top = size * 0.68
+    tray_left = size * 0.14
+    tray_right = size * 0.86
+    tray_bottom = size * 0.9
+    painter.drawLine(QPointF(tray_left, tray_top), QPointF(tray_left, tray_bottom))
+    painter.drawLine(QPointF(tray_left, tray_bottom), QPointF(tray_right, tray_bottom))
+    painter.drawLine(QPointF(tray_right, tray_bottom), QPointF(tray_right, tray_top))
+
+    painter.end()
+    return result
+
+
 class OptionalDateEdit(QWidget):
     """A calendar-popup date picker plus a Clear button, for optional date
     fields (e.g. roast date) where "not set" must be a selectable state.
@@ -575,8 +612,8 @@ class ContributionCalendar(QWidget):
     container -- e.g. a QSplitter pane -- gives it, instead of staying
     pinned to one fixed pixel size regardless of the window."""
 
-    CELL = 12
-    GAP = 3
+    CELL = 9
+    GAP = 2
     WEEKS = 13
     LEFT_PAD = 26
     TOP_PAD = 18
@@ -747,13 +784,23 @@ class RadarChart(QWidget):
     all-zero green shape."""
 
     MAX_VALUE = 5
-    _LABEL_MARGIN = 58
+    # Room reserved for the axis labels, kept separate per direction: a label
+    # on a left/right axis ("Green/Vegetative") needs half its 88-wide box
+    # plus the 16 standoff, while a top/bottom one is a single line of text
+    # and needs far less. Using one symmetric margin for both would spend the
+    # horizontal allowance on the vertical axis too and shrink the polygon
+    # for no reason. Under-shooting these clips labels at the widget edge --
+    # grab() crops to the widget's own bounds -- at any size, not just when
+    # rendered large for the share card.
+    _LABEL_MARGIN_X = 64
+    _LABEL_MARGIN_Y = 26
 
     def __init__(self, axes, parent=None):
         super().__init__(parent)
         self._axes = list(axes)
         self._values = [0] * len(self._axes)
         self._has_data = True
+        self._label_scale = 1.0
         self.setMinimumSize(self.sizeHint())
 
     def set_values(self, values, has_data: bool = True) -> None:
@@ -761,8 +808,20 @@ class RadarChart(QWidget):
         self._has_data = has_data
         self.update()
 
+    def set_label_scale(self, scale) -> None:
+        """Multiplier for the label font and the margin/standoff reserved for
+        labels (1.0 = the in-app size). Deliberately independent of the
+        widget's size: if labels grew with the widget, a bigger chart would
+        spend the extra space on label margin instead of on the polygon.
+        Callers rendering large (the share card) scale this up explicitly."""
+        self._label_scale = scale
+        self.update()
+
     def sizeHint(self) -> QSize:
-        return QSize(360, 360)
+        # Wider than tall on purpose: the left/right labels need the extra
+        # width, so a square hint would just cap the polygon at the
+        # horizontal constraint while wasting vertical space.
+        return QSize(320, 250)
 
     def _point_for(self, cx, cy, radius, index, value) -> QPointF:
         n = len(self._axes)
@@ -778,7 +837,14 @@ class RadarChart(QWidget):
         if n < 3:
             return
         cx, cy = self.width() / 2, self.height() / 2
-        radius = min(self.width(), self.height()) / 2 - self._LABEL_MARGIN
+        # Every label-related pixel value below (margins, standoff, box, font)
+        # scales off this one factor. It is set by set_label_scale(), NOT
+        # derived from the widget size -- see that method for why.
+        scale = self._label_scale
+        radius = min(
+            self.width() / 2 - self._LABEL_MARGIN_X * scale,
+            self.height() / 2 - self._LABEL_MARGIN_Y * scale,
+        )
 
         grid_color = QColor("#E5E5EA" if self._has_data else "#EFEFEF")
         spoke_color = QColor("#D1D1D6" if self._has_data else "#E3E3E3")
@@ -795,13 +861,15 @@ class RadarChart(QWidget):
         for i in range(n):
             painter.drawLine(QPointF(cx, cy), self._point_for(cx, cy, radius, i, self.MAX_VALUE))
 
+        # 8pt at scale 1.0 -- the size these labels have always been in-app.
         font = painter.font()
-        font.setPointSize(8)
+        font.setPointSize(max(8, round(8 * scale)))
         painter.setFont(font)
         painter.setPen(label_color)
+        label_box_w, label_box_h = 88 * scale, 24 * scale
         for i, label in enumerate(self._axes):
-            point = self._point_for(cx, cy, radius + 16, i, self.MAX_VALUE)
-            rect = QRectF(point.x() - 44, point.y() - 12, 88, 24)
+            point = self._point_for(cx, cy, radius + 16 * scale, i, self.MAX_VALUE)
+            rect = QRectF(point.x() - label_box_w / 2, point.y() - label_box_h / 2, label_box_w, label_box_h)
             painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, label)
 
         if not self._has_data:

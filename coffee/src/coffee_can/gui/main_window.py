@@ -3,7 +3,7 @@ coffee profiles list, and a GitHub-style brewing activity calendar."""
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -52,7 +52,7 @@ class _NumericSortItem(QTableWidgetItem):
 
 
 class MainWindow(QMainWindow):
-    _AVATAR_SIZE = 84
+    _AVATAR_SIZE = 60
 
     def __init__(self, conn):
         super().__init__()
@@ -73,10 +73,12 @@ class MainWindow(QMainWindow):
         activity_splitter.addWidget(self._build_calendar_card())
         activity_splitter.addWidget(self._build_flavor_profile_card())
         activity_splitter.setStretchFactor(0, 1)
-        activity_splitter.setStretchFactor(1, 2)
+        activity_splitter.setStretchFactor(1, 1)
         activity_splitter.setStretchFactor(2, 1)
-        activity_splitter.setSizes([260, 700, 350])
         layout.addWidget(activity_splitter)
+        # setSizes() before the window is shown has no real width to split --
+        # defer it a tick so it acts on the splitter's actual laid-out size.
+        QTimer.singleShot(0, lambda: activity_splitter.setSizes([1, 1, 1]))
 
         self.setCentralWidget(central)
 
@@ -141,9 +143,7 @@ class MainWindow(QMainWindow):
         delete_btn = QPushButton("Delete")
         delete_btn.setProperty("variant", "destructive")
         delete_btn.clicked.connect(self._delete_bean)
-        refresh_btn = QPushButton("Refresh")
-        refresh_btn.clicked.connect(self._refresh_beans)
-        for button in (new_btn, edit_btn, delete_btn, refresh_btn):
+        for button in (new_btn, edit_btn, delete_btn):
             buttons.addWidget(button)
         layout.addLayout(buttons)
         return group
