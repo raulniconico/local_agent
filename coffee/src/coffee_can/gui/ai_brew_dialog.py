@@ -6,8 +6,8 @@ as a real session with real brew_stages rows, then opens the normal
 BrewDialog for further editing. See deepseek_brew.py for the actual API call
 and the JSON shape it returns."""
 
+from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
-    QApplication,
     QDialog,
     QHBoxLayout,
     QLabel,
@@ -19,7 +19,32 @@ from PySide6.QtWidgets import (
 
 from .. import deepseek_brew
 from ..formatting import format_seconds
-from .widgets import DripperCombo
+from . import background
+from .widgets import DripperCombo, WalkingCanLoader
+
+
+class _SuggestionWorker(QThread):
+    """Runs one deepseek_brew.suggest_brew() call off the GUI thread -- a
+    blocking HTTPS round-trip that regularly takes tens of seconds. See
+    background.py for why the thread isn't owned by the dialog."""
+
+    succeeded = Signal(dict)  # not `finished`: QThread already defines that
+    failed = Signal(str, str)  # (message box title, message)
+
+    def __init__(self, bean_info: dict, dripper: str):
+        super().__init__()
+        self._bean_info = bean_info
+        self._dripper = dripper
+
+    def run(self):
+        try:
+            result = deepseek_brew.suggest_brew(self._bean_info, self._dripper)
+        except deepseek_brew.DeepSeekUnavailableError as exc:
+            self.failed.emit("AI suggestion unavailable", str(exc))
+        except Exception as exc:  # noqa: BLE001 -- network/SDK errors vary
+            self.failed.emit("Request failed", f"Couldn't get a suggestion: {exc}")
+        else:
+            self.succeeded.emit(result)
 
 
 class AiBrewSuggestionDialog(QDialog):
@@ -29,6 +54,7 @@ class AiBrewSuggestionDialog(QDialog):
         self.resize(480, 460)
         self._bean_row = bean_row
         self._result = None  # deepseek_brew.suggest_brew()'s parsed dict, once fetched
+        self._worker = None
 
         self.dripper = None
         self.suggestion = None
@@ -42,7 +68,11 @@ class AiBrewSuggestionDialog(QDialog):
         self.ask_btn.setProperty("variant", "primary")
         self.ask_btn.clicked.connect(self._ask)
 
+        self.loader = WalkingCanLoader()
+        self.loader.hide()
+
         self.status_label = QLabel("")
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setStyleSheet("color: #8E8E93; font-size: 11px;")
 
         self.suggestion_edit = QPlainTextEdit()
@@ -70,6 +100,7 @@ class AiBrewSuggestionDialog(QDialog):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(14)
         layout.addLayout(top_row)
+        layout.addWidget(self.loader)
         layout.addWidget(self.status_label)
         layout.addWidget(self.suggestion_edit, 1)
         layout.addLayout(buttons)
@@ -115,26 +146,39 @@ class AiBrewSuggestionDialog(QDialog):
         self._result = None
         self.suggestion_edit.setPlainText("")
         self.status_label.setText("Asking DeepSeek...")
-        QApplication.processEvents()  # paint the status text before the blocking request
+        self.loader.show()
 
-        try:
-            result = deepseek_brew.suggest_brew(self._bean_info(), dripper)
-        except deepseek_brew.DeepSeekUnavailableError as exc:
-            self.status_label.setText("")
-            self.ask_btn.setEnabled(True)
-            QMessageBox.warning(self, "AI suggestion unavailable", str(exc))
-            return
-        except Exception as exc:  # noqa: BLE001 -- network/SDK errors vary
-            self.status_label.setText("")
-            self.ask_btn.setEnabled(True)
-            QMessageBox.warning(self, "Request failed", f"Couldn't get a suggestion: {exc}")
-            return
+        worker = _SuggestionWorker(self._bean_info(), dripper)
+        self._worker = worker
+        worker.succeeded.connect(self._on_succeeded)
+        worker.failed.connect(self._on_failed)
+        background.start(worker)
 
+    def _finish_request(self):
+        self._worker = None
+        self.loader.hide()
         self.status_label.setText("")
         self.ask_btn.setEnabled(True)
+
+    def _on_succeeded(self, result: dict):
+        self._finish_request()
         self._result = result
         self.suggestion_edit.setPlainText(self._render(result))
         self.create_btn.setEnabled(True)
+
+    def _on_failed(self, title: str, message: str):
+        self._finish_request()
+        QMessageBox.warning(self, title, message)
+
+    def closeEvent(self, event):
+        # The request keeps running to completion in the background (there's
+        # no way to cancel an in-flight SDK call), but its signals must stop
+        # reaching a dialog that's on its way out.
+        if self._worker is not None:
+            self._worker.succeeded.disconnect(self._on_succeeded)
+            self._worker.failed.disconnect(self._on_failed)
+            self._worker = None
+        super().closeEvent(event)
 
     def _create_session(self):
         if self._result is None:

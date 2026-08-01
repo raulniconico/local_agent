@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QInputDialog,
     QLabel,
+    QPlainTextEdit,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -201,6 +202,28 @@ class OptionalDateEdit(QWidget):
         self._update_style()
 
 
+class NoteEdit(QPlainTextEdit):
+    """A short multi-line free-text box for a bean's tasting notes/remarks.
+    API-compatible with QLineEdit's text()/setText(), the same drop-in trick
+    OptionalDateEdit uses, so it slots into bean_dialog's FIELD_LABELS loop
+    alongside the plain QLineEdit fields."""
+
+    _VISIBLE_ROWS = 3
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setPlaceholderText("Tasting notes, or any other remark about this coffee")
+        # Tall enough for a few lines but not so tall it pushes the rest of
+        # the Coffee Details form off-screen; it scrolls past that.
+        self.setFixedHeight(int(self.fontMetrics().lineSpacing() * self._VISIBLE_ROWS) + 16)
+
+    def text(self) -> str:
+        return self.toPlainText()
+
+    def setText(self, value) -> None:
+        self.setPlainText(value or "")
+
+
 _OFF_COLOR = QColor("#D1D1D6")
 _ON_COLOR = QColor("#34C759")
 
@@ -279,14 +302,18 @@ class ToggleSwitch(QWidget):
 _BANNER_GREEN = QColor("#D7F5DE")  # lighter tint of the logo's #34C759
 
 
-class HeaderBanner(QWidget):
-    """The welcome-screen header: a light-green banner behind the logo/title
-    (added via a normal QVBoxLayout of child widgets -- Qt paints those over
-    whatever this paintEvent draws, so no overlay/transparency tricks needed)
-    with a little white can strolling along the bottom. It exits one edge and
-    re-enters from the other rather than bouncing back at the wall, so each
-    lap flips direction: right-to-left, gone, then left-to-right, gone, on
-    repeat. Purely decorative."""
+class WalkingCanStrip(QWidget):
+    """A light-green rounded strip with a little white can strolling along the
+    bottom. It exits one edge and re-enters from the other rather than
+    bouncing back at the wall, so each lap flips direction: right-to-left,
+    gone, then left-to-right, gone, on repeat.
+
+    The animation only runs while the widget is visible, so an instance
+    parked on a hidden page costs nothing.
+
+    Subclassed for the two places it's used: HeaderBanner (decorative, behind
+    the welcome header's logo/title) and WalkingCanLoader (a "working on it"
+    indicator while a slow request runs)."""
 
     _CAN_WIDTH = 22
     _CAN_HEIGHT = 24
@@ -300,9 +327,16 @@ class HeaderBanner(QWidget):
         self._direction = -1  # -1: walking left, 1: walking right
         self._x = None  # seeded on first tick, once we know our width
         self._tick = 0
-        timer = QTimer(self)
-        timer.timeout.connect(self._advance)
-        timer.start(self._TICK_MS)
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._advance)
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        self._timer.start(self._TICK_MS)
+
+    def hideEvent(self, event) -> None:
+        super().hideEvent(event)
+        self._timer.stop()
 
     def _advance(self) -> None:
         if self._x is None:
@@ -340,6 +374,27 @@ class HeaderBanner(QWidget):
         lean = 2 if bob else -2
         painter.drawEllipse(QPointF(self._x + 5 + lean, y + self._CAN_HEIGHT + 1), 3, 2)
         painter.drawEllipse(QPointF(self._x + self._CAN_WIDTH - 5 - lean, y + self._CAN_HEIGHT + 1), 3, 2)
+
+
+class HeaderBanner(WalkingCanStrip):
+    """The welcome-screen header. Its logo/title are added as ordinary child
+    widgets via a QVBoxLayout -- Qt paints those over whatever the strip's
+    paintEvent draws, so no overlay/transparency tricks are needed."""
+
+
+class WalkingCanLoader(WalkingCanStrip):
+    """The walking can as a busy indicator: same strip, sized down to a band
+    that fits inline in a dialog, with a caption underneath. Shown while a
+    slow request is in flight so the window reads as working rather than
+    hung -- which means whatever it's waiting on must be off the GUI thread,
+    or the can freezes along with everything else."""
+
+    _RADIUS = 12
+    _HEIGHT = 56
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(self._HEIGHT)
 
 
 def _render_pdf_first_page(path: Path, size: QSize) -> QPixmap:

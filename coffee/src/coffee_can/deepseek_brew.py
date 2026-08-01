@@ -25,6 +25,11 @@ load_dotenv(data_dir() / ".env")
 
 _BASE_URL = "https://api.deepseek.com"
 _MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash")
+# Without this the SDK will wait indefinitely on a stalled connection, and
+# the caller (a background thread behind gui/ai_brew_dialog.py's busy
+# indicator) has no way to cancel an in-flight request -- so a dead network
+# would leave the dialog spinning until the app is killed.
+_TIMEOUT_SECONDS = 90.0
 
 # DeepSeek's JSON mode (unlike Claude's schema-validated structured outputs)
 # only guarantees syntactically valid JSON, not that it matches any
@@ -116,7 +121,9 @@ def suggest_brew(bean_info: dict, dripper: str) -> dict:
     )
 
     try:
-        client = OpenAI(api_key=os.environ["DEEPSEEK_API_KEY"], base_url=_BASE_URL)
+        client = OpenAI(
+            api_key=os.environ["DEEPSEEK_API_KEY"], base_url=_BASE_URL, timeout=_TIMEOUT_SECONDS
+        )
         response = client.chat.completions.create(
             model=_MODEL,
             response_format={"type": "json_object"},

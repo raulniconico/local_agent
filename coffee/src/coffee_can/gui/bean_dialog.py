@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QSize, Qt, QThread, Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QDialog,
@@ -29,9 +29,19 @@ from PySide6.QtWidgets import (
 from .. import claude_ocr, ocr, repo
 from ..formatting import format_or_dash, format_score
 from ..paths import ALLOWED_IMAGE_SUFFIXES, MAX_IMAGES_PER_BEAN
+from . import background
 from .ai_brew_dialog import AiBrewSuggestionDialog
 from .brew_dialog import BrewDialog
-from .widgets import ImageCarousel, ImageViewerDialog, OptionalDateEdit, ProcessCombo, RadarChart, share_icon_pixmap
+from .widgets import (
+    ImageCarousel,
+    ImageViewerDialog,
+    NoteEdit,
+    OptionalDateEdit,
+    ProcessCombo,
+    RadarChart,
+    WalkingCanLoader,
+    share_icon_pixmap,
+)
 
 FIELD_LABELS = (
     ("origin", "Origin"),
@@ -41,6 +51,7 @@ FIELD_LABELS = (
     ("producer", "Producer"),
     ("process", "Process"),
     ("roast_date", "Roast date"),
+    ("note", "Note"),
 )
 
 
@@ -96,6 +107,95 @@ class _ManualFlavorDialog(QDialog):
     def _validate_and_accept(self):
         self.values = [self._sliders[field].value() for field, _ in repo.FLAVOR_AXES]
         self.accept()
+
+
+class _ScanWorker(QThread):
+    """Reads a label photo off the GUI thread: Claude's vision API when it's
+    configured, falling back to local Tesseract OCR. Both legs block -- one
+    on the network, the other on CPU -- so both belong here rather than in
+    the handler that opens the file picker."""
+
+    succeeded = Signal(dict)  # not `finished`: QThread already defines that
+    failed = Signal(str, str)  # (message box title, message)
+
+    def __init__(self, image_path: Path):
+        super().__init__()
+        self._image_path = image_path
+
+    def run(self):
+        if claude_ocr.is_configured():
+            try:
+                self.succeeded.emit(claude_ocr.guess_bean_fields(self._image_path))
+                return
+            except claude_ocr.ClaudeOcrUnavailableError:
+                pass  # fall back to local OCR below
+        try:
+            self.succeeded.emit(ocr.guess_bean_fields(self._image_path))
+        except ocr.OcrUnavailableError as exc:
+            self.failed.emit("Scan unavailable", str(exc))
+        except Exception as exc:  # noqa: BLE001 -- OCR/image decoding can fail in many ways
+            self.failed.emit("Scan failed", f"Couldn't read that image: {exc}")
+
+
+class _ScanProgressDialog(QDialog):
+    """Runs a _ScanWorker and shows the walking can until it answers. Modal
+    on purpose: the scan is about to overwrite the fields behind it.
+
+    Closing this only stops the caller waiting on the result -- neither an
+    in-flight API request nor a Tesseract run can actually be cancelled.
+    Exits accepted with `fields` set, or rejected after reporting why."""
+
+    def __init__(self, image_path: Path, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Scanning Label")
+        self.setModal(True)
+        self.resize(360, 170)
+        self.fields = None
+
+        self.loader = WalkingCanLoader()
+
+        caption = QLabel(
+            "Reading the label..."
+            if claude_ocr.is_configured()
+            else "Reading the label with local OCR..."
+        )
+        caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        caption.setStyleSheet("color: #8E8E93; font-size: 11px;")
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        buttons = QHBoxLayout()
+        buttons.addStretch()
+        buttons.addWidget(cancel_btn)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(14)
+        layout.addStretch()
+        layout.addWidget(self.loader)
+        layout.addWidget(caption)
+        layout.addStretch()
+        layout.addLayout(buttons)
+
+        self._worker = _ScanWorker(image_path)
+        self._worker.succeeded.connect(self._on_succeeded)
+        self._worker.failed.connect(self._on_failed)
+        background.start(self._worker)
+
+    def _on_succeeded(self, fields: dict):
+        self.fields = fields
+        self.accept()
+
+    def _on_failed(self, title: str, message: str):
+        QMessageBox.warning(self, title, message)
+        self.reject()
+
+    def closeEvent(self, event):
+        if self._worker is not None:
+            self._worker.succeeded.disconnect(self._on_succeeded)
+            self._worker.failed.disconnect(self._on_failed)
+            self._worker = None
+        super().closeEvent(event)
 
 
 class _ScanReviewDialog(QDialog):
@@ -166,7 +266,7 @@ class BeanDialog(QDialog):
         self.resize(620, 700)
 
         self.name_edit = QLineEdit()
-        _field_widget = {"roast_date": OptionalDateEdit, "process": ProcessCombo}
+        _field_widget = {"roast_date": OptionalDateEdit, "process": ProcessCombo, "note": NoteEdit}
         self.field_edits = {
             field: _field_widget.get(field, QLineEdit)() for field, _ in FIELD_LABELS
         }
@@ -355,24 +455,11 @@ class BeanDialog(QDialog):
         self._run_scan(Path(path))
 
     def _run_scan(self, image_path: Path):
-        fields = None
-        if claude_ocr.is_configured():
-            try:
-                fields = claude_ocr.guess_bean_fields(image_path)
-            except claude_ocr.ClaudeOcrUnavailableError:
-                fields = None  # fall back to local OCR below
+        progress = _ScanProgressDialog(image_path, parent=self)
+        if not progress.exec():
+            return  # cancelled, or the scan failed and already said so
 
-        if fields is None:
-            try:
-                fields = ocr.guess_bean_fields(image_path)
-            except ocr.OcrUnavailableError as exc:
-                QMessageBox.warning(self, "Scan unavailable", str(exc))
-                return
-            except Exception as exc:  # noqa: BLE001 -- OCR/image decoding can fail in many ways
-                QMessageBox.warning(self, "Scan failed", f"Couldn't read that image: {exc}")
-                return
-
-        dialog = _ScanReviewDialog(fields, parent=self)
+        dialog = _ScanReviewDialog(progress.fields, parent=self)
         if not dialog.exec():
             return
         for field, value in dialog.values.items():
@@ -382,6 +469,25 @@ class BeanDialog(QDialog):
                 self.name_edit.setText(value)
             else:
                 self.field_edits[field].setText(value)
+        self._attach_scanned_page(image_path)
+
+    def _attach_scanned_page(self, image_path: Path):
+        """Keep the photo we just scanned as one of the profile's pages.
+
+        Scanning only ever filled in the text fields and then threw the image
+        away -- and for the camera path it really was thrown away, since
+        _scan_from_camera deletes the capture as soon as _run_scan returns.
+        add_bean_image() copies the file into the profile's own images dir, so
+        it survives that cleanup.
+        """
+        try:
+            repo.add_bean_image(self.conn, self.bean_id, image_path)
+        except ValueError as exc:
+            # Only raised when the profile is already at MAX_IMAGES_PER_BEAN.
+            # The scan itself succeeded, so this is a note, not a failure.
+            QMessageBox.information(self, "Page not added", f"Scanned details applied, but: {exc}")
+            return
+        self._refresh_images()
 
     def _refresh_images(self):
         images = repo.list_bean_images(self.conn, self.bean_id)

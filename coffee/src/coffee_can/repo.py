@@ -35,6 +35,7 @@ BEAN_FIELDS = (
     "producer",
     "process",
     "roast_date",
+    "note",
     "flavor_source",
 ) + FLAVOR_FIELDS
 

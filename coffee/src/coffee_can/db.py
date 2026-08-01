@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS beans (
     producer    TEXT,
     process     TEXT,
     roast_date  TEXT,
+    note        TEXT,
     status      TEXT NOT NULL DEFAULT 'draft',
     flavor_source TEXT NOT NULL DEFAULT 'auto',
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
@@ -70,6 +71,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
     bean_columns = {row["name"] for row in conn.execute("PRAGMA table_info(beans)")}
     if "flavor_source" not in bean_columns:
         conn.execute("ALTER TABLE beans ADD COLUMN flavor_source TEXT NOT NULL DEFAULT 'auto'")
+        conn.commit()
+    if "note" not in bean_columns:
+        conn.execute("ALTER TABLE beans ADD COLUMN note TEXT")
         conn.commit()
     for field in FLAVOR_FIELDS:
         if field not in bean_columns:

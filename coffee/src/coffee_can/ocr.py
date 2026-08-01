@@ -29,6 +29,10 @@ _FIELD_KEYWORDS = {
     "altitude": ("altitude", "elevation"),
     "producer": ("producer", "washing station", "grown by", "grower", "farm", "estate"),
     "roaster": ("roasted by", "roastery", "roaster"),
+    # Longest phrases first: _find_labeled_value alternates these in order,
+    # so a bare "notes" listed first would shadow "tasting notes" and return
+    # the value with "tasting" still glued to the front.
+    "note": ("tasting notes", "flavour notes", "flavor notes", "cupping notes", "notes"),
 }
 _ROAST_DATE_KEYWORDS = ("roast date", "roasted on", "roast")
 
@@ -157,7 +161,7 @@ def guess_bean_fields(image_path: Path) -> dict:
 
     fields = {field: "" for field in BEAN_FIELDS if "flavor_" not in field}
 
-    for field in ("origin", "variety", "producer"):
+    for field in ("origin", "variety", "producer", "note"):
         fields[field] = _find_labeled_value(lines, _FIELD_KEYWORDS[field])
 
     fields["roaster"] = _guess_roaster(lines)

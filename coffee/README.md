@@ -84,11 +84,14 @@ never modified. *Scan Label...* offers *Take Photo...* (live camera capture)
 or *Choose Photo File...*, then reads the photo (Claude's vision API if
 you've set it up -- see below -- otherwise local Tesseract OCR via `ocr.py`)
 and shows the guessed name/origin/variety/altitude/roaster/producer/process/
-roast date in an editable review dialog -- nothing is written until you
+roast date/note in an editable review dialog -- nothing is written until you
 click *Apply*, and blank fields there are left untouched. It's a best-effort
 reading of a photographed label, not a scanner, so always check its guesses.
+Applying a scan also keeps the photo itself as one of the profile's pages.
 *Process* is a dropdown seeded from `assets/processes.json` (Washed,
-Natural, Honey, Anaerobic, and dozens of other named processes).
+Natural, Honey, Anaerobic, and dozens of other named processes). *Note* is a
+free-text box for tasting notes or any other remark that has no field of its
+own; scanning fills it from the label's printed tasting notes.
 
 Below the profile form, a **Flavor Profile** block shows a radar chart for
 that specific bean: *Generate from Sessions* averages the nine flavor axes
@@ -129,8 +132,8 @@ Prefer scripting or a terminal? Everything above is also available as
 
 ```bash
 coffeecan bean add                 # guided prompts: name, origin, variety, altitude,
-                                    # roaster, producer, process, roast date, up to
-                                    # 5 photos/PDFs of the bag or spec sheet
+                                    # roaster, producer, process, roast date, note,
+                                    # up to 5 photos/PDFs of the bag or spec sheet
 coffeecan bean edit <id-or-name>   # resume a draft or update any field later
 coffeecan bean list                # table of all profiles
 coffeecan bean show <id-or-name>   # full detail + its brewing sessions

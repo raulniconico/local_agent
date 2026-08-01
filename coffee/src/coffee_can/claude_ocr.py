@@ -32,6 +32,11 @@ load_dotenv(data_dir() / ".env")
 
 _MODEL = os.environ.get("ANTHROPIC_OCR_MODEL", "claude-opus-5")
 _MAX_TOKENS = 1024
+# Without this the SDK waits indefinitely on a stalled connection, and the
+# caller (a background thread behind gui/bean_dialog.py's busy indicator) has
+# no way to cancel an in-flight request -- a dead network would leave the
+# scan dialog spinning until the app is killed.
+_TIMEOUT_SECONDS = 90.0
 
 FIELDS = tuple(field for field in BEAN_FIELDS if "flavor_" not in field)
 
@@ -77,11 +82,15 @@ def guess_bean_fields(image_path: Path) -> dict:
         "(e.g. Washed, Natural, Honey, Anaerobic Natural) matching the label's "
         "own wording rather than an invented one. \"roast_date\" should be ISO "
         "format (YYYY-MM-DD) if a full date is printed, otherwise whatever "
-        "partial date is shown."
+        "partial date is shown. \"note\" is the label's tasting/flavour notes "
+        "(e.g. \"blueberry, dark chocolate, jasmine\") plus any other remark "
+        "worth keeping that has no field of its own, such as a roast level or "
+        "a brew recommendation -- transcribe what's printed, don't invent "
+        "tasting notes that aren't on the label."
     )
 
     try:
-        client = Anthropic()
+        client = Anthropic(timeout=_TIMEOUT_SECONDS)
         response = client.messages.create(
             model=_MODEL,
             max_tokens=_MAX_TOKENS,

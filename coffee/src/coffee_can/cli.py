@@ -102,6 +102,7 @@ BEAN_TEXT_FIELDS = (
     ("producer", "Producer"),
     ("process", "Process (e.g. washed, natural/dry, honey)"),
     ("roast_date", "Roast date (YYYY-MM-DD)"),
+    ("note", "Note (tasting notes or other remark)"),
 )
 
 BEAN_SHOW_LABELS = (
@@ -112,6 +113,7 @@ BEAN_SHOW_LABELS = (
     ("producer", "Producer"),
     ("process", "Process"),
     ("roast_date", "Roast date"),
+    ("note", "Note"),
 )
 
 
