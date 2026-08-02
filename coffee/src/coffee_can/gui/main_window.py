@@ -53,6 +53,7 @@ class _NumericSortItem(QTableWidgetItem):
 
 class MainWindow(QMainWindow):
     _AVATAR_SIZE = 60
+    _LOGO_SIZE = 104
 
     def __init__(self, conn):
         super().__init__()
@@ -104,22 +105,29 @@ class MainWindow(QMainWindow):
 
     def _build_header(self):
         header = HeaderBanner()
-        header.setMinimumHeight(150)
+        header.setMinimumHeight(190)
         layout = QVBoxLayout(header)
-        layout.setContentsMargins(0, 18, 0, 46)  # leave room at the bottom for the walking can
+        # Both margins are just the content's inset from the banner edge --
+        # no lane is reserved for the walking can. It tracks the strip's own
+        # bottom edge and tops its lap out at the top edge, so it passes
+        # behind the tagline on the way past and behind the logo at the
+        # apex; child widgets paint over the strip, which makes that read as
+        # depth rather than as clipping.
+        layout.setContentsMargins(0, 22, 0, 14)
         layout.setSpacing(4)
 
         icon_label = QLabel()
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon = icon_path()
         if icon:
-            icon_label.setPixmap(QIcon(icon).pixmap(64, 64))
+            icon_label.setPixmap(QIcon(icon).pixmap(self._LOGO_SIZE, self._LOGO_SIZE))
+            header.set_logo(icon_label, self._LOGO_SIZE)
 
         title = QLabel("Coffee Can")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet("font-size: 22px; font-weight: 700; color: #1C1C1E;")
 
-        subtitle = QLabel("Track your hand-brew coffee, one cup at a time")
+        subtitle = QLabel("Ready to be a brew chem(can)ist")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle.setStyleSheet("color: #8E8E93; font-size: 12px;")
 

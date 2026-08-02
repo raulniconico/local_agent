@@ -4,7 +4,7 @@ import os
 import sqlite3
 from pathlib import Path
 
-from . import paths
+from . import paths, repo
 from .paths import db_path
 from .repo import FLAVOR_FIELDS
 
@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS brew_sessions (
     humidity     TEXT,
     dose_g       REAL,
     score        REAL,
+    extraction   REAL,
     note         TEXT,
     status       TEXT NOT NULL DEFAULT 'draft',
     created_at   TEXT NOT NULL DEFAULT (datetime('now')),
@@ -92,6 +93,16 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "dose_g" not in session_columns:
         conn.execute("ALTER TABLE brew_sessions ADD COLUMN dose_g REAL")
         conn.commit()
+    if "extraction" not in session_columns:
+        # Left NULL for sessions logged before the extraction bar existed --
+        # those were never assessed, which reads as "-" rather than being
+        # silently backfilled as "Well extracted". A database that got this
+        # column while it was briefly declared INTEGER keeps that
+        # declaration, which is harmless: SQLite only narrows a REAL to an
+        # INTEGER when the conversion is lossless, so fractional values
+        # still round-trip intact.
+        conn.execute("ALTER TABLE brew_sessions ADD COLUMN extraction REAL")
+        conn.commit()
     for field in FLAVOR_FIELDS:
         if field not in session_columns:
             conn.execute(f"ALTER TABLE brew_sessions ADD COLUMN {field} REAL")
@@ -102,7 +113,36 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE brew_stages ADD COLUMN water_g REAL")
         conn.commit()
 
+    _migrate_split_sour_fermented(conn)
     _migrate_image_paths(conn)
+
+
+def _migrate_split_sour_fermented(conn: sqlite3.Connection) -> None:
+    """Carry ratings recorded against the old combined "Sour/Fermented" axis
+    over to "Sour", which replaced it alongside a new "Fermented" axis.
+
+    A combined score doesn't say how much of it was which, so there is no
+    honest way to divide it: the whole value moves to Sour and Fermented is
+    left unrated, rather than inventing a Fermented score or double-counting
+    the same number on both axes (which would skew every average and radar
+    that reads them). Re-rate those sessions by hand if the character was
+    actually fermented.
+
+    The retired column is left in place -- unreferenced, but dropping it
+    would throw away the only record of what the original rating covered.
+    Only ever fills a NULL, so it neither repeats on later startups nor
+    overwrites a rating entered since.
+    """
+    old = repo._RETIRED_FLAVOR_FIELD
+    for table in ("beans", "brew_sessions"):
+        columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if old not in columns or "flavor_sour" not in columns:
+            continue
+        conn.execute(
+            f"UPDATE {table} SET flavor_sour = {old} "
+            f"WHERE flavor_sour IS NULL AND {old} IS NOT NULL"
+        )
+        conn.commit()
 
 
 def _migrate_image_paths(conn: sqlite3.Connection) -> None:

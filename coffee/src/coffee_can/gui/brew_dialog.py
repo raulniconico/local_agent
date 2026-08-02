@@ -30,7 +30,15 @@ from PySide6.QtWidgets import (
 from .. import repo
 from ..formatting import format_or_dash, format_seconds
 from .theme import style_calendar_popup
-from .widgets import DripperCombo, FilterCombo, GrinderCombo, RadarChart, ToggleSwitch, share_icon_pixmap
+from .widgets import (
+    DripperCombo,
+    ExtractionBar,
+    FilterCombo,
+    GrinderCombo,
+    RadarChart,
+    SaveButton,
+    share_icon_pixmap,
+)
 
 _TIME_FORMAT = "hh:mm:ss"
 
@@ -126,12 +134,18 @@ class BrewDialog(QDialog):
     no stages, no evaluation -- the empty draft row is deleted instead of
     being left behind in the bean's session list."""
 
+    _SCORE_HINT = "0 to 5"
+
     def __init__(self, conn, bean_row, session_id=None, parent=None):
         super().__init__(parent)
         self.conn = conn
         self.bean_row = bean_row
         self._reuse_from = None
         self._is_new = session_id is None
+        # The bar always shows *some* position, so "never assessed" can't be
+        # read off it the way an unset score can -- track it separately so an
+        # untouched bar persists as NULL rather than as "Well extracted".
+        self._extraction_set = False
         if session_id is None:
             previous_sessions = repo.list_sessions(conn, bean_id=bean_row["id"])
             if previous_sessions:
@@ -196,22 +210,31 @@ class BrewDialog(QDialog):
         stages_group = QGroupBox("Brewing Stages")
         stages_group.setLayout(stages_layout)
 
-        self.score_checkbox = ToggleSwitch()
+        # "Not set" is the value one step below 0, surfaced through Qt's
+        # setSpecialValueText -- its idiom for an unset spinbox, and what
+        # replaced the old Scored toggle. A score nobody touches persists as
+        # NULL rather than as a real 0, so an unrated session still reads as
+        # "-" everywhere instead of claiming a bottom-of-the-range rating.
         self.score_spin = QDoubleSpinBox()
-        self.score_spin.setRange(0, 5)
+        self.score_spin.setDecimals(1)
         self.score_spin.setSingleStep(0.5)
-        self.score_spin.setEnabled(False)
-        self.score_checkbox.toggled.connect(self.score_spin.setEnabled)
-        score_row = QHBoxLayout()
-        score_row.addWidget(QLabel("Scored"))
-        score_row.addWidget(self.score_checkbox)
-        score_row.addWidget(self.score_spin)
+        self.score_spin.setRange(-0.5, 5)
+        self.score_spin.setSpecialValueText(self._SCORE_HINT)
+        self.score_spin.setValue(self.score_spin.minimum())
+        self.score_spin.valueChanged.connect(self._update_score_style)
+
+        self.extraction_bar = ExtractionBar(
+            repo.EXTRACTION_ZONES, repo.EXTRACTION_MIN, repo.EXTRACTION_MAX
+        )
+        self.extraction_bar.valueChanged.connect(self._on_extraction_changed)
+
         self.note_edit = QPlainTextEdit()
         self.note_edit.setPlaceholderText("Tasting notes...")
         self.note_edit.setFixedHeight(70)
 
         eval_form = QFormLayout()
-        eval_form.addRow("Score (0-5)", score_row)
+        eval_form.addRow("Score", self.score_spin)
+        eval_form.addRow("Extraction", self.extraction_bar)
         eval_form.addRow("Note", self.note_edit)
 
         self.radar_chart = RadarChart([label for _, label in repo.FLAVOR_AXES])
@@ -266,9 +289,9 @@ class BrewDialog(QDialog):
         top.addStretch()
         top.addWidget(share_btn)
 
-        save_btn = QPushButton("Save")
+        self.save_btn = save_btn = SaveButton()
         save_btn.setProperty("variant", "primary")
-        save_btn.clicked.connect(self._persist)
+        save_btn.clicked.connect(self._save_clicked)
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(self.close)
         bottom_bar = QWidget()
@@ -322,17 +345,35 @@ class BrewDialog(QDialog):
             self.field_edits[field].setText(details_source[field] or "")
         self.dose_spin.setValue(details_source["dose_g"] or 0)
         self._reuse_from = None  # only seed the very first load of a new session
-        if row["score"] is not None:
-            self.score_checkbox.setChecked(True, animate=False)
-            self.score_spin.setValue(row["score"])
-        else:
-            self.score_checkbox.setChecked(False, animate=False)
-            self.score_spin.setValue(0)
+        score = row["score"]
+        self.score_spin.setValue(self.score_spin.minimum() if score is None else score)
+        self._update_score_style()
+
+        extraction = row["extraction"]
+        self._extraction_set = extraction is not None
+        # Seeding the bar must not count as the user having assessed it.
+        self.extraction_bar.blockSignals(True)
+        self.extraction_bar.setValue(extraction or 0.0)
+        self.extraction_bar.blockSignals(False)
         self.note_edit.setPlainText(row["note"] or "")
         for field, _ in repo.FLAVOR_AXES:
             self.flavor_sliders[field].setValue(int(row[field] or 0))
         self._update_radar()
         self._refresh_stages()
+
+    def _score_is_set(self) -> bool:
+        return self.score_spin.value() > self.score_spin.minimum()
+
+    def _update_score_style(self, *_args):
+        # Grey while the hint is showing, normal once it holds a real score --
+        # the placeholder look QLineEdit gives for free, which a spinbox's
+        # special value text doesn't.
+        self.score_spin.setStyleSheet(
+            "" if self._score_is_set() else "QDoubleSpinBox { color: #C7C7CC; }"
+        )
+
+    def _on_extraction_changed(self, *_args):
+        self._extraction_set = True
 
     def _update_radar(self, *_args):
         values = [self.flavor_sliders[field].value() for field, _ in repo.FLAVOR_AXES]
@@ -378,6 +419,13 @@ class BrewDialog(QDialog):
         repo.delete_stage(self.conn, self._stage_ids[row])
         self._refresh_stages()
 
+    def _save_clicked(self):
+        # Wraps _persist rather than flashing inside it: _share_session also
+        # persists the on-screen state before rendering, and that shouldn't
+        # read as the user having saved.
+        self._persist()
+        self.save_btn.flash_saved()
+
     def _persist(self):
         brew_date = self.date_edit.date().toString(_ISO_FORMAT)
         repo.update_session_field(self.conn, self.session_id, "brew_date", brew_date)
@@ -386,8 +434,10 @@ class BrewDialog(QDialog):
             repo.update_session_field(self.conn, self.session_id, field, value)
         repo.update_session_field(self.conn, self.session_id, "dose_g", self.dose_spin.value())
 
-        score = self.score_spin.value() if self.score_checkbox.isChecked() else None
+        score = self.score_spin.value() if self._score_is_set() else None
         repo.update_session_field(self.conn, self.session_id, "score", score)
+        extraction = self.extraction_bar.value() if self._extraction_set else None
+        repo.update_session_field(self.conn, self.session_id, "extraction", extraction)
         note = self.note_edit.toPlainText().strip() or None
         repo.update_session_field(self.conn, self.session_id, "note", note)
         for field, _ in repo.FLAVOR_AXES:

@@ -16,15 +16,36 @@ from .paths import MAX_IMAGES_PER_BEAN, images_dir
 FLAVOR_AXES = (
     ("flavor_fruity", "Fruity"),
     ("flavor_floral", "Floral"),
+    ("flavor_tea_like", "Tea-like"),
     ("flavor_sweet", "Sweet"),
     ("flavor_nutty_cocoa", "Nutty/Cocoa"),
     ("flavor_spices", "Spices"),
     ("flavor_roasted", "Roasted"),
     ("flavor_cereal", "Cereal"),
     ("flavor_green_vegetative", "Green/Vegetative"),
-    ("flavor_sour_fermented", "Sour/Fermented"),
+    ("flavor_sour", "Sour"),
+    ("flavor_fermented", "Fermented"),
 )
+# Everything else -- table columns, migrations, sliders, radar charts, CLI
+# output -- is derived from the tuple above, so an axis is added or split by
+# editing it and nothing else. The one exception is data already recorded
+# against a retired axis; see _migrate_split_sour_fermented in db.py.
+_RETIRED_FLAVOR_FIELD = "flavor_sour_fermented"
 FLAVOR_FIELDS = tuple(field for field, _ in FLAVOR_AXES)
+
+# How the brew extracted, as a continuous signed offset from 0 ("well
+# extracted") rather than discrete steps: under- and over-extraction are
+# opposite failure modes either side of a target, so a symmetric scale is
+# what the GUI's bar reads as, and 0 stays the natural centre. Keeping it
+# falsy at the centre also means an untouched session still counts as empty
+# for BrewDialog._is_empty()'s discard-on-close check.
+EXTRACTION_MIN = -1.0
+EXTRACTION_MAX = 1.0
+# The three named zones the continuous value falls into, and where the outer
+# two begin -- used to render a stored number back as words (the CLI) and to
+# label the GUI bar. A third of the range each.
+EXTRACTION_ZONES = ("Under extracted", "Well extracted", "Over extracted")
+EXTRACTION_ZONE_EDGE = (EXTRACTION_MAX - EXTRACTION_MIN) / 6.0
 
 BEAN_FIELDS = (
     "name",
@@ -49,6 +70,7 @@ SESSION_FIELDS = (
     "humidity",
     "dose_g",
     "score",
+    "extraction",
     "note",
 ) + FLAVOR_FIELDS
 

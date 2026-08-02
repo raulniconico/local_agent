@@ -17,7 +17,7 @@ from PySide6.QtCore import (
     QTimer,
     Signal,
 )
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap, QPolygonF, QTransform
+from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap, QPolygonF, QTransform
 from PySide6.QtWidgets import (
     QComboBox,
     QDateEdit,
@@ -136,6 +136,81 @@ def share_icon_pixmap(size: int, color: str = "#1C1C1E") -> QPixmap:
 
     painter.end()
     return result
+
+
+def thumbs_up_can_pixmap(size: int, color: str = "#FFFFFF") -> QPixmap:
+    """The walking can (WalkingCanStrip's little character) throwing a thumbs
+    up -- the "saved it" confirmation on SaveButton.
+
+    Drawn as a filled silhouette in one colour, so it reads on the green
+    primary button it sits on. The hand is a separate shape with a gap
+    rather than an arm joined to the body: at ~20px a connected arm merges
+    into the can and the whole thing turns into an unreadable blob.
+    """
+    result = QPixmap(size, size)
+    result.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(result)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.setBrush(QColor(color))
+
+    def box(left, top, right, bottom, radius):
+        painter.drawRoundedRect(
+            QRectF(size * left, size * top, size * (right - left), size * (bottom - top)),
+            size * radius,
+            size * radius,
+        )
+
+    # the can: lid, body, and the two little feet it walks on
+    box(0.02, 0.38, 0.47, 0.48, 0.05)  # lid
+    box(0.05, 0.45, 0.44, 0.86, 0.08)  # body
+    painter.drawEllipse(QPointF(size * 0.14, size * 0.89), size * 0.07, size * 0.045)
+    painter.drawEllipse(QPointF(size * 0.34, size * 0.89), size * 0.07, size * 0.045)
+
+    # The thumbs up, held clear of the body and -- the part that carries the
+    # whole read at 20px -- reaching well above the can's lid, so the
+    # silhouette says "thumbs up" even once the details stop resolving.
+    box(0.56, 0.54, 0.94, 0.86, 0.10)  # fist
+    box(0.59, 0.10, 0.75, 0.60, 0.08)  # thumb
+
+    painter.end()
+    return result
+
+
+class SaveButton(QPushButton):
+    """A Save button that answers a successful save by swapping its label for
+    the can giving a thumbs up, then settling back.
+
+    Feedback is pushed by the caller (flash_saved) rather than wired to
+    `clicked` here, so it only fires on a save that actually happened -- the
+    same handler is reused elsewhere in at least one dialog to persist
+    on-screen state before sharing, which shouldn't look like a save.
+    """
+
+    _FEEDBACK_MS = 1500
+    _ICON_SIZE = 24
+
+    def __init__(self, text: str = "Save", parent=None):
+        super().__init__(text, parent)
+        self._label = text
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.timeout.connect(self._restore)
+
+    def flash_saved(self) -> None:
+        if not self._timer.isActive():
+            # Pin the width the label needs before swapping it out, or the
+            # button shrinks to the icon and shoves its neighbours sideways
+            # for the duration.
+            self.setMinimumWidth(self.sizeHint().width())
+        self.setIcon(QIcon(thumbs_up_can_pixmap(self._ICON_SIZE)))
+        self.setIconSize(QSize(self._ICON_SIZE, self._ICON_SIZE))
+        self.setText("")
+        self._timer.start(self._FEEDBACK_MS)
+
+    def _restore(self) -> None:
+        self.setIcon(QIcon())
+        self.setText(self._label)
 
 
 class OptionalDateEdit(QWidget):
@@ -299,6 +374,171 @@ class ToggleSwitch(QWidget):
         painter.drawEllipse(knob_rect)
 
 
+def _blend(start: QColor, end: QColor, t: float) -> QColor:
+    """Straight-line RGB mix, `t` clamped to 0..1."""
+    t = max(0.0, min(1.0, t))
+    return QColor(
+        round(start.red() + (end.red() - start.red()) * t),
+        round(start.green() + (end.green() - start.green()) * t),
+        round(start.blue() + (end.blue() - start.blue()) * t),
+    )
+
+
+class ExtractionBar(QWidget):
+    """A continuous under/well/over-extracted scale: one wide bar with its
+    three zone names written inside it, tinting as it moves.
+
+    Deliberately not a QSlider. The value is continuous rather than stepped,
+    the zone names sit inside the groove, and the whole bar re-tints with
+    the value -- light green at the under end, the logo's green at centre,
+    dark green at the over end -- none of which QSlider's groove/handle
+    subcontrols can express. It still reports through a `valueChanged`
+    signal and takes its labels as a constructor argument (like RadarChart),
+    so callers wire it up the same way they would a stock widget.
+
+    The colour ramp runs light -> logo -> dark rather than, say, red to
+    green: both ends are failures, so neither should look like the "good"
+    end, and centring the logo colour makes well-extracted the one the eye
+    settles on.
+    """
+
+    valueChanged = Signal(float)
+
+    _HEIGHT = 66
+    _LABEL_SIZE = 15
+    _RADIUS = 16
+    _INSET = 16  # keeps the handle clear of the rounded ends
+    _HANDLE_WIDTH = 8
+    _HANDLE_HEIGHT = 13
+    _KEY_STEP = 0.05
+
+    _UNDER = QColor("#BFEDCD")  # light green
+    _WELL = QColor("#34C759")  # the logo's green
+    _OVER = QColor("#176B2C")  # dark green
+
+    def __init__(self, labels, minimum=-1.0, maximum=1.0, parent=None):
+        super().__init__(parent)
+        self._labels = tuple(labels)
+        self._min = float(minimum)
+        self._max = float(maximum)
+        self._value = 0.0
+        self.setFixedHeight(self._HEIGHT)
+        # Wide enough that the three zone names still get a third each
+        # without colliding at the label size above.
+        self.setMinimumWidth(430)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+    # --- value ----------------------------------------------------------
+
+    def value(self) -> float:
+        return self._value
+
+    def setValue(self, value) -> None:
+        value = max(self._min, min(self._max, float(value)))
+        if value == self._value:
+            return
+        self._value = value
+        self.update()
+        self.valueChanged.emit(value)
+
+    def _fraction(self) -> float:
+        return (self._value - self._min) / (self._max - self._min)
+
+    def _active_zone(self) -> int:
+        edge = (self._max - self._min) / 6.0
+        if self._value < -edge:
+            return 0
+        return 1 if self._value <= edge else 2
+
+    # --- painting -------------------------------------------------------
+
+    def _fill_color(self) -> QColor:
+        centre = (0.0 - self._min) / (self._max - self._min)
+        fraction = self._fraction()
+        if fraction <= centre:
+            return _blend(self._UNDER, self._WELL, fraction / centre if centre else 1.0)
+        return _blend(self._WELL, self._OVER, (fraction - centre) / (1.0 - centre) if centre < 1 else 1.0)
+
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        rect = QRectF(self.rect())
+
+        fill = self._fill_color()
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(fill)
+        painter.drawRoundedRect(rect, self._RADIUS, self._RADIUS)
+
+        self._draw_labels(painter, rect, fill)
+        self._draw_handle(painter, rect)
+
+    def _draw_labels(self, painter: QPainter, rect: QRectF, fill: QColor) -> None:
+        # Contrast has to follow the tint, which spans most of the way from
+        # near-white to near-black as the bar moves end to end.
+        luminance = (0.299 * fill.red() + 0.587 * fill.green() + 0.114 * fill.blue()) / 255
+        painter.setPen(QColor("#1C1C1E") if luminance > 0.62 else QColor("#FFFFFF"))
+
+        font = painter.font()
+        font.setPixelSize(self._LABEL_SIZE)
+        active = self._active_zone()
+        third = rect.width() / 3
+        for index, label in enumerate(self._labels):
+            font.setBold(index == active)
+            painter.setFont(font)
+            cell = QRectF(rect.left() + index * third, rect.top(), third, rect.height())
+            painter.drawText(cell, Qt.AlignmentFlag.AlignCenter, label)
+
+    def _draw_handle(self, painter: QPainter, rect: QRectF) -> None:
+        # Two marks hugging the top and bottom edges rather than one
+        # full-height bar: the zone names run across the middle of the
+        # widget, and a solid handle crossing them blanked out whichever
+        # letter it happened to land on.
+        x = rect.left() + self._INSET + self._fraction() * (rect.width() - 2 * self._INSET)
+        radius = self._HANDLE_WIDTH / 2
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(255, 255, 255, 240))
+        for top in (rect.top() + 5, rect.bottom() - 5 - self._HANDLE_HEIGHT):
+            painter.drawRoundedRect(
+                QRectF(x - radius, top, self._HANDLE_WIDTH, self._HANDLE_HEIGHT), radius, radius
+            )
+
+    # --- interaction ----------------------------------------------------
+
+    def _value_for_x(self, x: float) -> float:
+        usable = max(1.0, self.width() - 2 * self._INSET)
+        return self._min + ((x - self._INSET) / usable) * (self._max - self._min)
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.setValue(self._value_for_x(event.position().x()))
+            event.accept()
+        else:
+            super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:
+        if event.buttons() & Qt.MouseButton.LeftButton:
+            self.setValue(self._value_for_x(event.position().x()))
+            event.accept()
+        else:
+            super().mouseMoveEvent(event)
+
+    def keyPressEvent(self, event) -> None:
+        key = event.key()
+        if key in (Qt.Key.Key_Left, Qt.Key.Key_Down):
+            self.setValue(self._value - self._KEY_STEP)
+        elif key in (Qt.Key.Key_Right, Qt.Key.Key_Up):
+            self.setValue(self._value + self._KEY_STEP)
+        elif key == Qt.Key.Key_Home:
+            self.setValue(self._min)
+        elif key == Qt.Key.Key_End:
+            self.setValue(self._max)
+        else:
+            super().keyPressEvent(event)
+            return
+        event.accept()
+
+
 _BANNER_GREEN = QColor("#D7F5DE")  # lighter tint of the logo's #34C759
 
 
@@ -322,13 +562,34 @@ class WalkingCanStrip(QWidget):
     _BOB_TICKS = 12
     _RADIUS = 20
 
+    # The lap around a detour target (see _detour_rect). Walked faster than
+    # the straight stretches -- at plain walking pace a loop this size takes
+    # the better part of ten seconds, which reads as stalled rather than as
+    # a flourish.
+    _LOOP_SPEED = 3.0
+    # Floor for the loop's horizontal radius. The logo alone would give a
+    # narrow oval that clips through the title and tagline sitting under it;
+    # this keeps the can's path outside that text.
+    _MIN_LOOP_RADIUS = 130
+    _LOOP_CLEARANCE = 10
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._direction = -1  # -1: walking left, 1: walking right
         self._x = None  # seeded on first tick, once we know our width
         self._tick = 0
+        self._phase = "walk"  # or "loop", while circling a detour target
+        self._loop_angle = 0.0
+        self._loop_travelled = 0.0
+        self._loop = None  # the ellipse being walked, while _phase == "loop"
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._advance)
+
+    def _detour_rect(self):
+        """The widget-relative rect the can should walk a lap around, or None
+        to stroll straight past. Subclass hook -- the plain strip has nothing
+        to walk around."""
+        return None
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
@@ -338,18 +599,104 @@ class WalkingCanStrip(QWidget):
         super().hideEvent(event)
         self._timer.stop()
 
+    def _baseline_y(self) -> float:
+        """Where the can's top edge sits while walking normally."""
+        return self.height() - self._CAN_HEIGHT - 12
+
     def _advance(self) -> None:
         if self._x is None:
             self._x = float(self.width())  # start just off the right edge
-        self._x += self._direction * self._SPEED
         self._tick += 1
+        if self._phase == "loop":
+            self._advance_loop()
+        else:
+            self._advance_walk()
+        self.update()
+
+    def _advance_walk(self) -> None:
+        previous_centre = self._x + self._CAN_WIDTH / 2
+        self._x += self._direction * self._SPEED
+
+        loop = self._loop_at(previous_centre, self._x + self._CAN_WIDTH / 2)
+        if loop is not None:
+            self._loop = loop
+            self._phase = "loop"
+            self._loop_angle = 90.0  # bottom of the ellipse, on the walking line
+            self._loop_travelled = 0.0
+            return
+
         if self._direction == -1 and self._x < -self._CAN_WIDTH:
             self._direction = 1
             self._x = -self._CAN_WIDTH
         elif self._direction == 1 and self._x > self.width():
             self._direction = -1
             self._x = float(self.width())
-        self.update()
+
+    def _loop_at(self, previous_centre: float, centre: float):
+        """The ellipse to walk, if this step just carried the can across the
+        detour target's centre line -- otherwise None.
+
+        The ellipse is tangent to the walking line at that centre, so the can
+        peels off and rejoins mid-stride instead of jumping to the path.
+        """
+        rect = self._detour_rect()
+        if rect is None:
+            return None
+        target_x = rect.center().x()
+        crossed = (
+            previous_centre > target_x >= centre
+            if self._direction == -1
+            else previous_centre < target_x <= centre
+        )
+        if not crossed:
+            return None
+
+        bottom = self._baseline_y() + self._CAN_HEIGHT / 2
+        top = max(
+            self._CAN_HEIGHT / 2 + 2,  # keep the can inside the strip at the apex
+            rect.top() - self._LOOP_CLEARANCE - self._CAN_HEIGHT / 2,
+        )
+        if bottom - top < 40:
+            return None  # too little headroom for the detour to read as one
+
+        radius_x = max(rect.width() / 2 + self._CAN_WIDTH / 2 + 10, self._MIN_LOOP_RADIUS)
+        radius_x = min(radius_x, self.width() / 2 - self._CAN_WIDTH)
+        if radius_x <= 0:
+            return None
+        return {
+            "x": target_x,
+            "y": (bottom + top) / 2,
+            "radius_x": radius_x,
+            "radius_y": (bottom - top) / 2,
+        }
+
+    def _advance_loop(self) -> None:
+        radius_x, radius_y = self._loop["radius_x"], self._loop["radius_y"]
+        # Ramanujan's ellipse-perimeter approximation, so a bigger loop takes
+        # proportionally longer and the can holds one pace throughout.
+        perimeter = math.pi * (
+            3 * (radius_x + radius_y)
+            - math.sqrt((3 * radius_x + radius_y) * (radius_x + 3 * radius_y))
+        )
+        step = 360.0 * self._SPEED * self._LOOP_SPEED / max(perimeter, 1.0)
+        # Away from the walking direction first, so the can carries on the way
+        # it was heading rather than doubling back into its own path.
+        self._loop_angle += -self._direction * step
+        self._loop_travelled += step
+        if self._loop_travelled >= 360.0:
+            self._phase = "walk"
+            self._x = self._loop["x"] - self._CAN_WIDTH / 2
+            self._loop = None
+
+    def _can_position(self, bob: float):
+        """Top-left of the can this frame, walking or mid-loop."""
+        if self._phase == "loop" and self._loop is not None:
+            angle = math.radians(self._loop_angle)
+            return (
+                self._loop["x"] + self._loop["radius_x"] * math.cos(angle) - self._CAN_WIDTH / 2,
+                self._loop["y"] + self._loop["radius_y"] * math.sin(angle) - self._CAN_HEIGHT / 2 + bob,
+            )
+        return self._x, self._baseline_y() + bob
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
@@ -364,22 +711,44 @@ class WalkingCanStrip(QWidget):
 
     def _draw_can(self, painter: QPainter) -> None:
         bob = -2 if (self._tick // self._BOB_TICKS) % 2 == 0 else 0
-        y = self.height() - self._CAN_HEIGHT - 12 + bob
+        x, y = self._can_position(bob)
 
         painter.setBrush(QColor("#FFFFFF"))
-        painter.drawRoundedRect(QRectF(self._x, y + 5, self._CAN_WIDTH, self._CAN_HEIGHT - 5), 4, 4)
-        painter.drawRoundedRect(QRectF(self._x - 1, y, self._CAN_WIDTH + 2, 8), 3, 3)
+        painter.drawRoundedRect(QRectF(x, y + 5, self._CAN_WIDTH, self._CAN_HEIGHT - 5), 4, 4)
+        painter.drawRoundedRect(QRectF(x - 1, y, self._CAN_WIDTH + 2, 8), 3, 3)
 
         # a little foot-splay that flips with the bob, to read as a walking gait
         lean = 2 if bob else -2
-        painter.drawEllipse(QPointF(self._x + 5 + lean, y + self._CAN_HEIGHT + 1), 3, 2)
-        painter.drawEllipse(QPointF(self._x + self._CAN_WIDTH - 5 - lean, y + self._CAN_HEIGHT + 1), 3, 2)
+        painter.drawEllipse(QPointF(x + 5 + lean, y + self._CAN_HEIGHT + 1), 3, 2)
+        painter.drawEllipse(QPointF(x + self._CAN_WIDTH - 5 - lean, y + self._CAN_HEIGHT + 1), 3, 2)
 
 
 class HeaderBanner(WalkingCanStrip):
     """The welcome-screen header. Its logo/title are added as ordinary child
     widgets via a QVBoxLayout -- Qt paints those over whatever the strip's
     paintEvent draws, so no overlay/transparency tricks are needed."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._logo_label = None
+        self._logo_size = 0
+
+    def set_logo(self, label, size: int) -> None:
+        """Register the logo so the can walks a lap around it on its way past.
+
+        Takes the pixmap's size rather than reading the label's geometry: the
+        label stretches the full banner width in the layout, so its rect is
+        far wider than the icon actually drawn centred inside it.
+        """
+        self._logo_label = label
+        self._logo_size = size
+
+    def _detour_rect(self):
+        if self._logo_label is None or self._logo_size <= 0:
+            return None
+        centre = self._logo_label.geometry().center()
+        half = self._logo_size / 2
+        return QRectF(centre.x() - half, centre.y() - half, self._logo_size, self._logo_size)
 
 
 class WalkingCanLoader(WalkingCanStrip):

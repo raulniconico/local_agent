@@ -27,16 +27,37 @@ PySide6's QtMultimedia bindings; if either is unavailable, that one option is
 disabled with a message -- *Choose Photo File...* and everything else in the
 app are unaffected.
 
-**Optional: higher-accuracy scanning via the Claude API.** Local OCR maps
-label text to fields with regex/keyword heuristics, which struggles with
-unusual layouts. If you `pip install anthropic` and set `ANTHROPIC_API_KEY`
-in your shell, *Scan Label...* asks Claude to read the photo directly instead
--- far more reliable at figuring out which text is the origin vs. the roaster
-vs. the process, at the cost of an API key, network access, sending the
-photo off-device, and a small per-scan charge (`ANTHROPIC_OCR_MODEL`,
-default `claude-opus-5`, can be overridden to a cheaper model). This is
-fully optional: without the package or key set, or if the request fails for
-any reason, it silently falls back to local Tesseract OCR.
+**Optional: higher-accuracy scanning via Qwen or the Claude API.** Local OCR
+maps label text to fields with regex/keyword heuristics, which struggles
+with unusual layouts. *Scan Label...* tries, in order: Qwen's vision API if
+`pip install openai` and `QWEN_API_KEY` are set (`QWEN_OMNI_MODEL`, default
+`qwen3.5-omni-flash` -- the same model and key as the *🎤 Voice Session*
+feature below), then Claude's if `pip install anthropic` and
+`ANTHROPIC_API_KEY` are set instead (`ANTHROPIC_OCR_MODEL`, default
+`claude-opus-5`), then local Tesseract OCR if neither is configured or both
+fail. Qwen is checked first deliberately: if you've set both keys (e.g.
+because you also use *Voice Session*), scans bill the Qwen key rather than
+silently going to Claude's. Either AI path is far more reliable than local
+OCR at figuring out which text is the origin vs. the roaster vs. the
+process, at the cost of an API key, network access, sending the photo
+off-device, and a small per-scan charge. This is fully optional: without
+either package or key set, it's local Tesseract OCR from the start.
+
+**Where API keys go.** Keys can live in the real shell environment or in a
+`.env` file, and which file is read depends on how you launched the app:
+
+| How you run it | `.env` that's read |
+| --- | --- |
+| `pipx install`ed (`coffeecan-gui`, app menu icon) | `~/.local/share/coffee-can/.env` |
+| From a source checkout | `coffee/.env` (walks up from the package) |
+
+A pipx install **cannot see `coffee/.env`** -- the package lives in pipx's
+venv, so walking up from it never reaches your checkout. Editing only
+`coffee/.env` and then launching from the app menu leaves the key invisible,
+and any feature with a fallback (label scanning falls back Qwen -> Claude ->
+local OCR) quietly uses the next one down and bills that provider instead.
+If a key doesn't seem to take effect, that's almost always why: put it in
+`~/.local/share/coffee-can/.env`.
 
 This installs `coffeecan` (CLI) and `coffeecan-gui` (desktop window) on your
 `PATH`. To upgrade after editing the source: `pipx install --force .`. To
@@ -70,7 +91,7 @@ edited via the gear button in its corner), a **Brewing Activity** card (a
 GitHub-style contribution calendar, `gui/widgets.py`'s `ContributionCalendar`,
 showing the last ~3 months as a color-graded grid, one cell per day; hover a
 cell for the exact date and count), and a **Flavor Profile** card averaging
-the nine flavor axes across every brewing session you've ever logged.
+the eleven flavor axes across every brewing session you've ever logged.
 
 In the Coffee Profiles card, *New Profile* opens a form -- a bean row is
 created the moment the dialog opens (blank name until you type one; *Save*
@@ -94,7 +115,7 @@ free-text box for tasting notes or any other remark that has no field of its
 own; scanning fills it from the label's printed tasting notes.
 
 Below the profile form, a **Flavor Profile** block shows a radar chart for
-that specific bean: *Generate from Sessions* averages the nine flavor axes
+that specific bean: *Generate from Sessions* averages the eleven flavor axes
 across its own brewing sessions (grey/blank if it has none yet), or *Set
 Manually...* opens a slider-per-axis picker to fix the shown profile by hand
 regardless of session data.
@@ -110,11 +131,32 @@ brew details default to whatever you used last time for that bean), an *Add
 Stage* button (temperature via a -10-110°C slider with a synced spinbox for
 typing an exact value, defaulting to 90; water in grams; time via an
 hh:mm:ss picker; circling/agitation as free text) with a stages table you
-can remove rows from, and an evaluation section: a *Scored* checkbox + 0-5
-spinner, a note field, and nine 0-5 flavor sliders (Fruity, Floral, Sweet,
-Nutty/Cocoa, Spices, Roasted, Cereal, Green/Vegetative, Sour/Fermented) that
+can remove rows from, and an evaluation section: a *Score* box (0-5, showing
+a grey `0 to 5` hint until you set one -- leave it alone and the session
+stays unscored rather than scoring itself 0), a continuous *Extraction* bar
+you drag anywhere between *Under extracted* and *Over extracted*, which
+tints as it moves (light green at the under end, through the logo's green at
+*Well extracted*, to dark green at the over end) and is likewise left unset
+until you touch it, a note field, and eleven 0-5 flavor sliders (Fruity, Floral,
+Tea-like, Sweet, Nutty/Cocoa, Spices, Roasted, Cereal, Green/Vegetative, Sour,
+Fermented) that
 redraw a live radar chart as you drag them. *Edit / View* / *Delete* work
 the same way on the selected session.
+
+**Optional: fill in a session by describing it out loud.** The *🎤 Voice
+Session* button above the sessions table needs PySide6's QtMultimedia
+bindings and a working microphone (same requirement as *Scan Label... > Take
+Photo...*'s camera capture); if either is missing, the button disables
+itself with a message and everything else in the app is unaffected. Press
+the mic, describe the brew (dripper, dose, grind size, and each pour), press
+it again to stop, and the recording is sent to Qwen's audio-understanding
+API (`QWEN_OMNI_MODEL`, default `qwen3.5-omni-flash`) for parsing into the
+same session + stage fields the *Ask AI* flow above fills in -- review the
+result, then *Create Session* opens it in the normal session form for
+further editing. Needs `pip install openai` and `QWEN_API_KEY` set (a
+DashScope key); like DeepSeek's suggestions, if the request fails for any
+reason the dialog just reports the error rather than silently falling back
+to anything, since there's no local voice-parsing fallback to fall back to.
 
 *Dripper*, *Filter Paper*, *Grinder*, and *Process* are all dropdowns, each
 seeded from its own bundled JSON file (`assets/drippers.json`,

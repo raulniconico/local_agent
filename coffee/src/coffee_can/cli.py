@@ -10,7 +10,7 @@ from rich.table import Table
 
 from . import repo
 from .db import connect
-from .formatting import format_or_dash, format_score, format_seconds, parse_time_to_seconds
+from .formatting import format_extraction, format_or_dash, format_score, format_seconds, parse_time_to_seconds
 from .paths import ALLOWED_IMAGE_SUFFIXES, MAX_IMAGES_PER_BEAN
 
 console = Console()
@@ -282,6 +282,14 @@ def _collect_evaluation(conn, session_id, row):
     score = ask_float("Score (0-5)", default=row["score"] if row else None, minimum=0, maximum=5)
     if score is not None:
         repo.update_session_field(conn, session_id, "score", score)
+    extraction = ask_float(
+        f"Extraction ({repo.EXTRACTION_MIN:g} under .. 0 well .. {repo.EXTRACTION_MAX:g} over)",
+        default=row["extraction"] if row else None,
+        minimum=repo.EXTRACTION_MIN,
+        maximum=repo.EXTRACTION_MAX,
+    )
+    if extraction is not None:
+        repo.update_session_field(conn, session_id, "extraction", float(extraction))
     note = ask("Note", default=row["note"] if row else None)
     if note is not None:
         repo.update_session_field(conn, session_id, "note", note)
@@ -384,6 +392,7 @@ def brew_show(session_id):
         f"Humidity: {format_or_dash(row['humidity'])}",
         f"Dose: {format_or_dash(row['dose_g'])}",
         f"Score: {format_score(row['score'])}",
+        f"Extraction: {format_extraction(row['extraction'])}",
         f"Flavor: {', '.join(flavor_bits) if flavor_bits else '-'}",
         f"Note: {format_or_dash(row['note'])}",
     ]

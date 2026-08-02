@@ -33,3 +33,21 @@ def format_score(score) -> str:
     if score is None:
         return "-"
     return f"{score:g}/5"
+
+
+def format_extraction(value) -> str:
+    """Render a continuous extraction value as its zone name plus the raw
+    number -- the words alone would hide the difference between a hair off
+    centre and the far end of the bar."""
+    from .repo import EXTRACTION_ZONE_EDGE, EXTRACTION_ZONES  # keeps this module import-light
+
+    if value is None:
+        return "-"
+    value = float(value)
+    if value < -EXTRACTION_ZONE_EDGE:
+        zone = EXTRACTION_ZONES[0]
+    elif value <= EXTRACTION_ZONE_EDGE:
+        zone = EXTRACTION_ZONES[1]
+    else:
+        zone = EXTRACTION_ZONES[2]
+    return f"{zone} ({value:+.2f})"

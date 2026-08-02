@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import claude_ocr, ocr, repo
+from .. import claude_ocr, ocr, qwen_ocr, repo
 from ..formatting import format_or_dash, format_score
 from ..paths import ALLOWED_IMAGE_SUFFIXES, MAX_IMAGES_PER_BEAN
 from . import background
@@ -39,6 +39,7 @@ from .widgets import (
     OptionalDateEdit,
     ProcessCombo,
     RadarChart,
+    SaveButton,
     WalkingCanLoader,
     share_icon_pixmap,
 )
@@ -110,10 +111,14 @@ class _ManualFlavorDialog(QDialog):
 
 
 class _ScanWorker(QThread):
-    """Reads a label photo off the GUI thread: Claude's vision API when it's
-    configured, falling back to local Tesseract OCR. Both legs block -- one
-    on the network, the other on CPU -- so both belong here rather than in
-    the handler that opens the file picker."""
+    """Reads a label photo off the GUI thread: Qwen's vision API first when
+    it's configured (checked ahead of Claude's so a QWEN_API_KEY set for the
+    voice-session feature is what actually gets billed for scans too,
+    instead of an also-configured ANTHROPIC_API_KEY silently eating the
+    charge -- see qwen_ocr.py), then Claude's, falling back to local
+    Tesseract OCR if neither is set up or both fail. All three legs block --
+    network or CPU -- so all belong here rather than in the handler that
+    opens the file picker."""
 
     succeeded = Signal(dict)  # not `finished`: QThread already defines that
     failed = Signal(str, str)  # (message box title, message)
@@ -123,6 +128,12 @@ class _ScanWorker(QThread):
         self._image_path = image_path
 
     def run(self):
+        if qwen_ocr.is_configured():
+            try:
+                self.succeeded.emit(qwen_ocr.guess_bean_fields(self._image_path))
+                return
+            except qwen_ocr.QwenOcrUnavailableError:
+                pass  # fall back to Claude/local OCR below
         if claude_ocr.is_configured():
             try:
                 self.succeeded.emit(claude_ocr.guess_bean_fields(self._image_path))
@@ -156,7 +167,7 @@ class _ScanProgressDialog(QDialog):
 
         caption = QLabel(
             "Reading the label..."
-            if claude_ocr.is_configured()
+            if qwen_ocr.is_configured() or claude_ocr.is_configured()
             else "Reading the label with local OCR..."
         )
         caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -307,6 +318,13 @@ class BeanDialog(QDialog):
         self.images_group = QGroupBox(f"Pages (0/{MAX_IMAGES_PER_BEAN})")
         self.images_group.setLayout(images_layout)
 
+        voice_session_btn = QPushButton("🎤 Voice Session")
+        voice_session_btn.setProperty("variant", "primary")
+        voice_session_btn.clicked.connect(self._new_session_by_voice)
+        voice_session_row = QHBoxLayout()
+        voice_session_row.addStretch()
+        voice_session_row.addWidget(voice_session_btn)
+
         self.sessions_table = QTableWidget(0, 4)
         self.sessions_table.setHorizontalHeaderLabels(["ID", "Date", "Dripper", "Score"])
         self.sessions_table.setColumnHidden(0, True)
@@ -333,6 +351,7 @@ class BeanDialog(QDialog):
         for button in (new_session_btn, ask_ai_btn, edit_session_btn, delete_session_btn):
             sessions_buttons.addWidget(button)
         sessions_layout = QVBoxLayout()
+        sessions_layout.addLayout(voice_session_row)
         sessions_layout.addWidget(self.sessions_table)
         sessions_layout.addLayout(sessions_buttons)
         self.sessions_group = QGroupBox("Brewing sessions")
@@ -375,7 +394,7 @@ class BeanDialog(QDialog):
         top.addStretch()
         top.addWidget(share_btn)
 
-        save_btn = QPushButton("Save")
+        self.save_btn = save_btn = SaveButton()
         save_btn.setProperty("variant", "primary")
         save_btn.clicked.connect(self._save)
         close_btn = QPushButton("Close")
@@ -567,6 +586,45 @@ class BeanDialog(QDialog):
         self._refresh_sessions()
         self._refresh_flavor()
 
+    def _new_session_by_voice(self):
+        try:
+            from .voice_brew_dialog import VoiceBrewDialog
+        except ImportError as exc:
+            QMessageBox.warning(
+                self,
+                "Voice session unavailable",
+                f"Microphone recording isn't available on this system: {exc}",
+            )
+            return
+
+        bean_row = repo.get_bean(self.conn, self.bean_id)
+        dialog = VoiceBrewDialog(bean_row, parent=self)
+        if not dialog.exec():
+            return
+
+        session_id = repo.create_session(self.conn, self.bean_id)
+        if dialog.dripper:
+            repo.update_session_field(self.conn, session_id, "dripper", dialog.dripper)
+        repo.update_session_field(self.conn, session_id, "note", dialog.suggestion)
+        if dialog.grind_size:
+            repo.update_session_field(self.conn, session_id, "grind_size", dialog.grind_size)
+        if dialog.dose_g is not None:
+            repo.update_session_field(self.conn, session_id, "dose_g", dialog.dose_g)
+        for stage in dialog.stages:
+            repo.add_stage(
+                self.conn,
+                session_id,
+                stage["temperature_c"],
+                stage["water_g"],
+                stage["time_seconds"],
+                stage["circling"],
+            )
+
+        bean_row = repo.get_bean(self.conn, self.bean_id)
+        BrewDialog(self.conn, bean_row, session_id=session_id, parent=self).exec()
+        self._refresh_sessions()
+        self._refresh_flavor()
+
     def _ask_ai_brew(self):
         bean_row = repo.get_bean(self.conn, self.bean_id)
         dialog = AiBrewSuggestionDialog(bean_row, parent=self)
@@ -659,6 +717,7 @@ class BeanDialog(QDialog):
             repo.update_bean_field(self.conn, self.bean_id, field, value)
 
         self._load(self.bean_id)
+        self.save_btn.flash_saved()
 
     def _is_empty(self) -> bool:
         row = repo.get_bean(self.conn, self.bean_id)

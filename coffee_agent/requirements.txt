@@ -1,0 +1,12 @@
+vllm
+langgraph
+langchain-openai
+langchain-anthropic
+langchain-core
+huggingface_hub
+pypdf
+python-docx
+rich
+python-dotenv
+openpyxl
+xlrd
