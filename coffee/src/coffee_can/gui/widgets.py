@@ -143,9 +143,16 @@ def thumbs_up_can_pixmap(size: int, color: str = "#FFFFFF") -> QPixmap:
     up -- the "saved it" confirmation on SaveButton.
 
     Drawn as a filled silhouette in one colour, so it reads on the green
-    primary button it sits on. The hand is a separate shape with a gap
-    rather than an arm joined to the body: at ~20px a connected arm merges
-    into the can and the whole thing turns into an unreadable blob.
+    primary button it sits on. Three things carry the read at ~24px:
+
+    * The thumb reaches above the can's lid. Once the details stop
+      resolving, that break in the top line is what still says "thumbs up".
+    * The hand is a separate shape with a gap rather than an arm joined to
+      the body -- a connected arm merges into the can and the whole thing
+      turns into one blob.
+    * The face is punched out with CompositionMode_Clear rather than painted
+      in the button's green, so the eyes and smile stay true holes against
+      the hover and pressed shades too.
     """
     result = QPixmap(size, size)
     result.fill(Qt.GlobalColor.transparent)
@@ -161,17 +168,56 @@ def thumbs_up_can_pixmap(size: int, color: str = "#FFFFFF") -> QPixmap:
             size * radius,
         )
 
-    # the can: lid, body, and the two little feet it walks on
-    box(0.02, 0.38, 0.47, 0.48, 0.05)  # lid
-    box(0.05, 0.45, 0.44, 0.86, 0.08)  # body
-    painter.drawEllipse(QPointF(size * 0.14, size * 0.89), size * 0.07, size * 0.045)
-    painter.drawEllipse(QPointF(size * 0.34, size * 0.89), size * 0.07, size * 0.045)
+    def capsule(x1, y1, x2, y2, width):
+        pen = QPen(QColor(color))
+        pen.setWidthF(size * width)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen)
+        painter.drawLine(QPointF(size * x1, size * y1), QPointF(size * x2, size * y2))
+        painter.setPen(Qt.PenStyle.NoPen)
 
-    # The thumbs up, held clear of the body and -- the part that carries the
-    # whole read at 20px -- reaching well above the can's lid, so the
-    # silhouette says "thumbs up" even once the details stop resolving.
-    box(0.56, 0.54, 0.94, 0.86, 0.10)  # fist
-    box(0.59, 0.10, 0.75, 0.60, 0.08)  # thumb
+    # The can, drawn stubby and heavily rounded -- squarer corners are what
+    # made this read as a waste bin rather than as the character.
+    box(0.03, 0.30, 0.50, 0.41, 0.05)  # lid
+    box(0.06, 0.37, 0.47, 0.85, 0.15)  # body
+    painter.drawEllipse(QPointF(size * 0.15, size * 0.88), size * 0.075, size * 0.05)
+    painter.drawEllipse(QPointF(size * 0.37, size * 0.88), size * 0.075, size * 0.05)
+
+    # The thumbs up. The thumb rises from the fist's *left* edge, not its
+    # middle -- centred, the two shapes read as a lollipop rather than a
+    # hand. Drawn as a round-capped stroke so it tapers to a soft tip
+    # instead of a cut-off bar.
+    box(0.56, 0.55, 0.97, 0.88, 0.12)
+    capsule(0.645, 0.60, 0.665, 0.21, 0.20)
+
+    # Everything below is punched out of the silhouette rather than painted
+    # in the button's green, so it stays a true hole against the hover and
+    # pressed shades too.
+    painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+
+    # Two curled fingers -- what finally sells the fist as a hand.
+    knuckle = QPen(QColor(color))
+    knuckle.setWidthF(size * 0.035)
+    knuckle.setCapStyle(Qt.PenCapStyle.RoundCap)
+    painter.setPen(knuckle)
+    for y in (0.68, 0.78):
+        painter.drawLine(QPointF(size * 0.66, size * y), QPointF(size * 0.94, size * y))
+    painter.setPen(Qt.PenStyle.NoPen)
+
+    # A face, so it's the little can and not just a shape.
+    eye = size * 0.052
+    painter.setBrush(QColor(color))
+    painter.drawEllipse(QPointF(size * 0.18, size * 0.53), eye, eye)
+    painter.drawEllipse(QPointF(size * 0.35, size * 0.53), eye, eye)
+    smile = QPen(QColor(color))
+    smile.setWidthF(size * 0.05)
+    smile.setCapStyle(Qt.PenCapStyle.RoundCap)
+    painter.setPen(smile)
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    painter.drawArc(
+        QRectF(size * 0.17, size * 0.56, size * 0.18, size * 0.14), 200 * 16, 140 * 16
+    )
+    painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
     painter.end()
     return result
