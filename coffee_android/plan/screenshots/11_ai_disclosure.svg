@@ -1,34 +1,33 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 680" font-family="Helvetica,Arial,sans-serif">
-  <title>AI disclosure &amp; consent — wireframe</title>
-  <rect width="320" height="680" rx="28" fill="#F2F2F7"/>
-  <rect width="320" height="680" fill="#000000" opacity="0.4"/>
-  <rect x="24" y="190" width="272" height="360" rx="20" fill="#FFFFFF"/>
-
-  <circle cx="160" cy="240" r="26" fill="#DFF7E5"/>
-  <text x="160" y="247" font-size="18" text-anchor="middle" fill="#248A3D">✦</text>
-
-  <text x="160" y="290" font-size="14" font-weight="bold" text-anchor="middle" fill="#1C1C1E">This uses an AI service</text>
-
-  <text x="45" y="318" font-size="10.5" fill="#3A3A3C">Your photo will be sent over the</text>
-  <text x="45" y="334" font-size="10.5" fill="#3A3A3C">internet to an AI service to read the</text>
-  <text x="45" y="350" font-size="10.5" fill="#3A3A3C">label and suggest brew settings.</text>
-
-  <text x="45" y="374" font-size="10.5" fill="#3A3A3C">What's sent: the photo, and the</text>
-  <text x="45" y="390" font-size="10.5" fill="#3A3A3C">bean/session details you've entered.</text>
-
-  <text x="45" y="414" font-size="10.5" fill="#3A3A3C">You can still add everything by hand</text>
-  <text x="45" y="430" font-size="10.5" fill="#3A3A3C">without using this feature.</text>
-
-  <line x1="45" y1="452" x2="275" y2="452" stroke="#E5E5EA"/>
-  <text x="45" y="470" font-size="9" fill="#8E8E93">Shown once · see full Privacy Policy</text>
-
-  <rect x="45" y="486" width="230" height="40" rx="20" fill="#F2F2F7"/>
-  <text x="160" y="510" font-size="11" text-anchor="middle" fill="#3A3A3C">Not now</text>
-
-  <text x="12" y="576" font-size="9" fill="#AEAEB2">No direct ancestor in the desktop app — designed</text>
-  <text x="12" y="588" font-size="9" fill="#AEAEB2">fresh against specs/legal-android.md §2.1/§3.1</text>
-  <text x="12" y="600" font-size="9" fill="#AEAEB2">rule 4. Affirmative tap required; no auto-dismiss.</text>
-
-  <rect x="20" y="612" width="280" height="42" rx="21" fill="#34C759"/>
-  <text x="160" y="638" font-size="13" text-anchor="middle" fill="#FFFFFF">Continue</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 800" width="360" height="800" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif">
+<title>AI disclosure &amp; consent</title>
+<defs><linearGradient id="ph1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D8CCBE"/><stop offset="1" stop-color="#A99684"/></linearGradient><radialGradient id="hl2" cx="0.34" cy="0.28" r="0.75"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.34"/><stop offset="1" stop-color="#3B2A1C" stop-opacity="0.26"/></radialGradient><mask id="cres3"><rect x="165.0" y="145.0" width="30" height="30" fill="#fff"/><circle cx="185.46" cy="156.1" r="11.18" fill="#000"/></mask></defs>
+<rect width="360" height="800" fill="#FAF7F2"/>
+<rect x="0" y="0" width="360" height="800" fill="url(#ph1)"/>
+<rect x="0" y="0" width="360" height="800" fill="url(#hl2)"/>
+<rect x="0" y="0" width="360" height="800" fill="none" stroke="#211A15" stroke-width="1" opacity="0.08"/>
+<rect x="0" y="0" width="360" height="800" fill="#1A120C" opacity="0.6"/>
+<rect x="24" y="104" width="312" height="608" fill="#FFFFFF" rx="28"/>
+<circle cx="180" cy="160" r="28" fill="#FFDFD2"/>
+<circle cx="180" cy="160" r="13.0" fill="#B4401F" mask="url(#cres3)"/>
+<path d="M171.94 166.76 Q179.35 160.26 183.9 168.58" fill="none" stroke="#B4401F" stroke-width="1.95" opacity="0.55"/>
+<text x="180" y="222" font-family="Fraunces,'Noto Serif Display',Georgia,serif" font-size="22" font-weight="600" fill="#211A15" text-anchor="middle">This uses an AI service</text>
+<text x="48" y="258" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147">Your photo, and the bean and session</text>
+<text x="48" y="280" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147">details you've typed in, may be sent</text>
+<text x="48" y="302" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147">over the internet to an AI service to</text>
+<text x="48" y="324" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147">read labels and suggest brew settings.</text>
+<text x="48" y="354" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147">What's sent: only what the feature</text>
+<text x="48" y="376" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147">needs — the photo you choose, or the</text>
+<text x="48" y="398" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147">text on the bean you're looking at.</text>
+<text x="48" y="428" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147">Nothing is sent unless you tap an AI</text>
+<text x="48" y="450" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147">button. You can log everything by</text>
+<text x="48" y="472" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147">hand without ever using this.</text>
+<line x1="48" y1="534" x2="312" y2="534" stroke="#DFD5C9" stroke-width="1"/>
+<text x="116.0" y="573.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#B4401F" text-anchor="middle">Privacy Policy</text>
+<text x="48" y="612" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#8C7F72">You'll see this again now and then, until</text>
+<text x="48" y="628" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#8C7F72">you accept it.</text>
+<text x="96.0" y="673.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#B4401F" text-anchor="middle">Not now</text>
+<rect x="172" y="648.0" width="144" height="40" fill="#B4401F" rx="20.0"/>
+<text x="244.0" y="673.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#FFFFFF" text-anchor="middle">Continue</text>
+<text x="180" y="756" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#E4D3C4" text-anchor="middle">Back and tap-outside behave exactly like “Not now”.</text>
+<rect x="126.0" y="790" width="108" height="4" fill="#3A302A" rx="2" opacity="0.5"/>
 </svg>

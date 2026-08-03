@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 800" width="360" height="800" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif">
+<title>Camera — permission denied</title>
+
+<rect width="360" height="800" fill="#FAF7F2"/>
+<text x="16" y="16" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147">8:24</text>
+<rect x="296" y="17" width="3" height="4" fill="#5C5147" rx="1"/>
+<rect x="301" y="15" width="3" height="6" fill="#5C5147" rx="1"/>
+<rect x="306" y="13" width="3" height="8" fill="#5C5147" rx="1"/>
+<rect x="311" y="11" width="3" height="10" fill="#5C5147" rx="1"/>
+<path d="M320 15 q5 -4 10 0 M323 18 q2.5 -2 5 0" fill="none" stroke="#5C5147" stroke-width="1.4"/>
+<rect x="334" y="9" width="18" height="9" fill="none" rx="2" stroke="#5C5147" stroke-width="1"/>
+<rect x="336" y="11" width="11" height="5" fill="#5C5147" rx="1"/>
+<path d="M32 49.0 l-7 7 l7 7" fill="none" stroke="#211A15" stroke-width="2"/>
+<text x="56" y="64.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="600" fill="#211A15">Scan bean label</text>
+<line x1="0" y1="88" x2="360" y2="88" stroke="#DFD5C9" stroke-width="1"/>
+<circle cx="180" cy="260" r="48" fill="#F0E5DA"/>
+<rect x="156" y="246" width="48" height="34" fill="none" rx="8" stroke="#2A211A" stroke-width="2"/>
+<circle cx="180" cy="263" r="9" fill="none" stroke="#2A211A" stroke-width="2"/>
+<path d="M156 238 l48 48" fill="none" stroke="#2A211A" stroke-width="2"/>
+<text x="180" y="352" font-family="Fraunces,'Noto Serif Display',Georgia,serif" font-size="28" font-weight="600" fill="#211A15" text-anchor="middle">Camera is off</text>
+<text x="180" y="388" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147" text-anchor="middle">Scanning a label needs the camera. You</text>
+<text x="180" y="410" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147" text-anchor="middle">turned it off — you can turn it back on in</text>
+<text x="180" y="432" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147" text-anchor="middle">Settings.</text>
+<rect x="80" y="472.0" width="200" height="40" fill="#B4401F" rx="20.0"/>
+<text x="180.0" y="497.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open Settings</text>
+<rect x="60" y="532.0" width="240" height="40" fill="#F0E5DA" rx="8"/>
+<text x="180.0" y="557.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#2A211A" text-anchor="middle">Pick a photo instead</text>
+<text x="180" y="606" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147" text-anchor="middle">Picking a photo needs no permission at all.</text>
+<text x="180" y="628" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147" text-anchor="middle">You can also type everything by hand.</text>
+<rect x="126.0" y="790" width="108" height="4" fill="#8C7F72" rx="2" opacity="0.5"/>
+</svg>
