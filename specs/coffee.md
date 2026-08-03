@@ -88,8 +88,9 @@ coffee/
 | --- | --- |
 | `cli.py` | The `coffeecan` command tree, built on `click`, rendered with `rich`. Interactive prompt helpers (`ask`, `ask_float`, `ask_time`) drive the add/edit flows field by field. |
 | `gui/app.py` | Entry point: registers the bundled Fredoka fonts, applies the stylesheet, opens `MainWindow`. |
-| `gui/main_window.py` | Welcome screen: top-left **What's New** button, header banner, the bean table, and a three-pane row (profile card, contribution calendar, flavor radar). |
-| `gui/whats_new_dialog.py` | **What's New**: a roaster list, then a product table for whichever one is picked, fetched via `whats_new.py` on a background thread. Two stacked pages in one dialog rather than nested modals. |
+| `gui/main_window.py` | Welcome screen: header banner, the bean table, and a four-pane row (contribution calendar, flavor radar, the **What's New** news ticker, the **Can see** coffee shelf). Also `CoffeeShelfCard`, one clickable coffee on that shelf. |
+| `gui/whats_new_dialog.py` | A roaster list, then a product table for whichever one is picked, fetched via `whats_new.py` on a background thread. Two stacked pages in one dialog rather than nested modals. Currently has no entry point in the window (`MainWindow._open_whats_new` is kept, unconnected). |
+| `gui/can_see_dialog.py` | **Can see**'s "more": every fetched coffee in one table, filtered locally by roaster, origin, stock and name. Fed the listings the main window already holds, so opening it costs no requests. |
 | `gui/bean_dialog.py` | The bean profile editor — fields, photo carousel, label scanning, the sessions table, and the per-bean flavor profile. Hosts the scan worker and its review dialog. |
 | `gui/brew_dialog.py` | The session editor — brew details, the stages table with its `StageDialog`, and the evaluation block (score, extraction bar, note, eleven flavor sliders, live radar). |
 | `gui/ai_brew_dialog.py` | "Ask AI": pick a dripper, get a Qwen recipe, review it, turn it into a real session with real stage rows. |
@@ -292,11 +293,12 @@ Each module calls `load_dotenv()` (walks up from the package) *and* `load_dotenv
 
 ### 3.7 What's New — reading roasters' public catalogues (`whats_new.py`)
 
-The main window's **What's New** button opens a dialog listing a handful of
-French roasters; picking one fetches what's currently on sale from that
-roaster's *own* site and shows it in a table (name, price, weight, in stock,
-a short description excerpt, a link to the real product page), plus a photo
-preview panel for whichever row is currently selected.
+`whats_new.py` reads what a handful of French roasters currently have on
+sale, from each roaster's *own* site: name, price, weight, in stock, a short
+description excerpt, a link to the real product page, and the URL of the
+listing photo. Two front ends consume it — the **Can see** pane and its
+"more" dialog (§3.7.1), and `whats_new_dialog.py`, a per-roaster table that
+is fully built but currently has no button wired to it.
 
 This is the crawler `specs/legal.md` governs, and that spec's binding rules
 are not optional here — this section only summarises how the code follows
@@ -319,12 +321,13 @@ them, not why. Two things anchor everything else in the module:
   treats prose as original.
 - **Images are hotlinked, never downloaded** (`specs/legal.md` §3.8 rule 31).
   `whats_new.py` only ever extracts the image *URL* from the listing JSON —
-  text, not bytes. The actual photo is fetched by
-  `gui/whats_new_dialog.py`'s preview panel, and only there: on row
-  selection, one request at a time (aborting whatever was in flight if the
-  selection moves on before it finishes), held only as an in-memory
-  `QPixmap`, never written to disk. No image is ever part of the cached
-  listing data, a fixture, or anything this project persists.
+  text, not bytes. Photos are fetched only at the moment they are displayed,
+  by `widgets.RemoteImageLabel` (the shelf cards and both dialogs' preview
+  panels) and `gui/whats_new_dialog.py`'s own older copy of the same logic:
+  one request at a time, aborting whatever was in flight if the selection
+  moves on, HTTP caching switched off, held only as an in-memory `QPixmap`,
+  never written to disk. No image is ever part of the cached listing data, a
+  fixture, or anything this project persists.
 
 Other spec rules this module implements: a truthful, contactable
 `User-Agent` (§3.5, never a spoofed browser string); a fixed 3-second delay
@@ -346,3 +349,56 @@ the risk table.
 `background.py`-owned-worker pattern as `ai_brew_dialog.py`'s Qwen call),
 so a slow or dead network shows the walking-can loader instead of freezing
 the window.
+
+#### 3.7.1 "Can see" — the shelf and its "more" dialog
+
+The overview card's right-hand pane, **Can see**, shows **three coffees
+picked at random** from everything the roasters currently list in stock:
+photo, name, and `roaster · origin · price`, each card opening the product
+page in the browser when clicked. `more ›`, top-right of the pane, opens
+`CanSeeDialog` — the same listings as one table, filterable by roaster,
+origin, stock and name, with the live photo preview.
+
+Three decisions worth keeping:
+
+- **One fetch per launch, five roasters, in parallel.** `MainWindow`
+  starts a `_TickerFetchWorker` per roaster at startup and picks the three
+  cards only once every worker has answered (`_fill_shelf`). Reshuffling as
+  each batch landed would both bias the picks toward whoever replied first
+  and re-fetch photos on every batch.
+- **The dialog fetches nothing.** It is constructed with the listings the
+  window already holds. `whats_new.py`'s cache is per-process, so a fetch
+  there would be either a no-op or five fresh requests for a browse — see
+  `specs/legal.md` §3.4; the request budget is spent once, by the window.
+- **The window keeps out-of-stock coffees**, filtering them out only for the
+  shelf, so the dialog's "In stock only" toggle has something to toggle.
+
+**What counts as a coffee here is `looks_like_coffee_bag()`, not
+`looks_like_coffee()`.** The older function reads only the seller's own
+category and answers True when there is none — right for a per-roaster table
+where a stray accessory is one row among hundreds, far too generous for a
+shelf of three: several of these shops publish an empty `product_type` for a
+whole slice of the catalogue, and cupping spoons, filter papers, herbal
+infusions and an "Update Payment Info" placeholder all came through it. The
+stricter version adds two tests over the seller's own fields — the name must
+not contain a word no roaster prints on a bag (a short whole-word list: tea
+and infusion terms, brewing hardware, gear brands), and the listing must
+positively look like coffee (`detect_origin()` found a country, or the seller
+says café/coffee/espresso somewhere). Measured against all five live
+catalogues on 2026-08-03 it keeps 83 of ~250 in-stock listings, and what it
+drops is kit. Both halves stay deliberately conservative: it would rather
+drop a real coffee whose name says nothing than present a milk pitcher as
+one.
+
+**Origin is inferred, not published.** None of these endpoints exposes an
+origin field, so `whats_new.detect_origin()` matches `ORIGINS` — producing
+countries with their French and English spellings, plus regions and famous
+estates that imply a country — against the seller's own name and category,
+falling back to the description excerpt. Matching is **whole-word regex, not
+substring**: as substrings `inde` sits inside *indépendant* and `java`
+inside *javanais*, and a filter that files a Colombian bag under India is
+worse than one that files it under nothing. Earliest match wins when several
+countries appear; a bag with no country that calls itself a blend answers
+`BLEND_LABEL`; anything else answers `""` and is filterable as "Not stated".
+It exists to group a browsing list — it is never written into a bean
+profile, and must not be treated as a provenance claim.

@@ -114,7 +114,43 @@ _NON_COFFEE_CATEGORY_WORDS = (
     "mug", "tasse", "verre", "glass", "kinto", "alessi", "hario", "chemex",
     "moulin", "grinder", "balance", "scale", "kettle", "bouilloire",
     "filtre", "filter", "papier", "paper", "livre", "book", "merch", "textile",
+    "thé", "the vert", "infusion", "rooibos", "tisane", "matcha",
+    # Tanat files espresso machines and a sample roaster under these, and
+    # L'Arbre à Café its barista courses. Note what is *not* here: a bare
+    # "machine", because Tanat also tags real beans by the machine they suit
+    # ("machine auto", "moka bialetti") -- only the plural shop section
+    # "machines à cafés" means the machine itself.
+    "équipement", "equipement", "machines à cafés", "machines a cafes",
+    "percolateur", "formation", "atelier",
 )
+
+#: Words that mean "not a bag of coffee" when they appear in the *name*.
+#: Deliberately much narrower than the category list above, because a name is
+#: matched whole-word and a wrong hit here silently hides a real coffee: no
+#: "filtre" (Belleville sells a "Sélection Découverte Café Filtre"), no
+#: "espresso", no origin or process vocabulary. Everything listed is a thing
+#: no roaster puts on a bag of beans.
+_NON_COFFEE_NAME_WORDS = (
+    "thé", "thes", "thés", "tea", "tisane", "infusion", "rooibos", "matcha", "chai",
+    "spoon", "cuillère", "cuillere", "tamper", "pichet", "jug", "knock", "leveler",
+    "leveling", "distributeur", "moulin", "grinder", "bouilloire", "kettle",
+    "cafetière", "cafetiere", "cafétière", "dripper", "chemex", "carafe", "mug",
+    "tasse", "assiette", "saucer", "verre", "gobelet", "balance", "machine",
+    "purificateur", "affiche", "chocolat", "abonnement", "subscription",
+    "payment", "papier", "paper", "filtres", "stylo", "bols",
+    # Gear brands, the same tactic the category list already uses: these
+    # shops sell kit whose product_type is empty, so the brand in the name is
+    # the only thing left to go on ("Hario - My Cafe Drip Filter", "OXO -
+    # Boîte pop ... pour le café") -- both of which name-drop coffee and
+    # would otherwise read as beans.
+    "hario", "kinto", "alessi", "chemex", "oxo", "motta", "acme",
+    "comandante", "delonghi", "lelit",
+)
+_NON_COFFEE_NAME_PATTERN = re.compile(
+    r"\b(?:%s)\b" % "|".join(re.escape(word) for word in _NON_COFFEE_NAME_WORDS)
+)
+#: The positive half of looks_like_coffee_bag(): the seller calling it coffee.
+_COFFEE_WORD_PATTERN = re.compile(r"\b(?:caf[ée]s?|coffee|espresso|arabica|gesha|geisha)\b")
 
 
 def looks_like_coffee(listing: "Listing") -> bool:
@@ -129,6 +165,117 @@ def looks_like_coffee(listing: "Listing") -> bool:
     if not category:
         return True
     return not any(word in category for word in _NON_COFFEE_CATEGORY_WORDS)
+
+
+#: Producing country -> the words a listing might use for it. Both spellings
+#: are needed: these roasters write in French but several label the beans
+#: themselves in English. Growing regions and famous estates count as their
+#: country -- a bag sold as "Yirgacheffe" is Ethiopian -- because this exists
+#: to group a browsing list, not to make a provenance claim.
+ORIGINS = {
+    "Ethiopia": ("ethiopia", "ethiopie", "éthiopie", "yirgacheffe", "yirgacheffé",
+                 "guji", "sidamo", "sidama", "harrar", "harar", "limu", "jimma", "djimmah"),
+    "Kenya": ("kenya", "kenyan", "nyeri", "kirinyaga"),
+    "Rwanda": ("rwanda", "nyamasheke"),
+    "Burundi": ("burundi", "kayanza"),
+    "Tanzania": ("tanzania", "tanzanie"),
+    "Uganda": ("uganda", "ouganda"),
+    "DR Congo": ("congo", "kivu"),
+    "Colombia": ("colombia", "colombie", "colombien", "colombienne", "huila", "nariño",
+                 "narino", "tolima", "antioquia"),
+    "Brazil": ("brazil", "brésil", "bresil", "brésilien", "cerrado", "mogiana", "minas"),
+    "Peru": ("peru", "pérou", "perou", "cajamarca"),
+    "Bolivia": ("bolivia", "bolivie"),
+    "Ecuador": ("ecuador", "équateur", "equateur"),
+    "Panama": ("panama", "boquete", "esmeralda", "volcan"),
+    "Costa Rica": ("costa rica", "tarrazu", "tarrazú"),
+    "Guatemala": ("guatemala", "huehuetenango", "acatenango", "antigua"),
+    "Honduras": ("honduras", "marcala"),
+    "El Salvador": ("el salvador", "salvador"),
+    "Nicaragua": ("nicaragua",),
+    "Mexico": ("mexico", "mexique", "chiapas", "oaxaca"),
+    "Indonesia": ("indonesia", "indonésie", "indonesie", "sumatra", "java", "sulawesi",
+                  "bali", "flores"),
+    "India": ("india", "inde"),
+    "Yemen": ("yemen", "yémen"),
+    "China": ("china", "chine", "yunnan"),
+    "Vietnam": ("vietnam", "viet nam", "viêt nam"),
+    "Myanmar": ("myanmar", "birmanie"),
+    "Papua New Guinea": ("papua", "papouasie"),
+    "Timor": ("timor",),
+    "Haiti": ("haiti", "haïti"),
+    "Jamaica": ("jamaica", "jamaïque", "jamaique"),
+    "Cuba": ("cuba",),
+}
+
+#: Whole words only. As substrings several of these are disastrous -- "inde"
+#: is inside "indépendant" and "index", "java" inside "javanais" -- and a
+#: filter that quietly files a Colombian bag under India is worse than one
+#: that files it under nothing.
+_ORIGIN_PATTERNS = {
+    label: re.compile(r"\b(?:%s)\b" % "|".join(re.escape(term) for term in terms))
+    for label, terms in ORIGINS.items()
+}
+_BLEND_PATTERN = re.compile(r"\b(?:blend|assemblage|mélange|melange)\b")
+
+#: What detect_origin() answers for a bag with no single country -- kept as a
+#: named constant because it is also a filter value in the GUI.
+BLEND_LABEL = "Blend"
+
+
+def detect_origin(listing: "Listing") -> str:
+    """Best-effort producing country for a listing, or "" if it can't tell.
+
+    Reads the seller's own name and category first and only falls back to the
+    description excerpt, so a passing mention ("roasted like a Brazilian") in
+    the prose can't outrank a country in the title. When several countries
+    appear, the earliest one in the text wins; when none does but the listing
+    calls itself a blend, the answer is BLEND_LABEL.
+
+    Deliberately a heuristic over text the roaster wrote for humans -- none of
+    these endpoints publishes origin as a field. Treat it as a way to narrow a
+    browsing list, never as data to copy into a bean profile."""
+    for haystack in (f"{listing.name} {listing.category}".lower(), listing.note_excerpt.lower()):
+        best, position = "", None
+        for label, pattern in _ORIGIN_PATTERNS.items():
+            match = pattern.search(haystack)
+            if match and (position is None or match.start() < position):
+                best, position = label, match.start()
+        if best:
+            return best
+        if _BLEND_PATTERN.search(haystack):
+            return BLEND_LABEL
+    return ""
+
+
+def looks_like_coffee_bag(listing: "Listing") -> bool:
+    """Whether a listing is a bag of beans, not kit, tea or paperwork.
+
+    Stricter than looks_like_coffee(), and needed because that function's
+    "no category means yes" rule is generous where it matters most: several
+    of these shops publish an empty `product_type` for a chunk of the
+    catalogue, and everything in it -- cupping spoons, filter papers, herbal
+    infusions, even a "Update Payment Info" placeholder product -- sails
+    through. A shelf that shows three items has no room to be that generous.
+
+    Three tests, all over fields the seller wrote themselves:
+    looks_like_coffee() must pass, the name must not contain a word no
+    roaster prints on a bag of beans, and the listing must positively look
+    like coffee -- either detect_origin() found a country or the seller
+    calls it café/coffee/espresso somewhere.
+
+    Still a heuristic, and still the conservative direction: it drops real
+    coffees whose names say nothing (a bag called only "Le Mistral" with no
+    origin in its description), which costs a browsing list far less than
+    presenting a milk pitcher as a coffee."""
+    if not looks_like_coffee(listing):
+        return False
+    name = listing.name.lower()
+    if _NON_COFFEE_NAME_PATTERN.search(name):
+        return False
+    return bool(
+        detect_origin(listing) or _COFFEE_WORD_PATTERN.search(f"{name} {listing.category}")
+    )
 
 
 def _parse_iso(value) -> "datetime | None":

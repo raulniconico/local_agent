@@ -15,9 +15,11 @@ from PySide6.QtCore import (
     QSize,
     Qt,
     QTimer,
+    QUrl,
     Signal,
 )
 from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap, QPolygonF, QTransform
+from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWidgets import (
     QComboBox,
     QDateEdit,
@@ -34,7 +36,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import drippers, filters, grinders, processes
+from .. import drippers, filters, grinders, processes, whats_new
 from .theme import style_calendar_popup
 
 _ISO_FORMAT = "yyyy-MM-dd"
@@ -1362,6 +1364,134 @@ class RadarChart(QWidget):
         painter.setBrush(QColor("#248A3D"))
         for point in data_points:
             painter.drawEllipse(point, 3, 3)
+
+
+class ElidedLabel(QLabel):
+    """A QLabel that shortens its own text with an ellipsis.
+
+    QLabel has no elide mode: given a long line it either forces its container
+    wider or wraps onto extra rows, both of which break a fixed-height card
+    layout. This paints the elided form itself and keeps the full string in
+    the tooltip."""
+
+    def __init__(self, text: str = "", parent=None):
+        super().__init__(text, parent)
+        self._full_text = text
+        # Ignored horizontally: the label must never be the reason its parent
+        # asks for more width -- eliding is exactly the alternative to that.
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+
+    def setText(self, text: str) -> None:
+        self._full_text = text or ""
+        self.setToolTip(self._full_text)
+        super().setText(self._full_text)
+
+    def text(self) -> str:
+        return self._full_text
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setPen(self.palette().color(self.foregroundRole()))
+        painter.setFont(self.font())
+        elided = self.fontMetrics().elidedText(
+            self._full_text, Qt.TextElideMode.ElideRight, self.width()
+        )
+        painter.drawText(self.rect(), self.alignment(), elided)
+
+
+class RemoteImageLabel(QLabel):
+    """A fixed-size thumbnail for a photo that lives on someone else's server.
+
+    `load()` fetches the bytes at the moment they are displayed and keeps the
+    result only as an in-memory QPixmap -- never a file, and with HTTP caching
+    switched off so Qt cannot spool it either. That is the line specs/legal.md
+    rule 31 draws for roaster photos (see whats_new.py's module docstring:
+    images are hotlinked, never downloaded), and requests carry the same
+    truthful User-Agent as the listing fetch itself.
+
+    Only one request is ever in flight: a second `load()` aborts the first, so
+    a fast-changing selection can't paint a stale photo over the current one."""
+
+    def __init__(self, size: int, placeholder: str = "No photo", radius: int = 10, parent=None):
+        super().__init__(parent)
+        self._placeholder = placeholder
+        self._size = size
+        self._radius = radius
+        self._reply = None
+        self._network = QNetworkAccessManager(self)
+        self.setFixedSize(size, size)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setWordWrap(True)
+        self.setStyleSheet(
+            f"background-color: #F2F2F7; border-radius: {radius}px;"
+            " color: #8E8E93; font-size: 10px;"
+        )
+        self.setText(placeholder)
+
+    def load(self, image_url: str) -> None:
+        """Show the image at `image_url`, or the placeholder if there isn't one."""
+        self.clear_image()
+        if not image_url:
+            return
+        self.setText("…")
+
+        request = QNetworkRequest(QUrl(image_url))
+        request.setRawHeader(b"User-Agent", whats_new.USER_AGENT.encode())
+        request.setAttribute(QNetworkRequest.Attribute.CacheSaveControlAttribute, False)
+        reply = self._network.get(request)
+        self._reply = reply
+        reply.finished.connect(lambda: self._on_finished(reply))
+
+    def clear_image(self) -> None:
+        """Drop the photo and any request still in flight."""
+        if self._reply is not None:
+            self._reply.abort()
+            self._reply = None
+        self.setPixmap(QPixmap())
+        self.setText(self._placeholder)
+
+    def _on_finished(self, reply) -> None:
+        # A superseded reply belongs to a photo nobody is looking at any more;
+        # read it only if it is still the current one.
+        is_current = reply is self._reply
+        if is_current:
+            self._reply = None
+        error_free = reply.error() == QNetworkReply.NetworkError.NoError
+        data = reply.readAll() if error_free else None
+        reply.deleteLater()
+        if not is_current:
+            return
+        pixmap = QPixmap()
+        if data is not None:
+            pixmap.loadFromData(data)
+        if pixmap.isNull():
+            self.setText("No photo")
+            return
+        self.setText("")
+        self.setPixmap(self._rounded(pixmap))
+
+    def _rounded(self, pixmap: QPixmap) -> QPixmap:
+        """Scale to fit and clip to the same radius as the label's own
+        background -- an unclipped photo squares off corners the QSS just
+        rounded, which on a rounded card reads as a rendering glitch."""
+        scaled = pixmap.scaled(
+            self._size,
+            self._size,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        if not self._radius:
+            return scaled
+        masked = QPixmap(scaled.size())
+        masked.fill(QColor(0, 0, 0, 0))
+        painter = QPainter(masked)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(scaled.rect()), self._radius, self._radius)
+        painter.setClipPath(path)
+        painter.drawPixmap(0, 0, scaled)
+        painter.end()
+        return masked
 
 
 class VerticalTicker(QWidget):

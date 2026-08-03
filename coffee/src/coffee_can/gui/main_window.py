@@ -2,10 +2,13 @@
 coffee profiles list, and a fused overview block holding the brewing
 activity calendar and flavor profile panes."""
 
+import random
+
 from PySide6.QtCore import Qt, QThread, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QFrame,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -26,9 +29,17 @@ from ..assets import icon_path
 from ..formatting import format_or_dash
 from . import background
 from .bean_dialog import BeanDialog
+from .can_see_dialog import CanSeeDialog
 from .profile_dialog import ProfileSettingsDialog
 from .whats_new_dialog import WhatsNewDialog
-from .widgets import ContributionCalendar, HeaderBanner, RadarChart, VerticalTicker
+from .widgets import (
+    ContributionCalendar,
+    ElidedLabel,
+    HeaderBanner,
+    RadarChart,
+    RemoteImageLabel,
+    VerticalTicker,
+)
 
 
 class _TickerFetchWorker(QThread):
@@ -65,6 +76,70 @@ class _NewsFetchWorker(QThread):
             self.failed.emit(str(exc))
         else:
             self.succeeded.emit(items)
+
+
+class CoffeeShelfCard(QFrame):
+    """One coffee on the "Can see" shelf: the roaster's own photo, the bean's
+    name, and who sells it for how much. The whole card is the click target
+    and opens the product page.
+
+    The photo is hotlinked, never downloaded -- RemoteImageLabel fetches it
+    from the roaster's own CDN at display time and holds it only as a QPixmap
+    (specs/legal.md rule 31, and whats_new.py's module docstring)."""
+
+    clicked = Signal(str)  # the product page URL
+
+    _THUMB = 52
+    _STYLE = (
+        "QFrame#shelfCard { background-color: #F7F7FA; border-radius: 10px; }"
+        "QFrame#shelfCard:hover { background-color: #EFEFF4; }"
+    )
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("shelfCard")
+        self.setStyleSheet(self._STYLE)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._url = ""
+
+        row = QHBoxLayout(self)
+        row.setContentsMargins(8, 6, 8, 6)
+        row.setSpacing(10)
+
+        self.thumb = RemoteImageLabel(self._THUMB, placeholder="no\nphoto")
+        row.addWidget(self.thumb)
+
+        text = QVBoxLayout()
+        text.setContentsMargins(0, 0, 0, 0)
+        text.setSpacing(2)
+        self.name_label = ElidedLabel("")
+        self.name_label.setStyleSheet("font-size: 12px; font-weight: 600; color: #1C1C1E;")
+        self.detail_label = ElidedLabel("")
+        self.detail_label.setStyleSheet("font-size: 11px; color: #8E8E93;")
+        text.addStretch()
+        text.addWidget(self.name_label)
+        text.addWidget(self.detail_label)
+        text.addStretch()
+        row.addLayout(text, 1)
+
+    def set_listing(self, listing):
+        self._url = listing.url
+        self.name_label.setText(listing.name)
+        origin = whats_new.detect_origin(listing)
+        self.detail_label.setText(
+            " · ".join(
+                part
+                for part in (listing.roaster, origin, listing.price_display)
+                if part and part != "—"
+            )
+        )
+        self.setToolTip(f"{listing.name} — {listing.roaster}")
+        self.thumb.load(listing.image_url)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self._url:
+            self.clicked.emit(self._url)
+        super().mouseReleaseEvent(event)
 
 
 class _TextSortItem(QTableWidgetItem):
@@ -114,7 +189,7 @@ class MainWindow(QMainWindow):
     # the card's own top padding, so cards abut while their contents hold
     # position.
     _BLOCK_GAP = 16
-    _MARKET_LIMIT = 20  # entries in the Coffee Market rolling feed
+    _SHELF_PICKS = 3  # random coffees shown on the "Can see" shelf
     _THEME_CARD_PADDING = 12  # theme.STYLESHEET's QGroupBox left/right/bottom padding
     _THEME_CARD_PADDING_TOP = 14  # ... and its top padding, which differs
     # The app-wide QGroupBox rule reserves margin-top:22px for a native
@@ -165,7 +240,7 @@ class MainWindow(QMainWindow):
         self._refresh_beans()
         self._refresh_activity()
         self._start_news_feed()
-        self._start_market_feed()
+        self._start_shelf_feed()
 
     def _open_whats_new(self):
         """Open the release-notes dialog.
@@ -373,7 +448,7 @@ class MainWindow(QMainWindow):
         row.addWidget(self._build_flavor_profile_pane())
         # The corner the trailing stretch used to hold, split evenly in two.
         row.addWidget(self._build_whats_new_pane(), 1)
-        row.addWidget(self._build_market_pane(), 1)
+        row.addWidget(self._build_shelf_pane(), 1)
         outer.addLayout(row)
         return group
 
@@ -387,7 +462,7 @@ class MainWindow(QMainWindow):
 
         self.news_ticker = VerticalTicker()
         self.news_ticker.set_placeholder("Loading today's coffee news…")
-        self.news_ticker.activated.connect(self._open_news_item)
+        self.news_ticker.activated.connect(self._open_link)
         layout.addWidget(self.news_ticker, 1)
         return pane
 
@@ -413,19 +488,20 @@ class MainWindow(QMainWindow):
     def _on_news_failed(self, message):
         self.news_ticker.set_placeholder(message)
 
-    def _open_news_item(self, url):
+    def _open_link(self, url):
         QDesktopServices.openUrl(QUrl(url))
 
-    # --- coffee market pane -------------------------------------------------
+    # --- "can see" shelf pane -----------------------------------------------
 
-    def _start_market_feed(self):
-        """Populate the market ticker from the roasters' own product endpoints.
+    def _start_shelf_feed(self):
+        """Fill the "Can see" shelf from the roasters' own product endpoints.
 
         One worker per roaster, off the GUI thread. whats_new.fetch_listings()
         caches for 15 minutes, so re-opening the window inside that window
-        costs no requests at all -- the ticker never becomes a reason to hit
-        a host more often than the dialog already would."""
-        self._market_rows = []
+        costs no requests at all -- the shelf never becomes a reason to hit a
+        host more often than the dialog already would."""
+        self._shelf_listings = []
+        self._shelf_pending = len(whats_new.ROASTERS)
         self._market_workers = []
         for roaster_key in whats_new.ROASTERS:
             worker = _TickerFetchWorker(roaster_key)
@@ -438,26 +514,39 @@ class MainWindow(QMainWindow):
             background.start(worker)
 
     def _on_market_batch(self, _roaster_key, listings):
-        for listing in listings:
-            if not listing.in_stock or not whats_new.looks_like_coffee(listing):
-                continue
-            subtitle = " · ".join(
-                part
-                for part in (listing.roaster, listing.price_display, listing.weight_display)
-                if part and part != "—"
-            )
-            self._market_rows.append((listing.published_at, listing.name, subtitle, listing.url))
-        # Newest first, on the seller's own published_at. Undated listings
-        # (the WooCommerce Store API exposes none) sort last rather than
-        # being presented as if they were new.
-        self._market_rows.sort(key=lambda row: (row[0] is not None, row[0]), reverse=True)
-        self.market_ticker.set_entries(
-            [(name, subtitle, url) for _, name, subtitle, url in self._market_rows[: self._MARKET_LIMIT]]
+        # Out-of-stock bags are kept: the shelf skips them, but the "more"
+        # dialog's stock filter needs something to filter.
+        self._shelf_listings.extend(
+            listing for listing in listings if whats_new.looks_like_coffee_bag(listing)
         )
+        self._shelf_pending -= 1
+        self._fill_shelf()
 
     def _on_market_failed(self, _roaster_key, _message):
-        if not self._market_rows:
-            self.market_ticker.set_placeholder("Couldn't reach the roasters")
+        self._shelf_pending -= 1
+        self._fill_shelf()
+
+    def _fill_shelf(self):
+        """Pick the shelf's coffees at random, once every roaster has answered.
+
+        Waiting for the last one, rather than reshuffling as each batch lands,
+        is what keeps the picks honestly random across all five roasters --
+        and it means each card fetches its photo exactly once per launch
+        instead of once per batch."""
+        if self._shelf_pending > 0:
+            return
+        in_stock = [listing for listing in self._shelf_listings if listing.in_stock]
+        if not in_stock:
+            self.shelf_status.setText(
+                "Couldn't reach the roasters"
+                if not self._shelf_listings
+                else "Nothing in stock right now"
+            )
+            return
+        self.shelf_status.hide()
+        for card, listing in zip(self.shelf_cards, random.sample(in_stock, min(len(in_stock), len(self.shelf_cards)))):
+            card.set_listing(listing)
+            card.show()
 
     def closeEvent(self, event):
         # The requests keep running to completion (background.py owns the
@@ -474,17 +563,52 @@ class MainWindow(QMainWindow):
             self._news_worker = None
         super().closeEvent(event)
 
-    def _build_market_pane(self):
+    def _build_shelf_pane(self):
+        """"Can see": three random coffees off the roasters' current shelves,
+        with a "more" link to the whole filterable catalogue."""
         pane = QWidget()
         layout = QVBoxLayout(pane)
-        layout.addWidget(self._pane_header("Coffee Market"))
+
+        header_row = QHBoxLayout()
+        header_row.addWidget(self._pane_header("Can see"))
+        header_row.addStretch()
+        # A link rather than a QPushButton: the global button rule pads to a
+        # pill that would tower over the 13px heading beside it. The anchor
+        # colour has to be inline -- a QSS `color` on the label styles the
+        # label's own text, not the <a> inside it.
+        more = QLabel('<a href="#" style="color:#8E8E93; text-decoration:none;">more ›</a>')
+        more.setToolTip("Every coffee on sale, by roaster or origin")
+        more.setStyleSheet("font-size: 12px;")
+        more.setCursor(Qt.CursorShape.PointingHandCursor)
+        more.linkActivated.connect(self._open_can_see)
+        header_row.addWidget(more)
+        layout.addLayout(header_row)
         layout.addSpacing(self._HEADER_GAP)
 
-        self.market_ticker = VerticalTicker()
-        self.market_ticker.set_placeholder("Loading new arrivals…")
-        self.market_ticker.activated.connect(self._open_news_item)
-        layout.addWidget(self.market_ticker, 1)
+        self.shelf_status = QLabel("Looking at the roasters' shelves…")
+        self.shelf_status.setStyleSheet("color: #8E8E93; font-size: 11px;")
+        self.shelf_status.setWordWrap(True)
+        layout.addWidget(self.shelf_status)
+
+        # Three fixed-height cards can't fill a pane sized by the calendar and
+        # the radar beside them, so centre the trio in what's left rather than
+        # hanging it off the heading with a drop of empty card underneath.
+        layout.addStretch(1)
+        self.shelf_cards = []
+        for _ in range(self._SHELF_PICKS):
+            card = CoffeeShelfCard()
+            card.clicked.connect(self._open_link)
+            card.hide()  # shown once there is something to put on it
+            self.shelf_cards.append(card)
+            layout.addWidget(card)
+        layout.addStretch(1)
         return pane
+
+    def _open_can_see(self):
+        """The "more" link: the whole catalogue, filterable by roaster and
+        origin. The listings the shelf already holds are handed over as they
+        are, so opening this costs no further requests."""
+        CanSeeDialog(self._shelf_listings, parent=self).exec()
 
     @staticmethod
     def _pane_header(text):
