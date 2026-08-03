@@ -72,21 +72,33 @@ class MainWindow(QMainWindow):
     # card on the sides facing the window, so the cards sit flush while
     # their contents stay exactly where they were.
     _WINDOW_INSET = 20
+    # What used to separate one card from the next: 8px of layout spacing
+    # plus the 8px QGroupBox margin-top each card carried. Now folded into
+    # the card's own top padding, so cards abut while their contents hold
+    # position.
+    _BLOCK_GAP = 16
     _THEME_CARD_PADDING = 12  # theme.STYLESHEET's QGroupBox left/right/bottom padding
+    _THEME_CARD_PADDING_TOP = 14  # ... and its top padding, which differs
     # The app-wide QGroupBox rule reserves margin-top:22px for a native
     # title drawn *above* the card background. These top-level cards render
     # their own heading as a QLabel inside the card instead (see
-    # _pane_header), so that reserved strip is dead space -- shrink it.
+    # _pane_header), so that reserved strip is dead space -- drop it
+    # entirely and let the cards meet.
     #
-    # The side padding restates theme.STYLESHEET's own 12px and adds the
-    # inset the window margin used to provide. It goes here, in the card's
-    # QSS box, rather than on the card's layout: a QVBoxLayout built on a
-    # QGroupBox leaves its margins unset and resolves them from the style at
-    # layout time, so reading them and writing back a larger value froze
-    # them at a different number than the one actually in effect (11 vs 9)
-    # and shifted the contents 2px.
+    # The padding restates theme.STYLESHEET's own values and adds back the
+    # space the window margin and the inter-card gap used to provide. It
+    # goes here, in the card's QSS box, rather than on the card's layout: a
+    # QVBoxLayout built on a QGroupBox leaves its margins unset and resolves
+    # them from the style at layout time, so reading them and writing back a
+    # larger value froze them at a different number than the one actually in
+    # effect (11 vs 9) and shifted the contents 2px.
+    # Square corners: the theme's 14px radius is for a card floating on the
+    # window background. Now that the cards are full-bleed and abut each
+    # other, that radius only showed up as grey wedges of window background
+    # notched into the seams where two cards meet.
     _CARD_STYLE = (
-        "QGroupBox { margin-top: 8px; padding-left: %(side)dpx; padding-right: %(side)dpx; }"
+        "QGroupBox { margin-top: 0px; border-radius: 0px; padding-top: %(top)dpx;"
+        " padding-left: %(side)dpx; padding-right: %(side)dpx; }"
     )
 
     def __init__(self, conn):
@@ -103,7 +115,9 @@ class MainWindow(QMainWindow):
         # so only the card backgrounds reach further out -- nothing they
         # contain moves.
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
+        # Cards abut; the gap that used to sit here lives in their top
+        # padding now (_BLOCK_GAP), so contents stay put.
+        layout.setSpacing(0)
         layout.addWidget(self._build_header())
         layout.addWidget(self._build_beans_card(), self._BEANS_STRETCH)
         layout.addWidget(self._build_overview_card(), self._OVERVIEW_STRETCH)
@@ -127,6 +141,10 @@ class MainWindow(QMainWindow):
     def _build_header(self):
         header = HeaderBanner()
         header.setMinimumHeight(132)
+        # Square off the strip's rounded corners for the same reason the
+        # cards below it are squared -- it is full-bleed now and its bottom
+        # corners notched into the card underneath.
+        header._RADIUS = 0
         # A grid rather than a plain QVBoxLayout: the centred icon/title/
         # subtitle stack and the settings button both occupy cell (0, 0),
         # each aligned differently within it (stack fills it, button pins
@@ -326,7 +344,10 @@ class MainWindow(QMainWindow):
     @classmethod
     def _card_style(cls, flush_bottom=False):
         """QSS for a top-level card sitting flush against the window edge."""
-        style = cls._CARD_STYLE % {"side": cls._THEME_CARD_PADDING + cls._WINDOW_INSET}
+        style = cls._CARD_STYLE % {
+            "side": cls._THEME_CARD_PADDING + cls._WINDOW_INSET,
+            "top": cls._THEME_CARD_PADDING_TOP + cls._BLOCK_GAP,
+        }
         if flush_bottom:
             style += "QGroupBox { padding-bottom: %dpx; }" % (
                 cls._THEME_CARD_PADDING + cls._WINDOW_INSET
