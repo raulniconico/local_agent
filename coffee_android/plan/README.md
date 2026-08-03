@@ -1,0 +1,216 @@
+# coffee_android — design plan
+
+Status: **planning only**. Nothing in this directory has been built. This
+document went through one full round of review by three specialist agents
+(UI design, engineering, app development) — their findings are folded in
+throughout, most visibly in "Specialist review — resolutions" below. See
+`specs/legal-android.md` for the policy constraints this plan is written to
+satisfy; treat that document as binding, this one as the proposal built on
+top of it.
+
+- [README.md](README.md) — this file: architecture, phasing, open decisions
+- [api.md](api.md) — every API surface: local Room schema/DAOs, `coffee_server`
+  endpoints (existing + proposed new ones), and which screen calls what
+- [screens.md](screens.md) — one section per screen: purpose, fields, states,
+  Compose realization, API calls, wireframe
+- [screenshots/](screenshots/) — wireframe mockups (SVG), one per screen —
+  **wireframes, not real screenshots**, since nothing is built yet; see note
+  at the top of screens.md
+
+---
+
+## What this is
+
+A native Android port of `coffee-can` (`coffee/`), the existing PySide6
+desktop app for logging hand-brew coffee. Same data model, same core
+workflows (bean profiles, brew sessions, flavor tracking), rebuilt as a
+Kotlin + Jetpack Compose app for Google Play. Full feature parity is the
+stated goal (per the "full port" decision made before this stage); §Phasing
+below proposes what ships in v1 vs. what's sound to defer, as a
+recommendation for the specialist review — not a unilateral cut.
+
+## Two decisions this plan had to resolve before it could be written
+
+Both surfaced only after inventorying the existing app in detail (see task
+history) — flagging them up front because they shape almost every screen and
+API section below.
+
+### 1. `coffee_server` is text-only today; two features need it extended
+
+`coffee_server`'s only real endpoint, `POST /v1/ask`, accepts a plain-string
+`prompt` or `messages` and returns plain-string `content` — no image, no
+audio field anywhere in its schema (verified by reading `schemas.py` and
+`providers.py` directly). `coffee-can`'s own OCR (`claude_ocr.py`,
+`qwen_ocr.py`) and voice transcription (`qwen_brew.py`) call Anthropic/Qwen's
+**vision/audio** APIs *directly*, bypassing `coffee_server` entirely — the
+desktop app was never built to go through a gateway for these.
+
+Since the tech-stack decision for this project was explicitly "call
+`coffee_server`, never embed provider keys client-side," bean-label OCR (an
+image-in feature) cannot ship as designed without `coffee_server` growing a
+vision-capable endpoint first. This is **a dependency on the sibling
+`coffee_server` project**, not something `coffee_android` can work around
+alone — see `api.md` §2 for the proposed new endpoint shape, written so
+whoever picks up `coffee_server` work has a concrete target. Voice sessions
+have the identical problem one level further out (audio, not image) — see
+§Phasing.
+
+### 2. The roaster-catalogue and news features cannot run client-side
+
+Also only visible once the actual data flow was inventoried: `coffee-can`'s
+"Can drink" shelf, "Can see" catalogue, and news ticker scrape roaster
+storefronts and RSS feeds **directly from the GUI process** — fine for one
+desktop instance, but `specs/legal-android.md` §4 (added after this was
+found) explains why fanning that out across every Android install breaks the
+single-crawler premise the whole rate-limiting/legal posture in
+`specs/legal.md` was built on. **This plan assumes those features move
+behind new `coffee_server` endpoints that do one centralized, scheduled crawl
+and serve every client a cached read** — again a `coffee_server`-side
+dependency, detailed in `api.md` §3.
+
+Both dependencies are called out explicitly in each affected screen's section
+in `screens.md` so they aren't missed during specialist review.
+
+## Architecture
+
+- **UI:** Jetpack Compose, Material3, Navigation Compose for screen-to-screen
+  flow. One `Activity`, Compose-only — no XML layouts, no Fragments.
+- **State:** MVVM — one `ViewModel` per screen, `StateFlow`-exposed UI state,
+  matching the desktop app's per-dialog-worker pattern (`_ScanWorker`,
+  `_SuggestionWorker`, etc.) with Kotlin coroutines instead of `QThread`.
+- **Local persistence:** Room, schema mirroring `coffee-can`'s SQLite
+  (`db.py`) column-for-column — see `api.md` §1. Same on-device-only, no
+  cloud sync, no accounts (per `specs/legal-android.md` §1's binding
+  architectural facts — do not add either without re-reading that spec's
+  §3.5 first).
+- **Network:** Retrofit + OkHttp, one `ApiService` interface against
+  `coffee_server`, `X-API-Key` header interceptor. No other network calls
+  from the client after §2's centralization fix — see `api.md` §3.
+- **Images:** Android Photo Picker (`PickVisualMedia`) for existing photos,
+  CameraX for capture, Coil (sharing the app's single `OkHttpClient` instance,
+  so the TLS-only Network Security Config actually covers image loads too)
+  for image loading (both local files and hotlinked remote roaster photos) —
+  matches `specs/legal-android.md` §3.1 rules 1-2 exactly (no
+  `READ_MEDIA_IMAGES`; EXIF location stripped via `androidx.exifinterface`
+  immediately on ingest — Photo Picker result *and* CameraX capture — before
+  the file is ever persisted, not filtered later at upload time; see
+  resolution #8).
+- **New/orphaned-draft safety:** Bean Detail and Brew Session Detail hold a
+  new record as **in-memory draft state** (`ViewModel` + `SavedStateHandle`)
+  until first real edit or explicit save, rather than inserting into Room the
+  instant the screen opens — process death mid-flow (backgrounding, OS memory
+  reclaim) has no back-press event to run desktop-style cleanup on, so an
+  insert-on-open pattern would orphan empty rows permanently. Autosave itself
+  is a debounced whole-entity `@Update`, flushed early on `ON_STOP`/
+  `ON_PAUSE`/back-navigation so the loss window on process death is bounded
+  by the lifecycle, not just the debounce timer (resolutions #3-#4).
+- **Reusable UI components** (mirroring `widgets.py`): `RadarChart` (Canvas-
+  drawn, 11-axis — the highest-effort composable in the app; needs
+  `TextMeasurer`-based label layout, not guessed offsets, to avoid clipping
+  at small sizes), `ExtractionBar` (Canvas-drawn, -1..1 with 3 zones),
+  `ContributionCalendar` (heatmap grid), `ChoiceDropdown` family (dripper/
+  grinder/filter/process, editable exposed-dropdown), `ImageCarousel`
+  (`HorizontalPager`). Each Canvas-drawn component ships an explicit
+  `Modifier.semantics { contentDescription = ... }` textual summary — Compose
+  `Canvas` has zero accessibility-tree presence by default (resolution #11).
+  Save confirmation uses Material3 `Snackbar`, not a bespoke flash-bar
+  composable (resolution #10).
+- **Theme:** Material3 `ColorScheme` built from `theme.py`'s tokens, with one
+  correction from specialist review: **two** green tokens, not one —
+  `accent` (`#34C759`, decorative-only: chart lines, slider tracks, heatmap
+  cells) and `accentText`/`onAccent` (`#1E7A3D`, WCAG-AA-passing, used for
+  every button label/link/text-on-green) — routed through Material3's
+  `primary`/`onPrimary` pair rather than picked ad hoc per screen. `#34C759`
+  alone fails contrast (~2.2:1) as text or as a fill behind white text
+  (resolution #5). Background `#F2F2F7`, white cards at 14dp corner radius,
+  pill-shaped buttons carry over unchanged — not a redesign otherwise.
+
+Phasing below was reworked materially after specialist review — see
+"Phasing (revised after specialist review)" further down; the v0 phasing
+draft that originally lived in this spot is superseded by that section.
+
+## Specialist review — resolutions
+
+Three specialists (UI/UX, engineering, app-development) reviewed the v0 draft
+independently. Full reports aren't reproduced here; this is the PM synthesis
+— what changed, what didn't, and why. Where two or three specialists
+converged on the same finding independently, that's noted, since it's the
+strongest signal in the whole review.
+
+| # | Finding | Verdict | Change |
+|---|---|---|---|
+| 1 | **All three specialists independently flagged the same bug**: the AI-disclosure screen (§11) says "shown once, ever," but `specs/legal-android.md` §2.1 explicitly requires "one-time **and periodically re-shown**." The screen's copy is also photo-specific but gates the text-only Ask-AI flow too, and "shown" vs. "accepted" were conflated (declining once would permanently lock a user out with no re-prompt). | **Accepted, all three parts.** | Re-show periodically (every 90 days or every Nth AI attempt, whichever is simpler to implement) until accepted; track `shown`/`accepted` as separate flags — declining shows manual entry and re-prompts on the next AI attempt; genericize the copy to cover both "photo" and "text details" rather than hard-coding photo language. See `screens.md` §11 update. |
+| 2 | (App-dev) Can-Drink Catalogue is the one v1 feature whose `coffee_server` dependency isn't "just a port" — it needs a scheduler, TTL cache, and the full kill-switch/circuit-breaker apparatus `specs/legal.md` mandates, comparable in weight to the audio work already deferred. It's also the single most legally-sensitive feature in the app (its own addendum in `specs/legal-android.md` §4) and the least essential to the core logging workflow. | **Accepted.** | **Move Can-Drink Catalogue to v1.1**, alongside News (which shares its backend infra and becomes nearly free once the catalogue work exists anyway). v1 now has exactly **one** cross-project `coffee_server` dependency (`POST /v1/vision`), not three. See revised phasing below. |
+| 3 | (UI + Engineering, independently) Porting the desktop's "insert a row the instant the screen opens, delete it on back-nav if untouched" pattern is unsafe on Android: a Compose screen can be torn down by process death (backgrounding, OS memory reclaim) with no back-press event ever firing, orphaning empty rows permanently. | **Accepted.** | Bean Detail and Brew Session Detail switch to **in-memory draft state** (`ViewModel` + `SavedStateHandle`), writing to Room only on first real edit or explicit save — no DB row for a screen that was opened and abandoned. |
+| 4 | (Engineering) Debounced whole-entity autosave (replacing the desktop's per-field immediate commit) has a real loss window: "everything since the last debounce fire," not "the field being typed." | **Accepted.** | Pair the UI debounce timer with a lifecycle-triggered flush — save on `ON_STOP`/`ON_PAUSE` and on back-navigation, not just the timer. |
+| 5 | (UI) `#34C759` (the ported desktop accent) fails WCAG AA contrast (~2.2:1) as text or as a fill behind white text — verified by computation, and the plan already uses a passing darker green (`#1E7A3D`) in one place (Share Card) but not consistently. | **Accepted.** | Two tokens: `accent` (`#34C759`, decorative-only — chart lines, slider tracks, heatmap cells) and `accentText`/`onAccent` (`#1E7A3D`, every button label/link/text-on-green). Route both through Material3's `primary`/`onPrimary` pair rather than ad hoc per-screen color picks. |
+| 6 | (Engineering) Gating the read-only `/v1/catalogue`/`/v1/news` behind the same key as metered AI calls ties an unrelated feature's availability to the AI endpoints' abuse/rotation blast radius. | **Accepted.** | Split into two keys: a low-stakes read key (catalogue/news) and a separate key for the metered AI endpoints (`/v1/ask`, `/v1/vision`), so rotating one doesn't break the other. |
+| 7 | (Engineering) A single shared `X-API-Key` compiled into every APK, gating *metered, billed* AI calls with no rate limit or spend cap, is a real cost-exposure risk once decompiled — "it's my own server" answers the wrong question (confidentiality, not abuse). | **Accepted, minimum viable fix for v1.** | Add server-side rate limiting per key and billing spend alerts on the Anthropic/Qwen dashboards before submission; document a key-rotation runbook. Stronger fixes (Play Integrity attestation, per-install tokens) are v1.1+ options, not v1 blockers. |
+| 8 | (Engineering + App-dev) "Strip EXIF location" was asserted with no library, call site, or pipeline stage named — for the spec's own "highest-priority action item," that's a gap. | **Accepted.** | Name `androidx.exifinterface` explicitly; strip immediately on ingest (Photo Picker result *and* CameraX capture), before the file is ever copied into `BeanImageEntity.filePath` — never a filter applied only at upload time. Add an instrumented regression test (ingest a photo with known GPS tags, assert they're gone). |
+| 9 | (UI) Four form fields (temperature slider+numeric, water numeric, time picker, circling text) in a default partially-expanded `ModalBottomSheet`, combined with IME behavior, is a known Compose failure mode. | **Accepted.** | Force `skipPartiallyExpanded = true` (near-full-height sheet); render time as a compact tappable row that launches the standard `TimePickerDialog` as its own overlay, rather than embedding a wheel/dial picker inline. |
+| 10 | (UI) The custom "Saved ✓" flash bar re-implements what `Snackbar` already does (IME/nav-bar-inset avoidance, motion, dismissal timing) for no visual benefit. | **Accepted.** | Use `SnackbarHost`/`Snackbar` (with the corrected `accentText` color from #5) instead of a bespoke composable. |
+| 11 | (UI) `RadarChart`, `ExtractionBar`, `ContributionCalendar` are Canvas-drawn — Compose `Canvas` produces zero accessibility-tree nodes by default, so three of the highest-traffic screens would be silent to TalkBack. | **Accepted.** | Each component ships an explicit `Modifier.semantics { contentDescription = ... }` with a generated textual summary (e.g. ExtractionBar → "Extraction: well extracted, 62%") as part of the component's own spec, not left to later polish. |
+| 12 | (App-dev) Share Card was described almost dismissively ("rendered locally, Compose Canvas, no API calls") but is actually the highest-risk build item in the whole plan — Compose has no one-line equivalent to Qt's fixed-size `QPixmap`+`QPainter`, needs the `GraphicsLayer`/`rememberGraphicsLayer()` API (not the older `AndroidView`+`PixelCopy` route), and needs the same manual y-cursor text-layout arithmetic the Python version has, ported to `TextMeasurer`. | **Accepted as a risk flag**, no scope change — this is exactly the kind of thing specialist review exists to surface before someone underestimates it. `screens.md` §10 updated to name `GraphicsLayer` explicitly and flag build-effort accordingly. |
+| 13 | (App-dev) `GET /v1/catalogue`'s server-side query-param filtering buys little at "a handful of storefronts" scale, costs a network round-trip per filter change, and forecloses offline browsing that an unfiltered + client-cached design would give for free. | **Accepted**, applies once catalogue work resumes in v1.1. | Endpoint returns the full unfiltered listing set (+ `ETag`/`If-Modified-Since`); Android caches it in Room and filters locally. |
+| 14 | (App-dev) The closed-testing gate (12 testers, 14 continuous days, `specs/legal-android.md` rule 19) only starts once there's a build worth giving testers — bundling essentially the whole app into one "v1" milestone means the 14-day clock can't start until nearly everything is done. | **Accepted.** | Added an explicit **closed-testing-ready milestone** distinct from "v1 feature-complete" — see phasing below. Tester recruitment is a logistics task with no owner yet; flagged, not resolved, by this plan. |
+| 15 | (Engineering) No stated behavior for AI calls when offline/unreachable; no connect/read timeouts named; no guarantee stated that core CRUD works fully offline. | **Accepted.** | Detect connectivity before firing AI requests (distinct "you're offline" state, not a timeout wait); explicit OkHttp timeouts; no silent background retry (a queued retry would silently re-send a photo after the user thought they'd cancelled — a real consent problem, not just a UX one); explicit written guarantee that bean/session CRUD is fully offline-capable. |
+| 16 | (UI) No delete affordance specified for sessions or stages anywhere in the plan, despite Home documenting bean deletion. | **Accepted — plain gap, fixed.** | Added swipe/destructive-action delete to Brew Session Detail's session list and to each stage row. |
+| 17 | (Engineering) No Room migration strategy named, despite the desktop schema's real history of additive and one genuinely hard migration (splitting a retired flavor axis). | **Accepted.** | Named `Migration` objects tested with `MigrationTestHelper` from the first schema change onward; `fallbackToDestructiveMigration()` explicitly banned in `api.md`. |
+| 18 | (App-dev) Missing engineering surface a real submission needs: adaptive icon, splash screen, a stated ProGuard/R8 decision, a stated crash-reporting decision, `FileProvider` (required for Share Card's `ACTION_SEND` and CameraX's capture handoff — not optional polish), OSS license attribution, an About/Legal home beyond a bare Profile row. | **Accepted.** | All added to scope explicitly (see Phasing) rather than left implicit: ship unminified for v1 (defer R8 rule-writing), explicitly no crash reporter for v1 (revisit v1.1 — adding one later needs its own Data Safety disclosure update), `FileProvider` configured from the start since Share Card literally cannot function without it. |
+| 19 | (UI) Bottom navigation bar vs. push-only navigation for the three top-level surfaces (Home/Catalogue/Profile) — raised as a genuine option. | **Not adopted for v1**, revisit if/when Catalogue returns in v1.1 and there are three real top-level destinations again worth flattening the back-stack for. | No change. |
+| 20 | (UI) Sort control / "new" badge for the merged catalogue screen, so "browse one roaster's latest" (the old "What's New" use case) isn't lost inside the merge. | **Accepted in principle, deferred with the screen itself to v1.1.** | Noted in the v1.1 catalogue spec so it isn't lost by the time that work resumes. |
+
+## Phasing (revised after specialist review)
+
+**Closed-testing-ready milestone (build this first, start tester recruitment
+against it):** Home (bean list + calendar + flavor radar, catalogue strip
+omitted), Bean Detail (full CRUD, photo carousel, manual entry — **no scan
+yet**), Brew Session Detail + Stage editor, Profile Settings, Share Card
+export, app icon/splash/`FileProvider` wired up. Zero `coffee_server`
+dependency — this build can start the 12-tester/14-day clock while OCR work
+continues in parallel, closing the schedule gap specialist review flagged
+(#14).
+
+**v1 (Play submission target):** everything above, plus Bean Detail's label
+scan → Scan Review (via the new `POST /v1/vision` endpoint, the **only**
+cross-project dependency v1 carries now, down from three), Ask-AI brew
+suggestion (existing `/v1/ask`, no `coffee_server` change), Camera Capture,
+and the AI disclosure/consent screen. **Recommend simplifying OCR to a
+single provider** (server-side Claude vision), dropping the desktop app's
+three-way Qwen→Claude→local-Tesseract fallback — unanimous agreement across
+all three specialist reviews that bundling Tesseract4Android for a fallback
+path a working server call makes mostly redundant isn't worth it for v1.
+
+**v1.1 (deferred, each with a stated reason, not silently dropped):**
+- **Can-Drink Catalogue** (merging the desktop's "Can Drink"/"What's New")
+  — moved here per resolution #2; needs real backend infra
+  (scheduler/cache/circuit-breaker), not a port, and carries the app's
+  highest legal-compliance surface (`specs/legal-android.md` §4).
+- **News ticker** — shares the catalogue's backend work, nearly free once
+  that lands; bundled into the same pass.
+- **Voice session** — needs `coffee_server` to grow an audio-capable
+  endpoint (same shape of gap as vision, one level further out) plus its own
+  microphone-specific disclosure design (a materially different
+  sensitive-permission case from camera/photo — don't assume screen 11's
+  copy covers it without revisiting `specs/legal-android.md` §2.1 first).
+
+This phasing is still a recommendation the engineering owner can push back
+on, but it's now internally consistent — every v1 feature either has zero
+`coffee_server` dependency or depends on the one endpoint all three
+specialists agreed is genuinely small (a straight port of existing
+`claude_ocr.py` logic to a new route). Realistic budget, per the app-dev
+review: **2-3 months of build time before the closed-testing-ready
+milestone's 14-day clock can even start**, given the RadarChart/Share-Card/
+CameraX cluster is real, multi-week R&D work for a first Android app, not a
+weekend port.
+
+## Remaining open items (not resolved by this review, flagged for later)
+
+1. Bottom navigation bar — revisit when Catalogue returns in v1.1 (#19).
+2. Sort/new-badge for the catalogue screen — carry into the v1.1 catalogue
+   spec when that work resumes (#20).
+3. Tester recruitment for the closed-testing gate has no owner yet (#14) —
+   a logistics task, not a design one, but blocking.
+4. Play Integrity attestation / per-install tokens as a stronger fix for the
+   shared-API-key risk (#7) — v1.1+, not a v1 blocker given the minimum-viable
+   rate-limit/alerting fix.

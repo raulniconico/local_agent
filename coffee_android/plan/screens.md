@@ -1,0 +1,406 @@
+# coffee_android — screens
+
+Each section: purpose, fields/state, Compose realization, API calls (see
+`api.md` for full contracts), and a wireframe. **The wireframes in
+`screenshots/` are hand-drawn SVG mockups, not real app screenshots** — the
+app doesn't exist yet; this is what "a screenshot for every page" means at
+the planning stage, per the current-stage restriction (plan + legal only, no
+implementation). They show layout and content intent, not final visual
+polish — that's the UI specialist's job in the next review pass.
+
+11 screens/sheets total, down from the desktop app's 12 dialogs — "Can
+Drink" and "What's New" are proposed merged into one catalogue screen (see
+README.md resolution #2). **Updated after specialist review: the merged
+Can-Drink Catalogue screen (§7) moved to v1.1** — its `coffee_server`
+dependency turned out to be real new infrastructure, not a port, and it
+carries the app's highest legal-compliance surface. It's kept in this
+document (unbuilt-but-specified) rather than deleted, same treatment as
+Voice Session (§6). See `README.md`'s "Phasing (revised after specialist
+review)" for the authoritative per-screen ship target — the ordering below
+reflects the original review structure, not shipping order.
+
+---
+
+## 1. Home
+
+**Wireframe:** `screenshots/01_home.svg`
+
+**Purpose:** landing screen — bean list plus an at-a-glance activity/flavor
+overview, ported from `main_window.py`'s `MainWindow`.
+
+**Content:**
+- Top app bar: app name, profile-settings gear icon (→ Profile Settings)
+- Bean list (`LazyColumn` of cards): name, origin, process, roast date,
+  session count — tap → Bean Detail; long-press → delete confirm
+- "New Profile" FAB → Bean Detail (new)
+- Activity heatmap (`ContributionCalendar` composable) — from session dates
+- Flavor radar (app-wide average) — from `BeanDao`/`BrewSessionDao`
+  aggregation
+
+**Deferred to v1.1** (per revised phasing): both the desktop app's news
+ticker pane *and* the Can-Drink preview strip that the v0 draft had here —
+the Catalogue screen itself moved to v1.1 (see §7's note), so Home has
+nothing to preview yet. v1's Home omits both entirely rather than shipping
+an empty placeholder or a strip pointing at an unbuilt screen; add the strip
+back when §7 ships.
+
+**API calls:** `BeanDao.listAll()`, `BrewSessionDao.countByDate()`, flavor
+average (local only). No `coffee_server` calls on this screen until the
+Catalogue strip returns in v1.1.
+
+**States:** empty (no beans yet → illustration + "Add your first bean" CTA
+instead of an empty list), loaded. (The v0 draft's catalogue-preview-loading/
+-failed states move to §7 along with the feature itself.)
+
+---
+
+## 2. Bean Detail
+
+**Wireframe:** `screenshots/02_bean_detail.svg`
+
+**Purpose:** create/edit one bean profile — the most complex screen, ported
+from `bean_dialog.py`. **Revised after specialist review**: the desktop
+app's immediate-persist-on-open pattern (insert a row the instant the dialog
+opens, delete it on close if never touched) doesn't survive Android process
+death — there's no back-press event to run that cleanup on if the OS kills
+the app in the background. A new bean instead lives as **in-memory draft
+state** (`ViewModel` + `SavedStateHandle`, so it survives process death) and
+is written to Room only on first real field edit or explicit save.
+
+**Fields:** Name (required), Origin, Variety, Altitude, Roaster, Producer,
+Process (`ChoiceDropdown`), Roast date (optional date picker, "not set"
+state), Note (multiline, auto-grow).
+
+**Sections below the form:**
+- **Photos**: `ImageCarousel` (`HorizontalPager`), "Scan Label" button (→
+  Photo Picker or Camera Capture → `POST /v1/vision` → Scan Review),
+  "Add Photo/PDF" (no scan), rotate/remove per photo
+- **Flavor Profile**: `RadarChart`, "Generate from Sessions" (auto-average)
+  vs. "Set Manually" (11 sliders in a sheet)
+- **Sessions list**: date / dripper / score, "New Session" → Brew Session
+  Detail, "Ask AI" → Ask-AI Suggestion sheet, tap row → Brew Session Detail
+- Share icon (top bar) → Share Card export
+
+**API calls:** `BeanDao`, `BeanImageDao`, `BrewSessionDao.listForBean`
+(local); `POST /v1/vision` (scan flow only) — see the AI-disclosure
+requirement below.
+
+**Legal tie-in (`specs/legal-android.md` §3.1 rule 4):** first tap of "Scan
+Label" ever, in the app's lifetime, shows the AI-disclosure/consent screen
+(§11 below) before the Photo Picker/Camera opens — not on every scan, not
+gating manual entry at all.
+
+**States:** loading (existing bean), saving (debounced autosave + lifecycle
+flush on `ON_STOP`/back-nav, `Snackbar` confirm rather than a bespoke flash
+bar — see README resolutions #4/#10), scan-in-progress (spinner over the
+Photos section, matching `WalkingCanLoader`'s branded busy indicator),
+scan-failed (inline error, form stays editable manually — scan is an
+assist, never a blocker; distinguish "you're offline"/"server unreachable"
+from "photo unreadable," see `api.md`'s error-handling conventions).
+
+---
+
+## 3. Scan Review
+
+**Wireframe:** `screenshots/03_scan_review.svg`
+
+**Purpose:** review/edit AI-guessed fields before they overwrite the Bean
+Detail form — ported from `bean_dialog.py`'s `_ScanReviewDialog`. Modal
+bottom sheet over Bean Detail, not a separate screen (matches its
+lightweight, transient role in the desktop app).
+
+**Content:** editable copies of every guessed field (name + all detail
+fields, pre-filled from `POST /v1/vision`'s `fields` response), "Apply"
+(writes into Bean Detail's form state + attaches the scanned photo via
+`BeanImageDao.insert`) / "Discard" (closes sheet, photo not attached).
+
+**API calls:** none directly — consumes the `POST /v1/vision` result already
+fetched by Bean Detail.
+
+**States (added after UI review):** a blurry photo, a non-label photo, or a
+partial OCR read can come back with most/all `fields` empty or null — don't
+render a silently-empty form. Show a one-line inline note ("Couldn't read
+much from this photo — fields left blank, edit by hand") whenever `fields`
+comes back mostly empty, so the user understands why nothing pre-filled
+rather than assuming the feature is broken.
+
+---
+
+## 4. Brew Session Detail (+ Stage Editor sheet)
+
+**Wireframe:** `screenshots/04_brew_session.svg`
+
+**Purpose:** create/edit one brewing session — ported from `brew_dialog.py`.
+Same in-memory-draft pattern as Bean Detail (§2's revision applies here
+identically — see that section); a new session pre-fills Brew Details by
+copying the bean's most recent session (recipe reuse), matching the desktop
+app exactly.
+
+**Fields (Brew Details):** Date (required, max = today), Dripper, Filter
+Paper, Grinder (`ChoiceDropdown`s), Grind size, Water PPM, Humidity (text),
+Dose (numeric).
+
+**Sessions list — delete (added after UI review, was missing entirely from
+the v0 draft):** swipe-to-delete or a destructive row action on Bean
+Detail's sessions list, consistent with Home's long-press-to-delete pattern
+for beans.
+
+**Stages list:** stage # / temp / water / time / circling, plus a delete
+action per row (also missing from v0) — "Add Stage" / tap row to edit →
+**Stage Editor bottom sheet** (temperature slider+numeric -10..110°C, water
+numeric 0-1000g, time field, circling free text) — proposed as a sheet
+rather than its own screen (README.md resolution #9) since it's a small,
+focused edit over an already-open session. **Revised after UI review**: use
+`rememberModalBottomSheetState(skipPartiallyExpanded = true)` so the sheet
+opens near-full-height rather than Compose's default partial-expand — four
+inputs plus IME behavior is a known failure mode at partial height. Render
+the time field as a compact tappable row ("Time: 1:45 — tap to edit") that
+launches the standard `TimePickerDialog` as its own overlay, rather than
+embedding a wheel/dial picker inline inside the sheet.
+
+**Evaluation section:** Score (0-5 step 0.5, "not set"), Extraction
+(`ExtractionBar`, -1..1, 3 zones), Note, 11 flavor sliders + live radar
+preview.
+
+**API calls:** `BrewSessionDao`, `BrewStageDao` (all local — this screen has
+no AI/network integration of its own, matching the desktop app).
+
+**States:** same debounced-autosave-plus-lifecycle-flush/`Snackbar`-confirm
+pattern as Bean Detail (§2).
+
+---
+
+## 5. Ask-AI Suggestion
+
+**Wireframe:** `screenshots/05_ask_ai.svg`
+
+**Purpose:** text-based recipe suggestion — ported from `ai_brew_dialog.py`.
+Modal sheet launched from Bean Detail's session list.
+
+**Content:** Dripper picker, "Get Suggestion" button → `POST /v1/ask` →
+read-only rendered result (summary, dose, grind, numbered stages),
+"Create Session" (enabled once a result exists — writes a new
+`BrewSessionEntity` + `BrewStageEntity` rows and navigates to Brew Session
+Detail) / "Cancel".
+
+**API calls:** `POST /v1/ask` (existing endpoint, no `coffee_server` changes
+needed — see `api.md` §2).
+
+**States (added after engineering review — the v0 draft only specified the
+happy path):** loading (disable "Get Suggestion," inline spinner in place of
+the result panel), failed (inline error text + "Try Again," result panel
+stays empty, sheet stays open — apply the same offline/timeout distinction
+as `api.md`'s error-handling conventions rather than a generic failure
+message).
+
+**Legal tie-in:** covered by the same one-time AI-disclosure screen as
+scanning (§11) — both are "photo/text leaves the device for AI processing"
+cases under `specs/legal-android.md` §2.1's prominent-disclosure rule, one
+disclosure covers both entry points.
+
+---
+
+## 6. Voice Session (v1.1 — deferred, included for completeness)
+
+**Wireframe:** none yet — deliberately not designed in detail this pass
+(README.md phasing). Ported from `voice_brew_dialog.py` once
+`coffee_server`'s audio endpoint (`api.md` §3.4) exists. Will need its own
+microphone-specific disclosure step, not just a reuse of §11 as written
+(microphone access is a materially different sensitive-permission case from
+camera/photo under `specs/legal-android.md` §2.1 — revisit that section when
+this ships, don't assume the existing disclosure copy covers it).
+
+---
+
+## 7. Can-Drink Catalogue — **v1.1** (moved out of v1 after specialist review)
+
+**Wireframe:** `screenshots/07_catalogue.svg`
+
+**Ships in v1.1, not v1** (README.md resolution #2, reversing the v0 draft):
+app-dev review found this screen's `coffee_server` dependency is real new
+infrastructure (scheduler, TTL cache, the full kill-switch/circuit-breaker
+apparatus `specs/legal.md` mandates) rather than a port — comparable in
+weight to the audio endpoint the v0 draft already deferred — and it carries
+the single largest legal-compliance surface in the app
+(`specs/legal-android.md` §4's dedicated addendum). Kept fully specified
+here so the work is ready to pick up, not because it's shipping in v1.
+
+**Purpose:** browse roaster listings — merges `can_see_dialog.py`'s
+filterable full catalogue and `whats_new_dialog.py`'s per-roaster browse
+into one screen: a Roaster filter chip row covers the "browse one roaster"
+use case `whats_new_dialog.py` existed for, without a second screen. **UI
+review flag, carried forward for when this ships**: the merge as drawn drops
+"What's New"'s actual value (catching up on recent arrivals) — add a sort
+control (Newest / Name / Price, defaulting to Newest when a roaster filter
+is active) and consider a "New" badge for recently-added listings so the
+merge isn't just "What's New quietly deleted."
+
+**Filters:** Roaster (chips/dropdown), Origin (dropdown, includes "Not
+stated"), search text field, "In stock only" toggle (default on) — all
+applied **client-side** over a Room-cached copy of the full catalogue
+response (see API note below), not sent as query params.
+
+**Content:** listing grid/list (name, roaster, origin, price, weight, in-
+stock badge, hotlinked photo via Coil — never cached to disk, per
+`specs/legal-android.md` §4 rule 26), tap → open `product_url` in external
+browser (`Intent.ACTION_VIEW`, matching desktop's `QDesktopServices`).
+
+**API calls:** `GET /v1/catalogue` (new endpoint, `api.md` §3.2, gated
+behind the read key not the AI key) — **this screen cannot ship correctly
+until that endpoint exists**; it must not fall back to a client-side scrape
+of roaster sites under any circumstance, per `specs/legal-android.md` §4.
+**Revised after app-dev review:** the endpoint returns the full unfiltered
+listing set; the client caches it in Room and filters locally — this also
+gives a usable (if stale) offline catalogue view for free, which the v0
+query-param-filtering design didn't.
+
+**States:** loading (skeleton grid), empty-after-filter ("no beans match"),
+load-failed (retry button — this is core screen content here, unlike Home's
+decorative preview strip, so a real error state is warranted; a Room-cached
+previous response can serve as a stale-but-usable fallback before showing
+the error state at all).
+
+---
+
+## 8. Camera Capture
+
+**Wireframe:** `screenshots/08_camera.svg`
+
+**Purpose:** photograph a bean label — ported from `camera_dialog.py`.
+CameraX `PreviewView` full-screen, capture button, matches the desktop
+app's live-preview-then-grab-frame flow but using CameraX's proper still-
+capture API instead of grabbing a video frame (the desktop app's
+`QVideoWidget.grab()` approach was itself a workaround for Qt Multimedia's
+limitations, not a pattern worth porting).
+
+**Content:** live preview, capture shutter button, cancel (back). The
+alignment-guide overlay drawn over the preview (see wireframe) must account
+for the `PreviewView`'s displayed aspect ratio possibly differing from the
+captured image's actual resolution/aspect ratio — a naive fixed overlay box
+can misrepresent what's actually captured.
+
+**Permission (stated explicitly per legal-android.md rule 3, was implicit in
+v0):** `CAMERA` is requested on entry to this screen / first shutter tap,
+never at app launch.
+
+**States (added after UI review):** permission-denied — rationale text +
+"Open Settings" button, with the Photo Picker path (no permission required)
+offered as the actual escape hatch, matching how "Add Photo/PDF" already
+works in Bean Detail without needing `CAMERA` at all.
+
+**API calls:** none — returns a local file path to the caller (Bean Detail),
+which downscales the copy sent to `POST /v1/vision` per `api.md` §3.1's
+payload-size note; the persisted copy is EXIF-stripped on write regardless
+of whether scanning is used.
+
+---
+
+## 9. Profile Settings
+
+**Wireframe:** `screenshots/09_profile.svg`
+
+**Purpose:** single app-wide user profile — ported from `profile_dialog.py`.
+
+**Fields:** avatar (circular, tap to change via Photo Picker or remove),
+Name, Email.
+
+**Content:** also the natural home for the privacy-policy link required by
+`specs/legal-android.md` §3.4 rule 14 ("linked... from an in-app Settings
+screen") — add a "Privacy Policy" row here even though the desktop app's
+`ProfileSettingsDialog` has no equivalent, since Android needs one and this
+is the obvious existing screen for it. **Added after app-dev review**:
+expand this into a labeled "About & Legal" subsection (Privacy Policy, a
+re-openable copy of the AI-disclosure text from §11 for users who dismissed
+it with "Not now" and want to read it again without re-triggering an AI
+feature, app version number, OSS license attribution) rather than a single
+bare row — a real submission needs all of these somewhere and Profile is the
+only screen with an obvious claim to them.
+
+**API calls:** none — local `DataStore`/prefs only.
+
+---
+
+## 10. Share Card export
+
+**Wireframe:** `screenshots/10_share_card.svg`
+
+**Purpose:** render and export a shareable image — ported from
+`share_card.py`'s `render_share_card`/`render_session_share_card` +
+`_ShareTipsDialog`. Triggered from the share icon on Bean Detail or Brew
+Session Detail.
+
+**Content:** rendered preview, same visual design as the desktop PNG (green
+background, white text, `RadarChart` reused), "Save/Share" → Android share
+sheet (`Intent.ACTION_SEND` via `FileProvider` — required, a bare `file://`
+URI across app boundaries throws `FileUriExposedException` on modern
+Android) instead of desktop's save-to-disk-then-show-path flow.
+
+**Build-effort flag (added after app-dev review — this was under-flagged in
+the v0 draft, which described it almost as "just a Canvas, no API calls"):**
+this is the highest-risk build item in the whole plan. Compose has no
+one-line equivalent to Qt's fixed-size `QPixmap`+`QPainter`; producing a
+precise, fixed-resolution, off-screen bitmap for export needs the
+`GraphicsLayer`/`rememberGraphicsLayer()` API (Compose UI 1.7+ — not the
+older `AndroidView`+`PixelCopy` route), plus the same manual y-cursor
+text-layout arithmetic the Python `share_card.py` does today (unknown
+content height → render to a scratch canvas → crop), ported to
+`TextMeasurer`. Budget accordingly; don't let this screen's apparent
+simplicity in the wireframe set the estimate.
+
+**API calls:** none — pure local rendering from already-loaded bean/session
+data.
+
+**Legal tie-in:** keep app branding visually subordinate to the user's own
+data on this card, never reproduce a roaster's logo graphic (name-as-text
+only) — `specs/legal-android.md` §2.2/§3.3 rules 8-9, directly relevant here
+since this is the one screen whose whole purpose is producing an image that
+leaves the app.
+
+---
+
+## 11. AI disclosure & consent
+
+**Wireframe:** `screenshots/11_ai_disclosure.svg` (shows the photo-triggered
+variant of the copy — see the genericization fix below; the text-only
+variant swaps the first paragraph, layout is identical).
+
+**Purpose:** the in-app disclosure `specs/legal-android.md` §2.1/§3.1 rule 4
+requires before first use of any AI feature — not present in the desktop app
+at all (desktop Play policy doesn't apply there), so this has no direct
+ancestor dialog to port from; designed fresh against the legal spec's
+requirements.
+
+**Revised after specialist review — all three reviewers independently found
+the same three problems with the v0 draft, in order of severity:**
+
+1. **Cadence bug (critical):** the v0 draft said "shown once, ever... not
+   shown again unless app data is cleared," which directly contradicts
+   `specs/legal-android.md` §2.1's actual text: *"show a one-time **(and
+   periodically re-shown)**"*. Fixed: re-show periodically — every 90 days,
+   or every Nth AI-feature attempt, whichever proves simpler to implement —
+   until the user has explicitly accepted, not merely seen it.
+2. **Shown vs. accepted were conflated.** The v0 draft's single flag meant a
+   user who tapped "Not now" once could never be re-prompted, permanently
+   locking them out of AI features with no path back short of clearing app
+   data. Fixed: track `shown` and `accepted` as separate `DataStore` flags.
+   "Not now" — and system back / tap-outside, treated identically, not as an
+   unhandled edge case — records `shown=true, accepted=false` and returns to
+   manual entry; the modal re-appears on the *next* AI-feature attempt
+   regardless of prior `shown` state, until `accepted=true`.
+3. **Copy is photo-specific but gates a text-only entry point too.** The
+   wireframe's copy ("Your photo will be sent...") is accurate for Scan
+   Label but false for Ask-AI Suggestion (§5), which sends dripper choice +
+   bean text fields, no photo. Fixed: genericize — *"Your photo and/or the
+   bean/session details you've entered may be sent to an AI service..."* —
+   one shared copy rather than building two variants for v1.
+
+**Content:** plain-language statement (genericized per fix 3 above), what's
+sent, explicit affirmative "Continue" action (no auto-dismiss, no
+navigate-away-as-consent per the spec's explicit prohibition on both) —
+these parts of the v0 draft were already right and are unchanged. Re-openable
+from Profile Settings' "About & Legal" section (§9) for a user who wants to
+re-read it without re-triggering an AI feature.
+
+**API calls:** none — local `DataStore` flags (`shown`, `accepted`,
+`lastShownAt`) gate whether either AI entry point (§2's Scan Label, §5's
+Ask-AI) proceeds straight through or shows this screen first.

@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 680" font-family="Helvetica,Arial,sans-serif">
+  <title>Brew Session Detail — wireframe</title>
+  <rect width="320" height="680" rx="28" fill="#F2F2F7"/>
+  <rect width="320" height="28" fill="#F2F2F7"/>
+  <text x="160" y="18" font-size="10" text-anchor="middle" fill="#8E8E93">9:41</text>
+  <rect x="0" y="28" width="320" height="48" fill="#FFFFFF"/>
+  <text x="16" y="58" font-size="15" fill="#3A3A3C">‹</text>
+  <text x="40" y="58" font-size="15" font-weight="bold" fill="#1C1C1E">Session · 2026-07-30</text>
+  <text x="290" y="58" font-size="15" fill="#34C759">⤴</text>
+  <line x1="0" y1="76" x2="320" y2="76" stroke="#E5E5EA" stroke-width="1"/>
+
+  <text x="16" y="98" font-size="12" fill="#8E8E93">BREW DETAILS</text>
+  <rect x="12" y="106" width="296" height="118" rx="14" fill="#FFFFFF"/>
+  <text x="24" y="126" font-size="10" fill="#8E8E93">DRIPPER ▾</text>
+  <text x="24" y="140" font-size="12" fill="#1C1C1E">Hario V60</text>
+  <text x="170" y="126" font-size="10" fill="#8E8E93">GRINDER ▾</text>
+  <text x="170" y="140" font-size="12" fill="#1C1C1E">Comandante</text>
+  <line x1="24" y1="148" x2="296" y2="148" stroke="#E5E5EA"/>
+  <text x="24" y="166" font-size="10" fill="#8E8E93">GRIND SIZE</text>
+  <text x="24" y="180" font-size="12" fill="#1C1C1E">22 clicks</text>
+  <text x="170" y="166" font-size="10" fill="#8E8E93">DOSE (g)</text>
+  <text x="170" y="180" font-size="12" fill="#1C1C1E">15.0</text>
+  <line x1="24" y1="188" x2="296" y2="188" stroke="#E5E5EA"/>
+  <text x="24" y="206" font-size="10" fill="#8E8E93">WATER PPM</text>
+  <text x="170" y="206" font-size="10" fill="#8E8E93">HUMIDITY %</text>
+
+  <text x="16" y="248" font-size="12" fill="#8E8E93">STAGES</text>
+  <rect x="200" y="236" width="108" height="24" rx="12" fill="#F2F2F7"/>
+  <text x="254" y="252" font-size="9" text-anchor="middle" fill="#3A3A3C">+ Add Stage</text>
+  <rect x="12" y="256" width="296" height="80" rx="14" fill="#FFFFFF"/>
+  <text x="24" y="276" font-size="10" fill="#8E8E93">#  Temp   Water   Time    Circling</text>
+  <text x="24" y="296" font-size="12" fill="#1C1C1E">1  93°C   50g     0:30    yes</text>
+  <text x="24" y="316" font-size="12" fill="#1C1C1E">2  92°C   200g    1:45    no</text>
+
+  <text x="16" y="358" font-size="12" fill="#8E8E93">EVALUATION</text>
+  <rect x="12" y="366" width="296" height="180" rx="14" fill="#FFFFFF"/>
+  <text x="24" y="386" font-size="10" fill="#8E8E93">SCORE</text>
+  <text x="270" y="386" font-size="12" fill="#1C1C1E">4.5 / 5</text>
+  <circle cx="40" cy="398" r="4" fill="#34C759"/><circle cx="56" cy="398" r="4" fill="#34C759"/>
+  <circle cx="72" cy="398" r="4" fill="#34C759"/><circle cx="88" cy="398" r="4" fill="#34C759"/>
+  <circle cx="104" cy="398" r="4" fill="#E5E5EA"/>
+  <text x="24" y="424" font-size="10" fill="#8E8E93">EXTRACTION</text>
+  <rect x="24" y="430" width="272" height="10" rx="5" fill="#E5E5EA"/>
+  <rect x="24" y="430" width="90" height="10" rx="5" fill="#FFCC00"/>
+  <rect x="114" y="430" width="90" height="10" fill="#34C759"/>
+  <rect x="204" y="430" width="92" height="10" rx="5" fill="#FF3B30"/>
+  <text x="40" y="452" font-size="8" fill="#8E8E93">Under</text>
+  <text x="150" y="452" font-size="8" text-anchor="middle" fill="#8E8E93">Well extracted</text>
+  <text x="280" y="452" font-size="8" fill="#8E8E93">Over</text>
+  <text x="24" y="474" font-size="10" fill="#8E8E93">NOTE</text>
+  <text x="24" y="490" font-size="11" fill="#1C1C1E">Bright, floral, slightly sour on cooling.</text>
+  <text x="24" y="512" font-size="10" fill="#8E8E93">FLAVOR (11 sliders + live radar)</text>
+  <polygon points="150,522 172,532 165,540 135,540 128,532" fill="none" stroke="#34C759" stroke-width="1.5"/>
+
+  <rect x="12" y="622" width="296" height="40" rx="20" fill="#34C759"/>
+  <text x="160" y="647" font-size="12" text-anchor="middle" fill="#FFFFFF">Saved ✓</text>
+</svg>
