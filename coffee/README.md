@@ -1,4 +1,81 @@
-# coffee-can
+# ☕ Coffee Can
+
+**Your hand-brew coffee, remembered.** Every bag you buy, every cup you pour,
+every tweak to grind size or water temperature -- Coffee Can keeps it all in
+one place, on your own machine, so you can actually answer "what did I change
+last time that made this taste so much better?"
+
+No account, no subscription, no cloud dashboard holding your data hostage:
+it's a small desktop app (with a terminal companion for when you'd rather
+type than click) backed by a single local file you own.
+
+![Coffee Can's welcome screen: coffee profiles, a brewing-activity streak calendar, a flavor radar, coffee news, and a shelf of coffees to discover](docs/screenshots/main_window.png)
+
+## What you get
+
+### 🫘 A profile for every bag
+
+Snap or upload a photo of the bag, and Coffee Can reads the label for you --
+origin, variety, altitude, roaster, process, roast date, tasting notes --
+into an editable form, so you never retype what's already printed on the
+label. Keep up to five photos or spec sheets per bag, and come back to edit
+any field whenever you like.
+
+![The coffee profile page: label photo, extracted details, that bean's brewing history, and its own flavor radar](docs/screenshots/bean_dialog.png)
+
+### 🧪 A brewing session for every cup
+
+Log the dripper, filter, grinder and grind size, dose and water, then every
+pour as its own stage (temperature, water weight, timing). Rate the result on
+an under-/well-/over-extraction bar and eleven flavor axes (fruity, floral,
+sweet, roasted, and more), and watch a live radar chart draw itself as you
+drag the sliders -- so two cups of the same bean become genuinely comparable,
+not just a vague memory of "that one was better."
+
+![The brewing session page: brew details, pour-by-pour stages, an extraction bar, and eleven flavor sliders feeding a live radar chart](docs/screenshots/brew_dialog.png)
+
+### 🛍️ Something new to try
+
+The **Can see** shelf puts three coffees currently for sale at real French
+specialty roasters (Datura, Belleville Brûlerie, Coutume, L'Arbre à Café,
+Tanat) right on your welcome screen -- click the refresh icon for three more,
+or **more ›** for the full catalogue, filterable by roaster, origin and
+stock. Everything shown -- name, price, weight, stock, photo -- comes
+straight from each roaster's own public listing, with a link to buy.
+
+![The "Can see" catalogue: every coffee currently listed by five French roasters, filterable by roaster, origin, stock and name](docs/screenshots/can_see_dialog.png)
+
+### 📈 The bigger picture
+
+A GitHub-style streak calendar of your brewing activity, and a flavor radar
+averaged across every session you've ever logged, so patterns in your own
+taste show up on their own -- no spreadsheet required.
+
+## Where AI fits in
+
+AI is never required to use Coffee Can -- every feature below has a
+non-AI fallback, or simply doesn't run without a key configured. It's there
+to remove typing, not to gatekeep the app.
+
+- **Reading a label photo.** *Scan Label...* turns a photo of the bag into
+  filled-in fields. Without an API key it's still fully usable via local
+  Tesseract OCR; add a Qwen or Claude API key and label reading gets
+  noticeably better at untangling unusual layouts -- which text is the
+  origin, which is the process, which is just marketing copy.
+- **Describing a brew out loud.** Press *🎤 Voice Session*, talk through the
+  dripper, dose and each pour like you would to a friend, and Qwen turns the
+  recording into a filled-in session for you to review and save.
+- **Getting a starting recipe.** *Ask AI* suggests a full brewing recipe --
+  dose, grind size, temperature and timing per stage -- for a given bean and
+  dripper, which you can then tweak and log like any other session.
+- **A ranked "What's New" feed.** Coffee news headlines are pulled from real
+  outlets' own RSS feeds (never AI-generated), with Qwen used only to rank
+  which ones are worth your five seconds.
+
+Every one of these degrades gracefully: no key configured just means that one
+convenience is off, never a broken screen.
+
+---
 
 A simple app for logging hand-brew coffee: keep a profile per bag of beans,
 then log each brewing session (dripper, grinder, water, per-stage pours) and
