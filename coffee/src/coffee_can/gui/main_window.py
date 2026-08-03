@@ -393,7 +393,11 @@ class MainWindow(QMainWindow):
 
     def _start_news_feed(self):
         """Today's coffee headlines, ranked by Qwen. See coffee_news for why
-        the headlines come from the outlets' RSS rather than from the model."""
+        the headlines come from the outlets' RSS rather than from the model.
+
+        fetch_news() caches to the data dir for two hours, so a relaunch inside
+        that window paints the pane from the stored feed and costs no requests
+        -- neither the nine RSS fetches nor the Qwen ranking call."""
         self._news_worker = _NewsFetchWorker()
         self._news_worker.succeeded.connect(self._on_news_ready)
         self._news_worker.failed.connect(self._on_news_failed)

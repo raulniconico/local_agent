@@ -27,6 +27,10 @@ being unavailable, slow or wrong.
 Qwen is optional. Without QWEN_API_KEY, or on any API failure, the feed falls
 back to that score with recency as the tie-break.
 
+A built feed is cached for two hours in the data dir, so relaunching the app
+inside that window redisplays the stored headlines without touching either the
+RSS feeds or Qwen -- see _CACHE_TTL and _load_disk_cache.
+
 On specs/legal.md: RSS is a first-party structured endpoint published by each
 outlet *for* syndication -- the acquisition tier §3.2 rule 7 asks for. Only
 facts and a pointer are kept (headline, source, timestamp, canonical URL);
@@ -134,7 +138,16 @@ WINDOW = timedelta(hours=48)
 LIMIT = 20
 
 _TIMEOUT = httpx.Timeout(connect=10.0, read=20.0, write=10.0, pool=20.0)
-_CACHE_TTL = timedelta(minutes=15)
+#: Once a feed is built it stands for two hours: nine RSS round-trips plus a
+#: paid Qwen ranking call is far too much to repeat on every window open, and
+#: the outlets here publish a few times a day at most, so a fresher window
+#: buys nothing but requests.
+_CACHE_TTL = timedelta(hours=2)
+#: The cache is written to the data dir, not just held in memory, because the
+#: app is normally launched fresh (pipx entry point) rather than left running
+#: -- an in-process cache would expire with every quit and the two hours would
+#: never actually be observed. See _load_disk_cache/_store_disk_cache.
+_CACHE_FILE = "news_cache.json"
 #: Feeds are ~50-200 KB. Anything far past that is not a feed, and parsing it
 #: would hand an XML bomb to ElementTree.
 _MAX_FEED_BYTES = 4_000_000
@@ -172,6 +185,67 @@ class NewsItem:
         if hours < 1:
             return "just now"
         return f"{hours}h ago" if hours < 24 else f"{hours // 24}d ago"
+
+
+def _cache_path():
+    return data_dir() / _CACHE_FILE
+
+
+def _is_fresh(cached_at: datetime) -> bool:
+    return datetime.now(timezone.utc) - cached_at < _CACHE_TTL
+
+
+def _load_disk_cache() -> "tuple[datetime, list[NewsItem]] | None":
+    """The last stored feed, or None if there isn't one, it can't be read, or
+    it doesn't parse. A cache is a convenience: nothing here may raise into
+    the caller, which would turn a corrupt file into a dead ticker."""
+    try:
+        payload = json.loads(_cache_path().read_text(encoding="utf-8"))
+        cached_at = _parse_date(payload["cached_at"])
+        if cached_at is None:
+            return None
+        items = []
+        for entry in payload["items"]:
+            published_at = _parse_date(entry["published_at"])
+            if published_at is None:
+                return None
+            items.append(
+                NewsItem(
+                    title=entry["title"],
+                    url=entry["url"],
+                    source=entry["source"],
+                    published_at=published_at,
+                )
+            )
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return cached_at, items
+
+
+def _store_disk_cache(cached_at: datetime, items: "list[NewsItem]") -> None:
+    """Persist the feed for the next launch. Written via a temp file and
+    os.replace so a crash mid-write leaves the previous cache intact rather
+    than a half-file that _load_disk_cache would then discard."""
+    payload = {
+        "cached_at": cached_at.isoformat(),
+        "items": [
+            {
+                "title": item.title,
+                "url": item.url,
+                "source": item.source,
+                "published_at": item.published_at.isoformat(),
+            }
+            for item in items
+        ],
+    }
+    path = _cache_path()
+    temporary = path.with_suffix(".json.tmp")
+    try:
+        temporary.write_text(json.dumps(payload), encoding="utf-8")
+        os.replace(temporary, path)
+    except OSError:
+        # A read-only or full data dir costs a cache, never the feed itself.
+        temporary.unlink(missing_ok=True)
 
 
 def specialty_score(item: "NewsItem") -> int:
@@ -338,13 +412,20 @@ def _rank_with_qwen(items: "list[NewsItem]", limit: int) -> "list[NewsItem]":
 def fetch_news(force: bool = False, rank: bool = True) -> "list[NewsItem]":
     """Today's coffee headlines, most important first.
 
+    Served from the cache -- in memory first, then the copy in the data dir --
+    while it is inside _CACHE_TTL, so neither the outlets' feeds nor Qwen are
+    asked again for two hours. `force=True` skips both and refreshes.
+
     Raises NewsUnavailableError only if *every* source failed; one dead feed
     is skipped silently so a single outlet can't empty the ticker."""
     global _cache
-    if not force and _cache is not None:
-        cached_at, cached_items = _cache
-        if datetime.now(timezone.utc) - cached_at < _CACHE_TTL:
-            return cached_items
+    if not force:
+        if _cache is None:
+            _cache = _load_disk_cache()
+        if _cache is not None:
+            cached_at, cached_items = _cache
+            if _is_fresh(cached_at):
+                return cached_items
 
     collected, failures = [], []
     with httpx.Client(
@@ -385,5 +466,7 @@ def fetch_news(force: bool = False, rank: bool = True) -> "list[NewsItem]":
             # and a background thread must not die over an optional API call.
             items = fresh[:LIMIT]
 
-    _cache = (datetime.now(timezone.utc), items)
+    cached_at = datetime.now(timezone.utc)
+    _cache = (cached_at, items)
+    _store_disk_cache(cached_at, items)
     return items
