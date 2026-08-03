@@ -93,6 +93,20 @@ showing the last ~3 months as a color-graded grid, one cell per day; hover a
 cell for the exact date and count), and a **Flavor Profile** card averaging
 the eleven flavor axes across every brewing session you've ever logged.
 
+**What's New**, top-left of the window, opens a list of a few French
+specialty roasters (Datura, Belleville Brûlerie, Coutume, L'Arbre à Café,
+Tanat); picking one fetches what's currently on sale straight from that
+roaster's own site and shows it as a table -- name, price, weight, in stock,
+a short description excerpt, and a link that opens the real product page in
+your browser. Selecting a row also shows a photo preview -- fetched live from
+the roaster's own site at the moment you select it, never downloaded or
+cached to disk, the same as a browser loading an image. It reads only each
+roaster's own public product-listing feed (Shopify's `/products.json`,
+WooCommerce's Store API), never scrapes HTML. See `specs/legal.md` for the
+full reasoning and the rules this feature follows; the short version is that
+prices are shown with the time they were fetched and every row links back to
+where it came from.
+
 In the Coffee Profiles card, *New Profile* opens a form -- a bean row is
 created the moment the dialog opens (blank name until you type one; *Save*
 falls back to "Untitled" if it's still empty), so pages and sessions work

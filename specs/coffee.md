@@ -66,6 +66,7 @@ coffee/
     ├── qwen_ocr.py           # label scanning via Qwen vision
     ├── deepseek_brew.py      # brew recipe suggestion via DeepSeek
     ├── qwen_brew.py          # voice → session parsing via Qwen-Omni audio
+    ├── whats_new.py          # roasters' public catalogues via their own JSON endpoints
     ├── assets/               # icon.svg, Fredoka fonts, dropdown JSON seed lists
     └── gui/                  # PySide6 desktop app
 ```
@@ -87,7 +88,8 @@ coffee/
 | --- | --- |
 | `cli.py` | The `coffeecan` command tree, built on `click`, rendered with `rich`. Interactive prompt helpers (`ask`, `ask_float`, `ask_time`) drive the add/edit flows field by field. |
 | `gui/app.py` | Entry point: registers the bundled Fredoka fonts, applies the stylesheet, opens `MainWindow`. |
-| `gui/main_window.py` | Welcome screen: header banner, the bean table, and a three-pane row (profile card, contribution calendar, flavor radar). |
+| `gui/main_window.py` | Welcome screen: top-left **What's New** button, header banner, the bean table, and a three-pane row (profile card, contribution calendar, flavor radar). |
+| `gui/whats_new_dialog.py` | **What's New**: a roaster list, then a product table for whichever one is picked, fetched via `whats_new.py` on a background thread. Two stacked pages in one dialog rather than nested modals. |
 | `gui/bean_dialog.py` | The bean profile editor — fields, photo carousel, label scanning, the sessions table, and the per-bean flavor profile. Hosts the scan worker and its review dialog. |
 | `gui/brew_dialog.py` | The session editor — brew details, the stages table with its `StageDialog`, and the evaluation block (score, extraction bar, note, eleven flavor sliders, live radar). |
 | `gui/ai_brew_dialog.py` | "Ask AI": pick a dripper, get a DeepSeek recipe, review it, turn it into a real session with real stage rows. |
@@ -288,3 +290,60 @@ All requests use a 90-second timeout, because the caller runs on a background th
 | from a source checkout | `coffee/.env` |
 
 Each module calls `load_dotenv()` (walks up from the package) *and* `load_dotenv(data_dir()/".env")`. A pipx install lives in pipx's venv, so walking up never reaches the checkout — **editing only `coffee/.env` leaves the key invisible to an installed app**, and any feature with a fallback quietly uses the next provider down. Real environment variables always win over both files.
+
+### 3.7 What's New — reading roasters' public catalogues (`whats_new.py`)
+
+The main window's **What's New** button opens a dialog listing a handful of
+French roasters; picking one fetches what's currently on sale from that
+roaster's *own* site and shows it in a table (name, price, weight, in stock,
+a short description excerpt, a link to the real product page), plus a photo
+preview panel for whichever row is currently selected.
+
+This is the crawler `specs/legal.md` governs, and that spec's binding rules
+are not optional here — this section only summarises how the code follows
+them, not why. Two things anchor everything else in the module:
+
+- **Tier 2 only** (`specs/legal.md` §3.2 rule 7): every roaster is fetched
+  through the first-party JSON endpoint the platform itself exposes for
+  listing products — Shopify's `/products.json`, WooCommerce's Store API
+  (`/wp-json/wc/store/v1/products`) — never HTML scraping. `ROASTERS` in
+  `whats_new.py` is exactly the five sites the spec's live survey (§2.2)
+  confirmed have such an endpoint (Datura, Belleville Brûlerie, Coutume,
+  L'Arbre à Café, Tanat). Terres de Café and Lomi (no tier-2 endpoint) and
+  Cafés Lugat (no online catalog at all) are deliberately absent — adding
+  them means building the heavier sitemap/HTML tier the spec describes, not
+  appending a row to this dict.
+- **Facts only, never expression** (`specs/legal.md` §3.8): a `Listing` keeps
+  name, price, weight, stock, a canonical URL, `fetched_at`, and an
+  `image_url`, plus a description *excerpt* — `_excerpt()` strips HTML and
+  hard-caps at 200 characters, well under where droit d'auteur analysis
+  treats prose as original.
+- **Images are hotlinked, never downloaded** (`specs/legal.md` §3.8 rule 31).
+  `whats_new.py` only ever extracts the image *URL* from the listing JSON —
+  text, not bytes. The actual photo is fetched by
+  `gui/whats_new_dialog.py`'s preview panel, and only there: on row
+  selection, one request at a time (aborting whatever was in flight if the
+  selection moves on before it finishes), held only as an in-memory
+  `QPixmap`, never written to disk. No image is ever part of the cached
+  listing data, a fixture, or anything this project persists.
+
+Other spec rules this module implements: a truthful, contactable
+`User-Agent` (§3.5, never a spoofed browser string); a fixed 3-second delay
+between paginated requests to the same host (§3.4); `RoasterUnavailableError`
+on any network/parse failure rather than an exception surfacing on the GUI
+thread (§3.7 "fail closed" in spirit); and a 15-minute in-memory cache so
+reopening the dialog doesn't re-hit a roaster's server needlessly. It does
+**not** implement the fuller crawler machinery the spec describes for a
+recurring/scheduled crawl (robots.txt parsing, a circuit breaker, a
+persisted kill switch, an allowlist file) — those govern a background daemon
+making repeated unattended requests; this is a single on-demand fetch
+triggered by a human clicking a button, which the spec's use-case gradient
+(§1) already places in the lowest-risk, "GO" category. **If this ever grows
+into a scheduled background refresh, re-read `specs/legal.md` §3 in full
+before building it** — that change moves the feature into different rows of
+the risk table.
+
+`gui/whats_new_dialog.py` runs the fetch in a `QThread` (the same
+`background.py`-owned-worker pattern as `ai_brew_dialog.py`'s DeepSeek call),
+so a slow or dead network shows the walking-can loader instead of freezing
+the window.

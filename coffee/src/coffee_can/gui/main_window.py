@@ -26,6 +26,7 @@ from ..assets import icon_path
 from ..formatting import format_or_dash
 from .bean_dialog import BeanDialog
 from .profile_dialog import ProfileSettingsDialog
+from .whats_new_dialog import WhatsNewDialog
 from .widgets import ContributionCalendar, HeaderBanner, RadarChart, circular_pixmap, default_avatar_pixmap
 
 
@@ -65,6 +66,7 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(central)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(16)
+        layout.addLayout(self._build_top_row())
         layout.addWidget(self._build_header())
         layout.addWidget(self._build_beans_card(), 1)
 
@@ -100,6 +102,19 @@ class MainWindow(QMainWindow):
         panes = splitter.count()
         total = splitter.width() - splitter.handleWidth() * (panes - 1)
         splitter.setSizes([total // panes] * panes)
+
+    # --- top row ----------------------------------------------------------
+
+    def _build_top_row(self):
+        row = QHBoxLayout()
+        whats_new_btn = QPushButton("What's New")
+        whats_new_btn.clicked.connect(self._open_whats_new)
+        row.addWidget(whats_new_btn)
+        row.addStretch()
+        return row
+
+    def _open_whats_new(self):
+        WhatsNewDialog(parent=self).exec()
 
     # --- header ---------------------------------------------------------
 
