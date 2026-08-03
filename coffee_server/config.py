@@ -37,12 +37,6 @@ QWEN_MODEL = os.environ.get("QWEN_MODEL", "qwen-max")
 QWEN_MAX_TOKENS = int(os.environ.get("QWEN_MAX_TOKENS", "8192"))
 QWEN_BASE_URL = os.environ.get("QWEN_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1")
 
-# --- DeepSeek (OpenAI-compatible) ---
-DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
-DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
-DEEPSEEK_MAX_TOKENS = int(os.environ.get("DEEPSEEK_MAX_TOKENS", "8192"))
-DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
-
 
 def configured_providers() -> set[str]:
     """Providers with an API key set, i.e. usable right now."""
@@ -51,6 +45,4 @@ def configured_providers() -> set[str]:
         configured.add("anthropic")
     if QWEN_API_KEY:
         configured.add("qwen")
-    if DEEPSEEK_API_KEY:
-        configured.add("deepseek")
     return configured

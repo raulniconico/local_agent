@@ -168,7 +168,7 @@ API (`QWEN_OMNI_MODEL`, default `qwen3.5-omni-flash`) for parsing into the
 same session + stage fields the *Ask AI* flow above fills in -- review the
 result, then *Create Session* opens it in the normal session form for
 further editing. Needs `pip install openai` and `QWEN_API_KEY` set (a
-DashScope key); like DeepSeek's suggestions, if the request fails for any
+DashScope key); like the *Ask AI* suggestions, if the request fails for any
 reason the dialog just reports the error rather than silently falling back
 to anything, since there's no local voice-parsing fallback to fall back to.
 

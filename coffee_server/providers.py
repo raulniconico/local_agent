@@ -118,21 +118,9 @@ def call_qwen(**kwargs) -> tuple[str, str]:
     )
 
 
-def call_deepseek(**kwargs) -> tuple[str, str]:
-    return _call_openai_compatible(
-        api_key=config.DEEPSEEK_API_KEY,
-        base_url=config.DEEPSEEK_BASE_URL,
-        default_model=config.DEEPSEEK_MODEL,
-        default_max_tokens=config.DEEPSEEK_MAX_TOKENS,
-        provider_label="deepseek",
-        **kwargs,
-    )
-
-
 _PROVIDER_CALLS = {
     "anthropic": call_anthropic,
     "qwen": call_qwen,
-    "deepseek": call_deepseek,
 }
 
 

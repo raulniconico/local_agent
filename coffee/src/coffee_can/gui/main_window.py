@@ -2,8 +2,8 @@
 coffee profiles list, and a fused overview block holding the brewing
 activity calendar and flavor profile panes."""
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import Qt, QThread, QUrl, Signal
+from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QGridLayout,
@@ -21,13 +21,50 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .. import repo
+from .. import coffee_news, repo, whats_new
 from ..assets import icon_path
 from ..formatting import format_or_dash
+from . import background
 from .bean_dialog import BeanDialog
 from .profile_dialog import ProfileSettingsDialog
 from .whats_new_dialog import WhatsNewDialog
-from .widgets import ContributionCalendar, HeaderBanner, RadarChart
+from .widgets import ContributionCalendar, HeaderBanner, RadarChart, VerticalTicker
+
+
+class _TickerFetchWorker(QThread):
+    """One whats_new.fetch_listings() call off the GUI thread, for the main
+    window's rolling feed. Mirrors whats_new_dialog._FetchWorker."""
+
+    succeeded = Signal(str, list)  # (roaster_key, listings)
+    failed = Signal(str, str)  # (roaster_key, message)
+
+    def __init__(self, roaster_key: str):
+        super().__init__()
+        self._roaster_key = roaster_key
+
+    def run(self):
+        try:
+            listings = whats_new.fetch_listings(self._roaster_key)
+        except whats_new.RoasterUnavailableError as exc:
+            self.failed.emit(self._roaster_key, str(exc))
+        else:
+            self.succeeded.emit(self._roaster_key, listings)
+
+
+class _NewsFetchWorker(QThread):
+    """coffee_news.fetch_news() off the GUI thread -- several RSS round-trips
+    plus an optional Qwen ranking call."""
+
+    succeeded = Signal(list)
+    failed = Signal(str)
+
+    def run(self):
+        try:
+            items = coffee_news.fetch_news()
+        except coffee_news.NewsUnavailableError as exc:
+            self.failed.emit(str(exc))
+        else:
+            self.succeeded.emit(items)
 
 
 class _TextSortItem(QTableWidgetItem):
@@ -77,6 +114,7 @@ class MainWindow(QMainWindow):
     # the card's own top padding, so cards abut while their contents hold
     # position.
     _BLOCK_GAP = 16
+    _MARKET_LIMIT = 20  # entries in the Coffee Market rolling feed
     _THEME_CARD_PADDING = 12  # theme.STYLESHEET's QGroupBox left/right/bottom padding
     _THEME_CARD_PADDING_TOP = 14  # ... and its top padding, which differs
     # The app-wide QGroupBox rule reserves margin-top:22px for a native
@@ -126,6 +164,8 @@ class MainWindow(QMainWindow):
 
         self._refresh_beans()
         self._refresh_activity()
+        self._start_news_feed()
+        self._start_market_feed()
 
     def _open_whats_new(self):
         """Open the release-notes dialog.
@@ -331,9 +371,116 @@ class MainWindow(QMainWindow):
         row.setSpacing(0)
         row.addWidget(self._build_calendar_pane())
         row.addWidget(self._build_flavor_profile_pane())
-        row.addStretch()
+        # The corner the trailing stretch used to hold, split evenly in two.
+        row.addWidget(self._build_whats_new_pane(), 1)
+        row.addWidget(self._build_market_pane(), 1)
         outer.addLayout(row)
         return group
+
+    # --- what's new pane ----------------------------------------------------
+
+    def _build_whats_new_pane(self):
+        pane = QWidget()
+        layout = QVBoxLayout(pane)
+        layout.addWidget(self._pane_header("What's New"))
+        layout.addSpacing(self._HEADER_GAP)
+
+        self.news_ticker = VerticalTicker()
+        self.news_ticker.set_placeholder("Loading today's coffee news…")
+        self.news_ticker.activated.connect(self._open_news_item)
+        layout.addWidget(self.news_ticker, 1)
+        return pane
+
+    def _start_news_feed(self):
+        """Today's coffee headlines, ranked by Qwen. See coffee_news for why
+        the headlines come from the outlets' RSS rather than from the model."""
+        self._news_worker = _NewsFetchWorker()
+        self._news_worker.succeeded.connect(self._on_news_ready)
+        self._news_worker.failed.connect(self._on_news_failed)
+        background.start(self._news_worker)
+
+    def _on_news_ready(self, items):
+        self.news_ticker.set_entries(
+            [(item.title, f"{item.source} · {item.age_display()}", item.url) for item in items]
+        )
+        if not items:
+            self.news_ticker.set_placeholder("No coffee news in the last 24 hours")
+
+    def _on_news_failed(self, message):
+        self.news_ticker.set_placeholder(message)
+
+    def _open_news_item(self, url):
+        QDesktopServices.openUrl(QUrl(url))
+
+    # --- coffee market pane -------------------------------------------------
+
+    def _start_market_feed(self):
+        """Populate the market ticker from the roasters' own product endpoints.
+
+        One worker per roaster, off the GUI thread. whats_new.fetch_listings()
+        caches for 15 minutes, so re-opening the window inside that window
+        costs no requests at all -- the ticker never becomes a reason to hit
+        a host more often than the dialog already would."""
+        self._market_rows = []
+        self._market_workers = []
+        for roaster_key in whats_new.ROASTERS:
+            worker = _TickerFetchWorker(roaster_key)
+            worker.succeeded.connect(self._on_market_batch)
+            worker.failed.connect(self._on_market_failed)
+            self._market_workers.append(worker)
+            # background.start() owns the lifetime -- a QThread torn down while
+            # still running aborts the process, and an in-flight HTTP call
+            # can't be cancelled.
+            background.start(worker)
+
+    def _on_market_batch(self, _roaster_key, listings):
+        for listing in listings:
+            if not listing.in_stock or not whats_new.looks_like_coffee(listing):
+                continue
+            subtitle = " · ".join(
+                part
+                for part in (listing.roaster, listing.price_display, listing.weight_display)
+                if part and part != "—"
+            )
+            self._market_rows.append((listing.published_at, listing.name, subtitle, listing.url))
+        # Newest first, on the seller's own published_at. Undated listings
+        # (the WooCommerce Store API exposes none) sort last rather than
+        # being presented as if they were new.
+        self._market_rows.sort(key=lambda row: (row[0] is not None, row[0]), reverse=True)
+        self.market_ticker.set_entries(
+            [(name, subtitle, url) for _, name, subtitle, url in self._market_rows[: self._MARKET_LIMIT]]
+        )
+
+    def _on_market_failed(self, _roaster_key, _message):
+        if not self._market_rows:
+            self.market_ticker.set_placeholder("Couldn't reach the roasters")
+
+    def closeEvent(self, event):
+        # The requests keep running to completion (background.py owns the
+        # threads and app shutdown waits on them), but their signals must
+        # stop reaching a window on its way out -- same reasoning as
+        # whats_new_dialog.closeEvent.
+        for worker in self._market_workers:
+            worker.succeeded.disconnect(self._on_market_batch)
+            worker.failed.disconnect(self._on_market_failed)
+        self._market_workers.clear()
+        if self._news_worker is not None:
+            self._news_worker.succeeded.disconnect(self._on_news_ready)
+            self._news_worker.failed.disconnect(self._on_news_failed)
+            self._news_worker = None
+        super().closeEvent(event)
+
+    def _build_market_pane(self):
+        pane = QWidget()
+        layout = QVBoxLayout(pane)
+        layout.addWidget(self._pane_header("Coffee Market"))
+        layout.addSpacing(self._HEADER_GAP)
+
+        self.market_ticker = VerticalTicker()
+        self.market_ticker.set_placeholder("Loading new arrivals…")
+        self.market_ticker.activated.connect(self._open_news_item)
+        layout.addWidget(self.market_ticker, 1)
+        return pane
 
     @staticmethod
     def _pane_header(text):

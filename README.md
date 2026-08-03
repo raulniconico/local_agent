@@ -44,7 +44,7 @@ comparison, the full tool list, and known limitations.
 ### [`coffee_server/`](coffee_server) — the server
 
 A small stateless FastAPI gateway that proxies chat requests to Anthropic,
-Qwen, or DeepSeek — a client picks the provider per request, the server
+or Qwen — a client picks the provider per request, the server
 forwards the call and returns the text. Unrelated to coffee-can's storage;
 this is a general-purpose multi-provider LLM proxy, guarded by a shared
 `X-API-Key` so it's safe to expose publicly. Ships as a Docker image, with

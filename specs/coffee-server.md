@@ -1,6 +1,6 @@
 # `coffee_server/` — LLM Gateway
 
-A small stateless FastAPI service that proxies chat requests to Anthropic, Qwen, or DeepSeek — the client picks the provider per request, the server forwards the call and returns the text.
+A small stateless FastAPI service that proxies chat requests to Anthropic or Qwen — the client picks the provider per request, the server forwards the call and returns the text.
 
 - [1. Project background](#1-project-background)
 - [2. Development details](#2-development-details)
@@ -38,7 +38,7 @@ The service ships as a Docker image (plain HTTP on `:8000`, so it fits App Runne
 Worth being explicit about the near-misses, because the resemblance is superficial:
 
 - **It is not what `coffee_agent` talks to.** `coffee_agent` is a local tool-using ReAct agent that calls provider SDKs directly; this is a remote stateless proxy with no tools and no memory. `providers.py`'s docstring calls out the contrast deliberately. The two are alternative shapes of "talk to an LLM", not layers of one stack.
-- **It is not what `coffee/` uses for OCR or brew suggestions.** `coffee/` calls Claude, Qwen and DeepSeek directly from its own modules.
+- **It is not what `coffee/` uses for OCR or brew suggestions.** `coffee/` calls Claude and Qwen directly from its own modules. (DeepSeek was removed from the whole repo on 2026-08-03 — both here and in `coffee/`.)
 - **Its `.env` is separate and must stay that way.** `config.py` loads `.env` by an explicit path (`Path(__file__).parent/".env"`) rather than a bare `load_dotenv()`, precisely because a bare call walks up parent directories and would silently pick up a sibling project's `.env` and its keys.
 
 The three projects overlap only in that all three call the same set of vendors, and each maintains its own credentials for doing so.
@@ -99,7 +99,7 @@ providers.ask → _PROVIDER_CALLS[provider]
   │  _to_pairs()  normalises prompt|messages → [{role, content}]
   │  anthropic: _split_leading_system() lifts a leading system message
   │             into Anthropic's separate `system` field
-  │  qwen/deepseek: _call_openai_compatible() prepends system as a message
+  │  qwen: _call_openai_compatible() prepends system as a message
   │  ProviderNotConfiguredError → 400   ProviderRequestError → 502
   ▼
 AskResponse{provider, model, content}
@@ -164,7 +164,7 @@ Requires header `X-API-Key: <SERVER_API_KEY>`.
 
 | Field | Type | Required | Default | Notes |
 | --- | --- | --- | --- | --- |
-| `provider` | `"anthropic"` \| `"qwen"` \| `"deepseek"` | **yes** | — | must also be configured on the server |
+| `provider` | `"anthropic"` \| `"qwen"` | **yes** | — | must also be configured on the server |
 | `prompt` | string | exactly one of | — | single-turn shorthand |
 | `messages` | `ChatMessage[]` | `prompt`/`messages` | — | full history for multi-turn |
 | `system` | string | no | — | system prompt override |
@@ -227,7 +227,6 @@ Returns `(resolved_model, response_text)`. `provider` is assumed already validat
 ```python
 call_anthropic(*, messages, prompt, system, model, max_tokens) -> tuple[str, str]
 call_qwen(**kwargs)      -> tuple[str, str]   # via _call_openai_compatible
-call_deepseek(**kwargs)  -> tuple[str, str]   # via _call_openai_compatible
 ```
 
 | Exception | Meaning | Becomes |
@@ -245,7 +244,6 @@ Text extraction differs by shape: Anthropic returns content blocks, joined with 
 | --- | --- | --- | --- |
 | Anthropic | `anthropic` | `claude-opus-5` | SDK default |
 | Qwen | `openai` | `qwen-max` | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` |
-| DeepSeek | `openai` | `deepseek-chat` | `https://api.deepseek.com/v1` |
 
 ### 3.5 Configuration
 
@@ -263,10 +261,6 @@ Text extraction differs by shape: Anthropic returns content blocks, joined with 
 | `QWEN_MODEL` | no | `qwen-max` | |
 | `QWEN_MAX_TOKENS` | no | `8192` | |
 | `QWEN_BASE_URL` | no | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` | Mainland-China accounts need the non-`-intl` host |
-| `DEEPSEEK_API_KEY` | no | *(empty)* | Enables the `deepseek` provider |
-| `DEEPSEEK_MODEL` | no | `deepseek-chat` | |
-| `DEEPSEEK_MAX_TOKENS` | no | `8192` | |
-| `DEEPSEEK_BASE_URL` | no | `https://api.deepseek.com/v1` | |
 
 At least one provider key is needed for the service to be useful; with none, it starts and logs a warning, and every `/v1/ask` returns 400.
 

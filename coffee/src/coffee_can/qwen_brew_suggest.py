@@ -1,13 +1,27 @@
-"""Brewing recipe suggestions via the DeepSeek chat API -- text-only (see
-claude_ocr.py's module docstring for why DeepSeek can't be used for the
-image-based label scanning feature). Given a bean's basic info and a chosen
-dripper, asks DeepSeek for a structured brew recipe: a short explanation plus
-dose/grind/pour-stage numbers that gui/ai_brew_dialog.py turns into an actual
-session + brew_stages rows, not just freeform text in a note field.
+"""Brewing recipe suggestions via the Qwen chat API -- text-only. Given a
+bean's basic info and a chosen dripper, asks Qwen for a structured brew
+recipe: a short explanation plus dose/grind/pour-stage numbers that
+gui/ai_brew_dialog.py turns into an actual session + brew_stages rows, not
+just freeform text in a note field.
 
 Used by gui/ai_brew_dialog.py's "Ask AI" flow. The `openai` package is an
-optional dependency (DeepSeek's API is OpenAI-compatible), imported lazily
-here so the rest of the app works without it installed.
+optional dependency (DashScope's compatible-mode endpoint is
+OpenAI-compatible), imported lazily here so the rest of the app works
+without it installed.
+
+Three Qwen entry points now exist and they deliberately use different models
+via different env vars, so each can move independently:
+
+| module | job | env var | default |
+| --- | --- | --- | --- |
+| this one | text chat, brew recipes | `QWEN_CHAT_MODEL` | `qwen3.6-plus` |
+| `qwen_ocr.py` | image -> bean fields | `QWEN_OMNI_MODEL` | `qwen3.5-omni-flash` |
+| `qwen_brew.py` | audio -> session fields | `QWEN_OMNI_MODEL` | `qwen3.5-omni-flash` |
+
+The split matters: this one wants a strong *text* reasoner and has no use
+for audio or vision, while the other two need an omni model specifically.
+Pointing them all at one variable would force an omni model on a task that
+does not need one, or a text-only model on tasks that cannot work without.
 """
 
 import json
@@ -19,19 +33,23 @@ from .paths import data_dir
 
 # Same two locations claude_ocr.py checks -- current/parent working
 # directory (source checkout) and the app's own data dir (packaged
-# installs), so DEEPSEEK_API_KEY works the same way ANTHROPIC_API_KEY does.
+# installs), so QWEN_API_KEY works the same way ANTHROPIC_API_KEY does.
 load_dotenv()
 load_dotenv(data_dir() / ".env")
 
-_BASE_URL = "https://api.deepseek.com"
-_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash")
+_BASE_URL = os.environ.get("QWEN_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1")
+_MODEL = os.environ.get("QWEN_CHAT_MODEL", "qwen3.6-plus")
 # Without this the SDK will wait indefinitely on a stalled connection, and
 # the caller (a background thread behind gui/ai_brew_dialog.py's busy
 # indicator) has no way to cancel an in-flight request -- so a dead network
 # would leave the dialog spinning until the app is killed.
 _TIMEOUT_SECONDS = 90.0
+#: The OpenAI SDK retries twice by default, so a stalled call would hold the
+#: dialog's busy indicator for 270s, not 90s. One retry is a reasonable
+#: hedge against a transient error without making a hang feel like a freeze.
+_MAX_RETRIES = 1
 
-# DeepSeek's JSON mode (unlike Claude's schema-validated structured outputs)
+# Qwen's JSON mode (unlike Claude's schema-validated structured outputs)
 # only guarantees syntactically valid JSON, not that it matches any
 # particular shape -- so the prompt has to spell out the shape via an
 # example, and the response still needs defensive parsing on our side.
@@ -47,12 +65,12 @@ _EXAMPLE = {
 }
 
 
-class DeepSeekUnavailableError(Exception):
-    """Raised when DEEPSEEK_API_KEY isn't set, or the request itself failed."""
+class QwenBrewUnavailableError(Exception):
+    """Raised when QWEN_API_KEY isn't set, or the request itself failed."""
 
 
 def is_configured() -> bool:
-    return bool(os.environ.get("DEEPSEEK_API_KEY"))
+    return bool(os.environ.get("QWEN_API_KEY"))
 
 
 def _to_float(value):
@@ -94,18 +112,18 @@ def suggest_brew(bean_info: dict, dripper: str) -> dict:
     """bean_info is a {label: value} dict of the bean's basic details (blank
     values are skipped). Returns {"summary": str, "dose_g": float|None,
     "grind_size": str, "stages": [{"temperature_c", "water_g",
-    "time_seconds", "circling"}, ...]} -- any field DeepSeek didn't provide
+    "time_seconds", "circling"}, ...]} -- any field Qwen didn't provide
     or that didn't parse as a number comes back as None/"" rather than
     raising, since JSON mode doesn't guarantee the shape."""
     if not is_configured():
-        raise DeepSeekUnavailableError(
-            "DEEPSEEK_API_KEY isn't set. Add it to your shell environment or a .env file."
+        raise QwenBrewUnavailableError(
+            "QWEN_API_KEY isn't set. Add it to your shell environment or a .env file."
         )
 
     try:
         from openai import OpenAI
     except ImportError as exc:
-        raise DeepSeekUnavailableError(f"The 'openai' package isn't installed: {exc}") from exc
+        raise QwenBrewUnavailableError(f"The 'openai' package isn't installed: {exc}") from exc
 
     lines = [f"{label}: {value}" for label, value in bean_info.items() if value]
     bean_summary = "\n".join(lines) if lines else "(no details recorded for this bean)"
@@ -122,7 +140,10 @@ def suggest_brew(bean_info: dict, dripper: str) -> dict:
 
     try:
         client = OpenAI(
-            api_key=os.environ["DEEPSEEK_API_KEY"], base_url=_BASE_URL, timeout=_TIMEOUT_SECONDS
+            api_key=os.environ["QWEN_API_KEY"],
+            base_url=_BASE_URL,
+            timeout=_TIMEOUT_SECONDS,
+            max_retries=_MAX_RETRIES,
         )
         response = client.chat.completions.create(
             model=_MODEL,
@@ -130,14 +151,14 @@ def suggest_brew(bean_info: dict, dripper: str) -> dict:
             messages=[{"role": "user", "content": prompt}],
         )
     except Exception as exc:  # network errors, auth errors, rate limits, etc.
-        raise DeepSeekUnavailableError(f"DeepSeek API request failed: {exc}") from exc
+        raise QwenBrewUnavailableError(f"Qwen API request failed: {exc}") from exc
 
     text = response.choices[0].message.content
     if not text:
-        raise DeepSeekUnavailableError("DeepSeek's response was empty -- try again.")
+        raise QwenBrewUnavailableError("Qwen's response was empty -- try again.")
     try:
         data = json.loads(text)
     except json.JSONDecodeError as exc:
-        raise DeepSeekUnavailableError(f"DeepSeek didn't return valid JSON: {exc}") from exc
+        raise QwenBrewUnavailableError(f"Qwen didn't return valid JSON: {exc}") from exc
 
     return _normalize(data)

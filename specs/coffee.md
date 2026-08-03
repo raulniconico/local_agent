@@ -39,7 +39,7 @@ On top of the manual entry there is an optional AI layer, all of it degradable: 
 
 The practical consequence for anyone working here: **`repo.py`, `db.py`, and `paths.py` are a published interface, not private implementation.** They must keep to the standard library only, and restructuring the package layout breaks the sibling project. `ocr.py`, `claude_ocr.py`, the `gui/` package, and `cli.py` are *not* used by `coffee_agent` — it does its own OCR through a direct Claude call.
 
-`coffee_server` is unrelated. It is a general-purpose LLM proxy that happens to live in the same repo; it never touches coffee data. Note that this project calls provider APIs (Claude, Qwen, DeepSeek) **directly** rather than through `coffee_server`.
+`coffee_server` is unrelated. It is a general-purpose LLM proxy that happens to live in the same repo; it never touches coffee data. Note that this project calls provider APIs (Claude, Qwen) **directly** rather than through `coffee_server`.
 
 ---
 
@@ -64,7 +64,7 @@ coffee/
     ├── ocr.py                # local Tesseract OCR + regex field heuristics
     ├── claude_ocr.py         # label scanning via Claude vision
     ├── qwen_ocr.py           # label scanning via Qwen vision
-    ├── deepseek_brew.py      # brew recipe suggestion via DeepSeek
+    ├── qwen_brew_suggest.py  # brew recipe suggestion via Qwen (text)
     ├── qwen_brew.py          # voice → session parsing via Qwen-Omni audio
     ├── whats_new.py          # roasters' public catalogues via their own JSON endpoints
     ├── assets/               # icon.svg, Fredoka fonts, dropdown JSON seed lists
@@ -92,7 +92,7 @@ coffee/
 | `gui/whats_new_dialog.py` | **What's New**: a roaster list, then a product table for whichever one is picked, fetched via `whats_new.py` on a background thread. Two stacked pages in one dialog rather than nested modals. |
 | `gui/bean_dialog.py` | The bean profile editor — fields, photo carousel, label scanning, the sessions table, and the per-bean flavor profile. Hosts the scan worker and its review dialog. |
 | `gui/brew_dialog.py` | The session editor — brew details, the stages table with its `StageDialog`, and the evaluation block (score, extraction bar, note, eleven flavor sliders, live radar). |
-| `gui/ai_brew_dialog.py` | "Ask AI": pick a dripper, get a DeepSeek recipe, review it, turn it into a real session with real stage rows. |
+| `gui/ai_brew_dialog.py` | "Ask AI": pick a dripper, get a Qwen recipe, review it, turn it into a real session with real stage rows. |
 | `gui/voice_brew_dialog.py` | "Voice Session": record a description with `QMediaRecorder`, send it to Qwen-Omni, review, create the session. Imports QtMultimedia at module level so a build without it fails at import and the caller disables the button gracefully. |
 | `gui/camera_dialog.py` | Live camera capture for label photos. Same module-level QtMultimedia pattern. |
 | `gui/share_card.py` | Renders a bean or session to a shareable image. |
@@ -116,7 +116,7 @@ Seven commits touch `coffee/` (31 Jul – 2 Aug 2026), in roughly four phases:
 1. **Core tracker** — SQLite schema, `repo`/`db`/`paths`, the click CLI, then the PySide6 GUI. Renamed from "coffee-journal" to "coffee-can" early, leaving the data-dir migration in `paths.py` and the launcher cleanup in `install_launcher.py`.
 2. **Richer capture** — bag photos and the carousel, local Tesseract OCR, then Claude vision as a higher-accuracy path, camera capture, the contribution calendar and radar charts.
 3. **Social/sharing** — share cards for beans and sessions, the user profile card, the Fredoka font and green theme.
-4. **AI assistance** — DeepSeek brew suggestions, and the walking-can busy indicator with `background.py` to keep slow calls off the GUI thread.
+4. **AI assistance** — Qwen brew suggestions, and the walking-can busy indicator with `background.py` to keep slow calls off the GUI thread.
 
 **The working tree currently has substantial uncommitted work** beyond the last commit (`4e1a553`): Qwen vision OCR (`qwen_ocr.py`) and its priority over Claude, voice sessions (`qwen_brew.py`, `gui/voice_brew_dialog.py`), the continuous extraction bar, the nullable score with its hint text, the flavor-axis split into eleven axes, and the `SaveButton` thumbs-up confirmation. `gui/background.py` and `gui/share_card.py` are still untracked.
 
@@ -242,7 +242,7 @@ Four independent modules, each with the same contract shape: an `is_configured()
 | `ocr.py` | `extract_text(path)`, `guess_bean_fields(path)` | local Tesseract + regex heuristics | — | `OcrUnavailableError` |
 | `claude_ocr.py` | `guess_bean_fields(path) -> dict` | Anthropic vision, `ANTHROPIC_OCR_MODEL` (default `claude-opus-5`) | `ANTHROPIC_API_KEY` | `ClaudeOcrUnavailableError` |
 | `qwen_ocr.py` | `guess_bean_fields(path) -> dict` | Qwen vision via DashScope, `QWEN_OMNI_MODEL` (default `qwen3.5-omni-flash`) | `QWEN_API_KEY`, `QWEN_BASE_URL` | `QwenOcrUnavailableError` |
-| `deepseek_brew.py` | `suggest_brew(bean_info, dripper) -> dict` | DeepSeek chat, `DEEPSEEK_MODEL` (default `deepseek-v4-flash`) | `DEEPSEEK_API_KEY` | `DeepSeekUnavailableError` |
+| `qwen_brew_suggest.py` | `suggest_brew(bean_info, dripper) -> dict` | Qwen text chat via DashScope, `QWEN_CHAT_MODEL` (default `qwen3.6-plus`) | `QWEN_API_KEY`, `QWEN_BASE_URL` | `QwenBrewUnavailableError` |
 | `qwen_brew.py` | `transcribe_brew_session(audio_bytes, audio_format, bean_info) -> dict` | Qwen-Omni audio, `QWEN_OMNI_MODEL` | `QWEN_API_KEY`, `QWEN_BASE_URL` | `QwenUnavailableError` |
 
 All requests use a 90-second timeout, because the caller runs on a background thread behind a busy indicator with no way to cancel an in-flight SDK call.
@@ -275,11 +275,10 @@ All requests use a 90-second timeout, because the caller runs on a background th
 | --- | --- | --- |
 | `ANTHROPIC_API_KEY` | enables Claude label scanning | *(unset)* |
 | `ANTHROPIC_OCR_MODEL` | Claude vision model | `claude-opus-5` |
-| `QWEN_API_KEY` | enables Qwen label scanning **and** voice sessions | *(unset)* |
+| `QWEN_API_KEY` | enables Qwen label scanning, voice sessions **and** "Ask AI" brew suggestions | *(unset)* |
 | `QWEN_OMNI_MODEL` | must be omni/vision-capable — a text-only model cannot read a photo or audio | `qwen3.5-omni-flash` |
 | `QWEN_BASE_URL` | DashScope OpenAI-compatible endpoint | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` |
-| `DEEPSEEK_API_KEY` | enables "Ask AI" brew suggestions | *(unset)* |
-| `DEEPSEEK_MODEL` | DeepSeek chat model | `deepseek-v4-flash` |
+| `QWEN_CHAT_MODEL` | text chat model for "Ask AI" brew suggestions and news ranking — text-only, does **not** need an omni model | `qwen3.6-plus` |
 | `XDG_DATA_HOME` | relocates the data directory | `~/.local/share` |
 
 **Which `.env` is read depends on how the app was launched:**
@@ -344,6 +343,6 @@ before building it** — that change moves the feature into different rows of
 the risk table.
 
 `gui/whats_new_dialog.py` runs the fetch in a `QThread` (the same
-`background.py`-owned-worker pattern as `ai_brew_dialog.py`'s DeepSeek call),
+`background.py`-owned-worker pattern as `ai_brew_dialog.py`'s Qwen call),
 so a slow or dead network shows the walking-can loader instead of freezing
 the window.

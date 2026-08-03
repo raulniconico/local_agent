@@ -1,7 +1,7 @@
 """Dialog for the sessions section's voice-recording button: record a short
 clip of the user describing a brew out loud, send it to Qwen-Omni for audio
 understanding, review the parsed session + stages, then Create Session --
-same downstream shape as ai_brew_dialog.py's DeepSeek flow, just sourced from
+same downstream shape as ai_brew_dialog.py's text flow, just sourced from
 a microphone instead of a dripper pick + text suggestion. See qwen_brew.py
 for the actual API call and the JSON shape it returns.
 

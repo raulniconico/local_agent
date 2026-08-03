@@ -11,7 +11,7 @@ class ChatMessage(BaseModel):
 
 
 class AskRequest(BaseModel):
-    provider: Literal["anthropic", "qwen", "deepseek"]
+    provider: Literal["anthropic", "qwen"]
     prompt: Optional[str] = None
     messages: Optional[list[ChatMessage]] = None
     system: Optional[str] = None

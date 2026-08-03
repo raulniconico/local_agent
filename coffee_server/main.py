@@ -1,4 +1,4 @@
-"""FastAPI gateway that proxies chat requests to Anthropic, Qwen, or DeepSeek.
+"""FastAPI gateway that proxies chat requests to Anthropic or Qwen.
 
 Stateless pass-through: each request carries its own provider choice and its
 full message history (or a single prompt) and gets one response back -- no

@@ -1,5 +1,5 @@
 """Brewing session extraction from a spoken description via Qwen-Omni's audio
-understanding -- the microphone counterpart to deepseek_brew.py's text-based
+understanding -- the microphone counterpart to qwen_brew_suggest.py's text-based
 "Ask AI" suggestions. Given a short recording of the user describing a brew
 out loud and a bean's basic info, asks Qwen to parse it into the same
 structured shape (plus a "dripper" field, since voice has to supply that too)
@@ -8,7 +8,7 @@ rows.
 
 Used by gui/voice_brew_dialog.py's microphone flow. The `openai` package is
 an optional dependency (DashScope's compatible-mode endpoint is
-OpenAI-compatible, same as deepseek_brew.py's DeepSeek client), imported
+OpenAI-compatible, same as qwen_brew_suggest.py's client), imported
 lazily here so the rest of the app works without it installed.
 """
 
@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 
 from .paths import data_dir
 
-# Same two locations deepseek_brew.py and claude_ocr.py check -- current/
+# Same two locations qwen_brew_suggest.py and claude_ocr.py check -- current/
 # parent working directory (source checkout) and the app's own data dir
 # (packaged installs), so QWEN_API_KEY works the same way as the other
 # provider keys.
@@ -43,7 +43,7 @@ _TIMEOUT_SECONDS = 90.0
 # Qwen-Omni's compatible-mode endpoint doesn't support response_format=
 # json_object (that's text-only-model territory), so the shape has to be
 # spelled out in the prompt and the reply parsed defensively -- same
-# reasoning as deepseek_brew.py's _EXAMPLE, plus "dripper" since there's no
+# reasoning as qwen_brew_suggest.py's _EXAMPLE, plus "dripper" since there's no
 # separate combo box to supply it here.
 _EXAMPLE = {
     "dripper": "V60",
@@ -81,7 +81,7 @@ def _to_int(value):
 
 
 def _extract_json(text: str):
-    """Qwen isn't guaranteed to return bare JSON the way DeepSeek's json_object
+    """Qwen-Omni isn't guaranteed to return bare JSON the way a json_object
     mode is -- it regularly wraps it in a markdown code fence or a sentence of
     preamble. Strip a fence if present, then take the outermost {...} span."""
     text = text.strip()
@@ -127,7 +127,7 @@ def transcribe_brew_session(audio_bytes: bytes, audio_format: str, bean_info: di
     """audio_bytes/audio_format describe a short recording of the user
     describing a brewing session out loud (e.g. a WAV file's raw bytes and
     "wav"). bean_info is the same {label: value} shape as
-    deepseek_brew.suggest_brew's. Returns {"dripper": str, "summary": str,
+    qwen_brew_suggest.suggest_brew's. Returns {"dripper": str, "summary": str,
     "dose_g": float|None, "grind_size": str, "stages": [{"temperature_c",
     "water_g", "time_seconds", "circling"}, ...]} -- any field Qwen didn't
     mention, or that didn't parse as a number, comes back as None/"" rather

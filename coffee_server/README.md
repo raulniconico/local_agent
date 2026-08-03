@@ -1,7 +1,7 @@
 # LLM Gateway
 
 A small stateless FastAPI server that proxies chat requests to Anthropic
-(Claude), Qwen, or DeepSeek. A client picks the provider per request; the
+(Claude) or Qwen. A client picks the provider per request; the
 server just forwards the call and returns the text. No conversation memory,
 no tool-calling loop — that's what the sibling `../coffee_agent` local agent is for.
 This is meant to run as a Docker container in front of your own client apps.
@@ -37,7 +37,7 @@ or, for multi-turn history:
 }
 ```
 
-`provider` is required and must be `"anthropic"`, `"qwen"`, or `"deepseek"`.
+`provider` is required and must be `"anthropic"` or `"qwen"`.
 `system`, `model`, and `max_tokens` are all optional overrides — omit `model`
 to use that provider's configured default, omit `max_tokens` to use its
 configured cap.

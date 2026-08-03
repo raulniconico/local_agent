@@ -1362,3 +1362,172 @@ class RadarChart(QWidget):
         painter.setBrush(QColor("#248A3D"))
         for point in data_points:
             painter.drawEllipse(point, 3, 3)
+
+
+class VerticalTicker(QWidget):
+    """A looping vertical scroller for short one-line-plus-subtitle entries.
+
+    Shows a feed longer than the space available by rolling it upward
+    continuously and wrapping around, so a small corner of a card can carry
+    20 items without a scrollbar the user has to touch.
+
+    The timer only runs while the widget is visible -- an animation painting
+    to an unmapped widget is pure battery drain, and this one sits on the
+    main window where it would otherwise run for the whole session."""
+
+    #: Emitted with an entry's payload when it is clicked. Entries added
+    #: without a payload are inert.
+    activated = Signal(object)
+
+    _INTERVAL_MS = 33  # ~30fps; smooth enough for a 0.4px step, cheap enough to leave on
+    _STEP_PX = 0.4
+    _ROW_HEIGHT = 42
+    _PAUSE_ON_HOVER = True
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._entries = []  # [(title, subtitle, payload), ...]
+        self._offset = 0.0
+        self._placeholder = "Loading…"
+        self._hovered = False
+        self.setMouseTracking(True)
+        self.setMinimumHeight(self._ROW_HEIGHT * 2)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self._timer = QTimer(self)
+        self._timer.setInterval(self._INTERVAL_MS)
+        self._timer.timeout.connect(self._advance)
+
+    def set_entries(self, entries) -> None:
+        """Feed the ticker. Each entry is (title, subtitle) or
+        (title, subtitle, payload); a payload makes the row clickable and is
+        handed back verbatim through `activated`."""
+        self._entries = [
+            (entry[0], entry[1], entry[2] if len(entry) > 2 else None) for entry in entries
+        ]
+        self._offset = 0.0
+        self.update()
+        self._sync_timer()
+
+    # --- clicking ---------------------------------------------------------
+
+    def _entry_at(self, y):
+        """Index of the row under `y`, accounting for the scroll offset, or
+        None. Modulo rather than a hit-rect list: rows are drawn wrapped, so
+        the same entry can be on screen twice."""
+        if not self._entries:
+            return None
+        span = len(self._entries) * self._ROW_HEIGHT
+        index = int(((y + self._offset) % span) // self._ROW_HEIGHT)
+        return index if 0 <= index < len(self._entries) else None
+
+    def mouseMoveEvent(self, event):
+        index = self._entry_at(event.position().y())
+        clickable = index is not None and self._entries[index][2] is not None
+        self.setCursor(Qt.CursorShape.PointingHandCursor if clickable else Qt.CursorShape.ArrowCursor)
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            index = self._entry_at(event.position().y())
+            if index is not None and self._entries[index][2] is not None:
+                self.activated.emit(self._entries[index][2])
+        super().mouseReleaseEvent(event)
+
+    def set_placeholder(self, text: str) -> None:
+        """Message shown while there is nothing to roll (loading, empty, error)."""
+        self._placeholder = text
+        self.update()
+
+    # --- run only while visible and not hovered ---------------------------
+
+    def _sync_timer(self):
+        should_run = (
+            self.isVisible()
+            and len(self._entries) > 1
+            and not (self._PAUSE_ON_HOVER and self._hovered)
+        )
+        if should_run and not self._timer.isActive():
+            self._timer.start()
+        elif not should_run and self._timer.isActive():
+            self._timer.stop()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._sync_timer()
+
+    def hideEvent(self, event):
+        super().hideEvent(event)
+        self._sync_timer()
+
+    def enterEvent(self, event):
+        self._hovered = True
+        self._sync_timer()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._hovered = False
+        self._sync_timer()
+        super().leaveEvent(event)
+
+    def _advance(self):
+        span = len(self._entries) * self._ROW_HEIGHT
+        if span <= 0:
+            return
+        self._offset = (self._offset + self._STEP_PX) % span
+        self.update()
+
+    # --- painting ---------------------------------------------------------
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        if not self._entries:
+            painter.setPen(QColor("#8E8E93"))
+            font = painter.font()
+            font.setPointSize(9)
+            painter.setFont(font)
+            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self._placeholder)
+            return
+
+        span = len(self._entries) * self._ROW_HEIGHT
+        # Draw one extra wrap-around pass so the entry rolling off the top is
+        # already re-entering from the bottom -- otherwise the loop visibly
+        # blinks once per cycle.
+        passes = self.height() // span + 2
+        painter.setClipRect(self.rect())
+        for extra in range(passes):
+            for index, (title, subtitle, _payload) in enumerate(self._entries):
+                y = index * self._ROW_HEIGHT - self._offset + extra * span
+                if y > self.height() or y + self._ROW_HEIGHT < 0:
+                    continue
+                self._paint_entry(painter, y, title, subtitle)
+
+    def _paint_entry(self, painter, y, title, subtitle):
+        font = painter.font()
+        font.setPointSize(9)
+        font.setBold(True)
+        painter.setFont(font)
+        painter.setPen(QColor("#1C1C1E"))
+        title_rect = QRectF(0, y + 3, self.width(), 16)
+        painter.drawText(
+            title_rect,
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+            self._elide(painter, title, self.width()),
+        )
+
+        font.setBold(False)
+        font.setPointSize(8)
+        painter.setFont(font)
+        painter.setPen(QColor("#8E8E93"))
+        subtitle_rect = QRectF(0, y + 19, self.width(), 14)
+        painter.drawText(
+            subtitle_rect,
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+            self._elide(painter, subtitle, self.width()),
+        )
+
+    @staticmethod
+    def _elide(painter, text, width):
+        metrics = painter.fontMetrics()
+        return metrics.elidedText(text, Qt.TextElideMode.ElideRight, max(0, int(width)))

@@ -17,6 +17,7 @@ monetised launch.
 - [1. Project background](#1-project-background)
 - [2. Development details](#2-development-details)
 - [3. API — the binding rules](#3-api--the-binding-rules)
+- [4. Addendum — X (formerly Twitter) cohort crawling](#4-addendum--x-formerly-twitter-cohort-crawling)
 
 ---
 
@@ -787,11 +788,293 @@ nothing problematic left to publish.
 
 ---
 
+## 4. Addendum — X (formerly Twitter) cohort crawling
+
+*Added 2026-08-03 after a second three-way review (French/EU hard law ·
+platform contract & non-EU law · commercial risk & governance), on the same
+terms as the review that produced §§1–3.*
+
+### 4.1 The question
+
+Whether to additionally crawl **X (formerly Twitter)** posts from three
+cohorts: **(a)** World Brewers Cup champions, **(b)** the 50 top roasters'
+brand accounts, **(c)** well-known coffee bloggers and influencers.
+
+### 4.2 Verdict — **NO**, on all three cohorts, and §3 already says so
+
+**Do not crawl `x.com`.** This is not a close call and it does not turn on any
+contested legal theory. Two independent grounds each dispose of it on their
+own, and both are *already binding rules in §3* — the addendum adds no new
+principle, it applies existing ones to a target the project wants.
+
+**Ground 1 — robots.txt.** Measured 2026-08-03, `https://x.com/robots.txt`
+returns HTTP 200, 2 932 bytes, 130 lines, ending:
+
+```
+User-agent: *
+Disallow: /
+```
+
+Three agents get path-level `Allow` carve-outs — `Googlebot`, `Bingbot`,
+`facebookexternalhit` — and even they are barred from `/*/media`, `/*/photo$`,
+`/*/likes`, `/*/followers`, `/*/following`, `/*/analytics` and `/search?q=`,
+i.e. precisely the paths a coffee-photo crawler wants most. `Google-Extended`,
+`FacebookBot` and `Discordbot` are each given `Disallow: *`. For any other
+user-agent, **every path on the host is disallowed**.
+
+**Rule 11 ("obey robots.txt literally, per-path") and rule 14 end the enquiry
+there.** There is no path, no facet and no exception to find. Note the
+contrast with §2.2: the roaster hosts `Allow: /` and publish structured
+endpoints *for* catalogue reading. X does the opposite, in the single most
+orthodox machine-readable form the law recognises (RFC 9309). The `Kneschke v
+LAION` question flagged in §2.5 as unsettled — whether prose CGU binds as an
+art. 4(3) reservation — **never arises**, because X does not rely on prose.
+
+Two traps worth recording. `/.well-known/tdmrep.json` and `/ai.txt` both return
+**200 `text/html`, ~272 KB — the SPA shell**, not a TDM file. A naive client
+concludes "no reservation present". It is present; it is in robots.txt. This is
+the §2.2 `cafeslugat.com` catch-all trap in a new costume, and rule 12 (fail
+closed) covers it.
+
+**Ground 2 — rule 34 is structurally unsatisfiable here.** Rule 34 requires
+**zero natural persons by construction**. In §§1–3 personal data was an
+avoidable *contaminant* — review author names, staff photos — that
+minimisation removed at the schema level. For cohorts (a) and (c) the natural
+person **is the selection criterion**: the corpus is defined as "posts by these
+people". No filter cures that, because filtering happens after a design step
+that has already failed. Cohort (b) is thinner but not exempt — French
+speciality roasting is founder-led, and named staff, tagged baristas and faces
+appear constantly on "brand" accounts.
+
+### 4.3 The three-way discussion
+
+#### French/EU hard law — **high, and worse than §2.1 on every axis**
+
+Each head that came out low for roaster catalogues inverts here.
+
+- **GDPR.** Art. 6(1)(f) is the only candidate basis and it does not survive
+  the balancing test against a source crawled over an explicit blanket
+  exclusion. CNIL's *moissonnage* focus sheet and EDPB Opinion 28/2024 both
+  require **excluding sources that clearly oppose scraping**; `Disallow: /` is
+  the clearest possible opposition. Art. 14 transparency is unsatisfiable in
+  practice, and the 14(5)(b) disproportionate-effort derogation never removes
+  the duty to *publish* the information. Art. 9 special categories leak in
+  structurally — these are people posting daily about health, diet, religious
+  observance and politics. The household exemption (*Lindqvist* C-101/01,
+  *Ryneš* C-212/13) is unavailable the moment anything is published.
+  → **Mitigation:** the only defensible shape is **post ID + canonical URL +
+  fetch timestamp, nothing else** — no text, no media, no profile fields, no
+  engagement counts. That is rule 34's discipline applied to a new surface, and
+  it makes erasure a row deletion.
+- **Copyright.** §2.1's fact/expression split survives but shifts. *Infopaq*
+  (C-5/08) holds eleven words can qualify; *Cofemel* (C-683/17) makes
+  originality the sole criterion. "New Ethiopian natural, in stock Friday" is
+  unprotected; a crafted thread on extraction theory is not. **Cohort (c) sits
+  almost entirely on the protected side** — that is what monetisation buys
+  them. Photos are near-always protected (*Painer* C-145/10). A retweet
+  reproduces the *underlying* work, so the retweeter's consent is irrelevant to
+  the original author's rights.
+- **Sui generis database right — do not reuse §2.1's optimism.** The database
+  here is **X's, not the roasters'**. The *BHB* obtaining-vs-creating argument
+  that made artisan catalogues doubtful does not help: X obtains third-party
+  content rather than creating it, and invests heavily in verification and
+  presentation — the *LeBonCoin v Entreparticuliers* fact pattern, amplified.
+  The genuine defence is quantitative (three small cohorts are not a
+  substantial part under L.342-2), not qualitative.
+- **TDM exceptions — both fail.** Art. 3 (L.122-5-3 I/II) is reserved to
+  research organisations and cultural heritage institutions; a brew-log is
+  neither, whoever operates it. Art. 4 fails on both limbs: lawful access (X
+  gates most timeline browsing behind auth) and reservation (`Disallow: /`).
+  And per §2.1, **art. 4 protects the pipeline, never the product**.
+- **Criminal — the hardest single point.** A login wall *plus* `Disallow: /`
+  *plus* an express ToS prohibition is a purpose-built record of awareness of a
+  protection — the operative test in ***Bluetouff*** (Cass. crim., 20 mai 2015,
+  n° 14-81.336). Session cookies you were not issued, an unofficial API client,
+  proxy rotation, or continuing after a 403 convert a civil dispute into
+  **C. pén. art. 323-1** facts. §3.7 rules 25–27 apply here with no relaxation.
+- **Droit à l'image** (art. 9 C. civ.) is autonomous of the GDPR: consent-based,
+  no legitimate-interest balancing, no "it was public" defence. The
+  public-figure carve-out is narrow and tied to an information purpose;
+  **corpus-building is not one**, so cohort (a)'s semi-public status buys
+  almost nothing.
+
+#### Platform contract & non-EU law — **the ToS is drafted to close the gap §2.1 relied on**
+
+- **X's anti-scraping clause is express.** ToS §4(iii) prohibits automated
+  access other than through published interfaces, with the parenthetical
+  *"crawling or scraping the Services in any form, for any purpose without our
+  prior written consent is expressly prohibited"*. The pre-2023 carve-out that
+  permitted crawling *in accordance with robots.txt* **has been removed** —
+  robots.txt compliance is no longer a defence under X's own terms, and
+  robots.txt says no in any event.
+- **The browsewrap argument is materially weaker than in §2.1.** Art. 1119 code
+  civil helped against a roaster whose CGU nobody accepted. X binds by *use*
+  ("and/or using the Services, which constitutes acceptance"), which is exactly
+  the drafting hole that lost Meta its case; X wrote around it. And browsewrap
+  binds a party with **actual knowledge** of the terms — *this document is that
+  knowledge*. Writing the analysis forecloses the defence that depends on not
+  having read it.
+- **Forum.** An EU-resident project gets the **EU/EFTA/UK terms: Irish law,
+  Irish courts**, counterparty **X Internet Unlimited Company** (Dublin). The
+  Texas / Wichita–Tarrant County clause belongs to the non-EU version and is a
+  common, expensive misreading.
+- **The case law does not authorise what it is usually cited for.** *hiQ II*
+  (31 F.4th 1180, 2022) held only that scraping public data likely is not
+  "without authorization" under the **CFAA** — then in Dec 2022 hiQ took a
+  **consent judgment, $500 000, a permanent injunction and an order to destroy
+  derived data** on contract and state-law grounds. **Contract is the live
+  weapon, not the CFAA.** *X Corp v. Bright Data* was dismissed on Copyright
+  Act preemption (X holds only a non-exclusive licence to user content), but
+  Alsup then allowed amendment where X alleged *"sophisticated efforts to
+  access X with knowledge that such access was beyond the scope of any
+  authorization"* — **the copying claims died, the evasion claims lived**,
+  which is §3.7's thesis restated by a US court.
+- **The compliant route exists and is cheap.** X's pay-per-usage API prices
+  post reads at **$0.005**, with a 2 000 000 read/month cap and 24-hour
+  deduplication. At ~300 accounts and ~1.5 posts/day this is **~$70/month**
+  plus a bounded one-off backfill, using under 1% of the cap with ~30× rate
+  limit headroom. **This is the only Tier-1 route, and the only form "prior
+  written consent" takes at scale.**
+- **Resellers make it worse, not better.** Buying a scraped X corpus does not
+  cure the platform breach, and it strictly worsens the GDPR position: you
+  become controller of personal data with no provenance, no lawful-basis story,
+  no art. 14 notice and no way to honour erasure. It also creates a dated,
+  discoverable invoice proving knowledge. *Meta v. Bright Data* held a seller
+  could sell; it says nothing about whether **you** may buy and process.
+
+#### Commercial risk & governance — **the purpose is undefined, and that is the top finding**
+
+- **No field maps to a column.** Every field the roaster crawl collects lands in
+  a table coffee-can already has. Apply that test to a tweet and **nothing
+  maps** — there is no `sentiment` column, no `hype_index`, no `influencer_id`.
+  The honest purposes are *trend signal*, *training data* (already **NO** at
+  §1.2(d)), or *undecided*. All three are the same failure: **the dataset was
+  chosen first and the purpose reverse-engineered from it**, which is the exact
+  inversion of what CNIL requires and what art. 5(1)(b) purpose limitation
+  presupposes.
+  → **Narrowest purpose that is actually useful:** a bean-level attribute —
+  *"this lot was used in a World Brewers Cup winning routine, with this
+  recipe"*. That is brew-log-shaped, attaches to an existing record, and is a
+  fact about **coffee**, not about a person. It needs no cohort feed at all.
+- **The traffic-back defence does not exist here.** §2.5 leans hard on the
+  comparator *driving traffic back* to collapse parasitisme exposure. A tweet
+  corpus returns nothing to its author. The entire "aggregates, links back, not
+  a substitute for the source" argument is unavailable.
+- **The reaction channel is inverted, and it cross-contaminates.** A roaster's
+  first move is a sysadmin noticing traffic. A champion's or blogger's first
+  move is a **quote-tweet** — their native medium, on the platform, to an
+  audience that is literally the project's target users. Cost to them: ninety
+  seconds; half-life: permanent; and attached to the repo by name (rule 49 cuts
+  both ways). The roasters emailed under rule 3 see it the same afternoon.
+  **This risks the defensible programme in order to fund the indefensible one.**
+- **Enforcement realism.** In descending order of likelihood: X's automated
+  defences block within the first run (at which point rule 27 says *stop*, and
+  the entire commercial scraping toolchain exists to violate that rule); a data
+  subject files a CNIL complaint — **free, individual, and obligatory to answer
+  within a month**, which dissolves the §1.4 cost-asymmetry comfort entirely; a
+  public callout; a brand's lawyer; litigation last. Unlike a ten-person
+  roaster, **X operates a standing anti-scraping enforcement function** and has
+  a demonstrated appetite for suing.
+- **Cohort (a) does not need X at all.** World Coffee Events publishes champions
+  *and the competition coffee and brew method* — the substantive fields a brew
+  log wants — mirrored by Sprudge, Fresh Cup and the trade press. The full
+  history of champions is a **two-hour hand-curated table**: first-party, more
+  accurate than tweets, no personal-data-by-inference, and **Tier 1 under rule
+  6**. Cohort (b) is simply redundant: `products.json` `updated_at` already
+  answers "what dropped this week" (§2.2). Cohort (c) is an outreach problem —
+  ~20 emails, the §1.3 finding sharpened.
+
+### 4.4 Risk summary — X cohorts
+
+| Heading | (a) WBrC champions | (b) 50 roaster accounts | (c) Bloggers |
+| --- | --- | --- | --- |
+| robots.txt / opt-out | **Disallowed** | **Disallowed** | **Disallowed** |
+| GDPR | **High** | Medium | **High** |
+| Droit d'auteur | Medium (photos: high) | Medium | **High** |
+| Sui generis (X's) | High | High | High |
+| Contract / ToS | High | High | High |
+| Criminal (323-1) | Med–High if evasion | Med–High if evasion | Med–High if evasion |
+| Droit à l'image | **High** | Low–Medium | **High** |
+| Community/reputational | **High** | Medium | **High** |
+| **Overall** | **HIGH — no** | **MED–HIGH — redundant** | **HIGH — no** |
+
+### 4.5 API — binding rules (continuing §3)
+
+51. **`x.com` and all X-owned hosts are hard-excluded in code**, in the same
+    blocklist as an explicit "no" domain (rule 3). `Disallow: /` for
+    `User-agent: *` is dispositive under rule 11; there is no per-path
+    exception to find.
+52. **No HTML scraping of X, ever** — not the web app, not `mobile.x.com`, not
+    Nitter-class mirrors, not `syndication.twimg.com`, not embed/oEmbed used as
+    a bulk path, not `archive.org` snapshots of X pages used as a proxy.
+53. **Never authenticate, never carry a session cookie, never harvest or reuse
+    a guest token.** Extends rule 4. On this target it is also the line between
+    a contestable browsewrap argument and an unambiguous clickwrap breach, and
+    between *Bluetouff* facts and none.
+54. **If X data is used at all, the official X API v2 is the only tier.** There
+    is no Tier 2, 3 or 4 for this source. Rule 6 applies unmodified.
+55. **Never buy X data from a reseller or ingest a third-party X corpus.**
+56. **Set a hard spend cap in the Developer Console before the first request**,
+    plus a request counter that aborts the run. Pay-per-use turns rule 16's
+    crawl-loop bug from a politeness incident into a bill.
+57. **Post IDs and canonical URLs only.** No text, no media bytes, no profile
+    fields, no engagement counts. Link, never copy (rule 31), applied verbatim.
+58. **Implement deletion propagation before first ingest.** Content deleted,
+    suspended, withheld or geotag-stripped on X must be deleted downstream.
+59. **No ranking, scoring, sentiment index or leaderboard of named
+    individuals** — under any use case, including private (a).
+60. **Licensed-source-first for competition data.** Organiser publication
+    (World Coffee Events) is Tier 1 for cohort (a); X is not a tier.
+61. **Resolve competitor identity against the official results list by full
+    name and year, never by acronym.** **WBrC** (World Brewers Cup) and **WBC**
+    (World Barista Championship) are different competitions with different
+    winners; mis-resolving them attributes one identified person's posts to
+    another, which is an art. 5(1)(d) accuracy breach about both — and, if the
+    posts are unflattering, a loi 1881 exposure. **Hard-fail an ambiguous
+    record rather than guessing.**
+62. **Purpose gate.** No field may be ingested that does not map to an existing
+    coffee-can column or a committed migration. No "collect now, decide later"
+    table may exist. Rule 34 may not be waived for a component whose selection
+    criterion *is* a natural person — amend it in writing with a documented
+    art. 6(1)(f) balancing and art. 14 notice, or drop the component.
+
+### 4.6 Verification status — re-check before relying on any of this
+
+- ✅ **Measured directly, 2026-08-03:** `x.com/robots.txt` (HTTP 200, 2 932
+  bytes, 130 lines; `User-agent: *` → `Disallow: /` at lines 116–117; carve-outs
+  for `Googlebot`, `Bingbot`, `facebookexternalhit` only; `Google-Extended`,
+  `FacebookBot`, `Discordbot` each `Disallow: *`).
+- ⚠️ **Reviewer-verified, not re-measured here:** the verbatim ToS §4(iii) text
+  and the EU/non-EU dual-version split; X API pay-per-use pricing, the 2M
+  monthly cap and the 24-hour dedup rule; Developer Agreement redistribution,
+  deletion-propagation and off-X-matching terms. One reviewer received HTTP 402
+  fetching the ToS directly while another retrieved it with a browser UA —
+  **quote the live text before relying on it.**
+- ❌ **Could not verify:** which X entity is the sui generis database "maker"
+  for Directive 96/9 art. 11 purposes; whether any French court has yet ruled on
+  scraping a platform over an explicit `Disallow: /` (none found); the current
+  appellate status of the US cases cited, which move quickly and should be
+  re-checked rather than cited from here.
+- Named 2026 competition results were reported by the governance reviewer from
+  trade press and are **illustrative, not verified** — take champion data from
+  the organiser under rule 60, not from this document.
+
+**The point of §4 is not that X is a special case. It is that §3, applied
+honestly to a source the project wanted, said no — and the discipline is to
+accept that from the rules rather than to look for a path around them.**
+
+---
+
 ## Bottom line
 
 **GO** on (a) private single-user, under §3. **NO** on (b) publishing the
 corpus and (d) model training. **(c)** only after outreach, with feeds where
 granted and the D.111-16 rubric shipped.
+
+**NO** on crawling X for any cohort (§4): `Disallow: /` for all user-agents
+makes rule 11 dispositive, and rule 34 cannot be met by a corpus whose
+selection criterion is a natural person. Champion data comes from the
+organiser; roaster drops come from `products.json`; bloggers come from asking.
 
 Two things carry most of the risk reduction:
 
@@ -818,5 +1101,17 @@ Two things carry most of the risk reduction:
 [Haas Avocats — comparateurs de prix](https://www.haas-avocats.com/actualite-juridique/comparateurs-de-prix-quelles-obligations-envers-les-consommateurs/) ·
 [economie.gouv.fr — obligations des comparateurs](https://economie.gouv.fr/particuliers/comparateurs-ligne-obligations-information?language=fr)
 
+§4 (X addendum):
+[x.com/robots.txt](https://x.com/robots.txt) ·
+[X Terms of Service](https://x.com/en/tos) ·
+[X API pricing](https://docs.x.com/x-api/getting-started/pricing) ·
+[X Developer Policy](https://developer.x.com/en/developer-terms/policy) ·
+[hiQ II, 9th Cir. 2022](https://cdn.ca9.uscourts.gov/datastore/opinions/2022/04/18/17-16783.pdf) ·
+[Proskauer — hiQ consent judgment](https://www.proskauer.com/blog/hiq-and-linkedin-reach-proposed-settlement-in-landmark-scraping-case) ·
+[Skadden — X Corp v. Bright Data](https://www.skadden.com/insights/publications/2024/05/district-court-adopts-broad-view) ·
+[EDPB Opinion 28/2024](https://www.edpb.europa.eu/our-work-tools/our-documents/opinion-board-art-64/opinion-282024-certain-data-protection-aspects_en) ·
+[World Coffee Events — results](https://worldcoffeeevents.org/)
+
 Site-level findings (robots.txt, endpoints, headers, markup, TLS) measured
-directly against the live hosts on 2026-08-03.
+directly against the live hosts on 2026-08-03. `x.com/robots.txt` re-measured
+independently on the same date; see §4.6 for what was and was not verified.

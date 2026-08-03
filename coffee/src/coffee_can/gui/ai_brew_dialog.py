@@ -1,9 +1,9 @@
-"""Dialog for the bean page's "Ask AI" button: pick a dripper, ask DeepSeek
+"""Dialog for the bean page's "Ask AI" button: pick a dripper, ask Qwen
 for a brewing recipe suggestion for this bean, review it, then Create
 Session -- which hands the parsed recipe (dripper, summary, dose, grind
 size, pour stages) back to the caller (BeanDialog._ask_ai_brew) to persist
 as a real session with real brew_stages rows, then opens the normal
-BrewDialog for further editing. See deepseek_brew.py for the actual API call
+BrewDialog for further editing. See qwen_brew_suggest.py for the actual API call
 and the JSON shape it returns."""
 
 from PySide6.QtCore import Qt, QThread, Signal
@@ -17,14 +17,14 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from .. import deepseek_brew
+from .. import qwen_brew_suggest
 from ..formatting import format_seconds
 from . import background
 from .widgets import DripperCombo, WalkingCanLoader
 
 
 class _SuggestionWorker(QThread):
-    """Runs one deepseek_brew.suggest_brew() call off the GUI thread -- a
+    """Runs one qwen_brew_suggest.suggest_brew() call off the GUI thread -- a
     blocking HTTPS round-trip that regularly takes tens of seconds. See
     background.py for why the thread isn't owned by the dialog."""
 
@@ -38,8 +38,8 @@ class _SuggestionWorker(QThread):
 
     def run(self):
         try:
-            result = deepseek_brew.suggest_brew(self._bean_info, self._dripper)
-        except deepseek_brew.DeepSeekUnavailableError as exc:
+            result = qwen_brew_suggest.suggest_brew(self._bean_info, self._dripper)
+        except qwen_brew_suggest.QwenBrewUnavailableError as exc:
             self.failed.emit("AI suggestion unavailable", str(exc))
         except Exception as exc:  # noqa: BLE001 -- network/SDK errors vary
             self.failed.emit("Request failed", f"Couldn't get a suggestion: {exc}")
@@ -53,7 +53,7 @@ class AiBrewSuggestionDialog(QDialog):
         self.setWindowTitle(f"Ask AI -- {bean_row['name'] or 'this bean'}")
         self.resize(480, 460)
         self._bean_row = bean_row
-        self._result = None  # deepseek_brew.suggest_brew()'s parsed dict, once fetched
+        self._result = None  # qwen_brew_suggest.suggest_brew()'s parsed dict, once fetched
         self._worker = None
 
         self.dripper = None
@@ -145,7 +145,7 @@ class AiBrewSuggestionDialog(QDialog):
         self.create_btn.setEnabled(False)
         self._result = None
         self.suggestion_edit.setPlainText("")
-        self.status_label.setText("Asking DeepSeek...")
+        self.status_label.setText("Asking Qwen...")
         self.loader.show()
 
         worker = _SuggestionWorker(self._bean_info(), dripper)
