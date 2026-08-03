@@ -79,7 +79,7 @@ class _NewsFetchWorker(QThread):
 
 
 class CoffeeShelfCard(QFrame):
-    """One coffee on the "Can see" shelf: the roaster's own photo, the bean's
+    """One coffee on the "Can drink" shelf: the roaster's own photo, the bean's
     name, and who sells it for how much. The whole card is the click target
     and opens the product page.
 
@@ -165,13 +165,14 @@ class _NumericSortItem(QTableWidgetItem):
 
 
 class MainWindow(QMainWindow):
-    _LOGO_SIZE = 73  # 70% of the original 104px mark
-    # Coffee Profiles gets 150% of the overview card's share of the leftover
-    # vertical space. Expressed as stretch rather than a pixel floor so the
-    # ratio survives every window size -- an absolute minimum tall enough to
-    # look right maximised also became a minimum the window could never go
-    # below, which pushed it past the height of a 1080p screen.
-    _BEANS_STRETCH, _OVERVIEW_STRETCH = 3, 2
+    _LOGO_SIZE = 48  # shrunk from 73 so the header banner takes less height
+    # Coffee Profiles gets most of the leftover vertical space, the overview
+    # row just enough to sit near its own natural minimum. Expressed as
+    # stretch rather than a pixel floor so the ratio survives every window
+    # size -- an absolute minimum tall enough to look right maximised also
+    # became a minimum the window could never go below, which pushed it past
+    # the height of a 1080p screen.
+    _BEANS_STRETCH, _OVERVIEW_STRETCH = 6, 1
     # Chart radius is min(half-width - 64, half-height - 26), and the card
     # is much wider than it is tall, so height is what actually binds. Width
     # past roughly (radius + label margin) * 2 is dead space the widget
@@ -189,7 +190,7 @@ class MainWindow(QMainWindow):
     # the card's own top padding, so cards abut while their contents hold
     # position.
     _BLOCK_GAP = 16
-    _SHELF_PICKS = 3  # random coffees shown on the "Can see" shelf
+    _SHELF_PICKS = 3  # random coffees shown on the "Can drink" shelf
     _THEME_CARD_PADDING = 12  # theme.STYLESHEET's QGroupBox left/right/bottom padding
     _THEME_CARD_PADDING_TOP = 14  # ... and its top padding, which differs
     # The app-wide QGroupBox rule reserves margin-top:22px for a native
@@ -255,7 +256,11 @@ class MainWindow(QMainWindow):
 
     def _build_header(self):
         header = HeaderBanner()
-        header.setMinimumHeight(132)
+        # Just under its natural content height (48px logo + two text lines +
+        # margins, ~125px) rather than a more aggressive floor: a shorter
+        # minimum let Qt compress it below what the fixed-size logo pixmap
+        # needs on a short window, clipping it into a squashed pill.
+        header.setMinimumHeight(120)
         # Square off the strip's rounded corners for the same reason the
         # cards below it are squared -- it is full-bleed now and its bottom
         # corners notched into the card underneath.
@@ -273,12 +278,14 @@ class MainWindow(QMainWindow):
         # apex; child widgets paint over the strip, which makes that read as
         # depth rather than as clipping.
         # Left/top/right face the window and carry _WINDOW_INSET; the bottom
-        # faces the card below and does not.
+        # faces the card below and does not. Top/bottom trimmed down from
+        # 10/8 so the banner's own padding doesn't inflate its height beyond
+        # what the shrunk logo and text actually need.
         grid.setContentsMargins(
             0 + self._WINDOW_INSET,
-            10 + self._WINDOW_INSET,
+            4 + self._WINDOW_INSET,
             12 + self._WINDOW_INSET,
-            8,
+            4,
         )
 
         content = QWidget()
@@ -335,8 +342,19 @@ class MainWindow(QMainWindow):
     def _build_beans_card(self):
         group = QGroupBox()
         # Only the sides face the window -- a card sits above and below.
-        group.setStyleSheet(self._card_style())
+        # Bottom halved from the ~21px this card rendered at by default (12px
+        # theme padding plus the layout's own unaccounted-for margin, zeroed
+        # below): the buttons row already sits at the foot of this card, and
+        # the overview card right below it adds its own top padding on top of
+        # whatever's left here, so both sides of that gap are halved to
+        # actually halve it overall.
+        group.setStyleSheet(self._card_style() + "QGroupBox { padding-bottom: 11px; }")
         layout = QVBoxLayout(group)
+        # Zeroed so the QSS padding above is the *only* inset on every side --
+        # otherwise the layout's own default margins stack on top of it,
+        # which is what made the padding-bottom override above land at a
+        # different pixel value than the number actually says.
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._pane_header("Coffee Profiles"))
 
         self.beans_table = QTableWidget(0, 6)
@@ -435,7 +453,13 @@ class MainWindow(QMainWindow):
         both panes instead, keeping the calendar and radar adjacent."""
         group = QGroupBox()
         # Left/right/bottom face the window; the top faces the card above.
-        group.setStyleSheet(self._card_style(flush_bottom=True))
+        # Top halved from the usual 30px (_THEME_CARD_PADDING_TOP +
+        # _BLOCK_GAP): paired with halving Coffee Profiles' own bottom
+        # padding above, this halves the total gap between the two cards
+        # rather than just moving it from one side to the other.
+        group.setStyleSheet(
+            self._card_style(flush_bottom=True) + "QGroupBox { padding-top: 15px; }"
+        )
         outer = QVBoxLayout(group)
         outer.setContentsMargins(0, 0, 0, 0)
 
@@ -457,7 +481,7 @@ class MainWindow(QMainWindow):
     def _build_whats_new_pane(self):
         pane = QWidget()
         layout = QVBoxLayout(pane)
-        layout.addWidget(self._pane_header("What's New"))
+        layout.addWidget(self._pane_header("Can read"))
         layout.addSpacing(self._HEADER_GAP)
 
         self.news_ticker = VerticalTicker()
@@ -491,10 +515,10 @@ class MainWindow(QMainWindow):
     def _open_link(self, url):
         QDesktopServices.openUrl(QUrl(url))
 
-    # --- "can see" shelf pane -----------------------------------------------
+    # --- "can drink" shelf pane -----------------------------------------------
 
     def _start_shelf_feed(self):
-        """Fill the "Can see" shelf from the roasters' own product endpoints.
+        """Fill the "Can drink" shelf from the roasters' own product endpoints.
 
         One worker per roaster, off the GUI thread. whats_new.fetch_listings()
         caches to the data dir for 24h, so relaunching the app inside that
@@ -570,13 +594,13 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
     def _build_shelf_pane(self):
-        """"Can see": three random coffees off the roasters' current shelves,
+        """"Can drink": three random coffees off the roasters' current shelves,
         with a "more" link to the whole filterable catalogue."""
         pane = QWidget()
         layout = QVBoxLayout(pane)
 
         header_row = QHBoxLayout()
-        header_row.addWidget(self._pane_header("Can see"))
+        header_row.addWidget(self._pane_header("Can drink"))
         header_row.addStretch()
         refresh_btn = QPushButton("⟳")
         refresh_btn.setFixedSize(22, 22)
@@ -615,7 +639,7 @@ class MainWindow(QMainWindow):
 
         # Below the cards rather than beside the heading: it reads as "more
         # of what's on the shelf" instead of a header-bar action, and it no
-        # longer competes with the "Can see" title for the same row.
+        # longer competes with the "Can drink" title for the same row.
         more_row = QHBoxLayout()
         more_row.addStretch()
         # A link rather than a QPushButton: the global button rule pads to a
@@ -654,8 +678,11 @@ class MainWindow(QMainWindow):
             "top": cls._THEME_CARD_PADDING_TOP + cls._BLOCK_GAP,
         }
         if flush_bottom:
+            # Half the usual side/top inset -- the full amount left a
+            # noticeably bigger gap under the last card than the window's
+            # other edges get.
             style += "QGroupBox { padding-bottom: %dpx; }" % (
-                cls._THEME_CARD_PADDING + cls._WINDOW_INSET
+                (cls._THEME_CARD_PADDING + cls._WINDOW_INSET) // 2
             )
         return style
 
@@ -745,6 +772,12 @@ class MainWindow(QMainWindow):
         # minimum height, which on a short window was met by starving the
         # profiles table above rather than by drawing a smaller chart.
         self.flavor_radar.setMinimumSize(250, 180)
+        # Also cap the preferred height: uncapped, RadarChart.sizeHint()'s
+        # fixed 250px is what the whole overview row -- calendar, news, shelf
+        # too, since a QHBoxLayout row is as tall as its tallest pane --
+        # sizes itself against, well past what the shrunk header freed up
+        # for Coffee Profiles above it.
+        self.flavor_radar.setMaximumHeight(200)
         column.setMaximumWidth(self._RADAR_MAX_WIDTH)
         inner.addWidget(self.flavor_radar, 1)
 

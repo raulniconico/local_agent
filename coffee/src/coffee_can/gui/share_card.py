@@ -25,18 +25,43 @@ from PySide6.QtCore import QRectF, QStandardPaths, Qt
 from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPen, QPixmap, QTransform
 from PySide6.QtWidgets import QDialog, QFileDialog, QLabel, QMessageBox, QPushButton, QVBoxLayout
 
-from .. import repo
+from .. import profile, repo
 from ..assets import icon_path
 from ..formatting import format_or_dash, format_seconds
-from .widgets import RadarChart
+from .widgets import RadarChart, circular_pixmap, default_avatar_pixmap
 
 WIDTH = 1080
 HEIGHT = 1920
-BACKGROUND = "#FFFFFF"
-_PANEL_BORDER = "#E4E4E8"
+#: The logo's own green (theme.ACCENT), unmodified.
+BACKGROUND = "#34C759"
+#: The radar panel is the same green as the card, not a white box -- no
+#: border either, so it reads as part of the card rather than a box dropped
+#: on top of it.
+_PANEL_FILL = BACKGROUND
+#: RadarChart.set_palette() overrides for a green panel: the default
+#: dark-text/grey-grid/green-polygon scheme (right for the app's white cards)
+#: would be unreadable here, so grid, spokes, labels and the data polygon are
+#: all shades of white instead, at bolder weights than the in-app hairline
+#: default -- this chart is rendered much larger, and thin white-on-green
+#: reads as faint at that size. data_fill is high-opacity rather than the
+#: in-app translucency for the same reason: at low alpha it blends toward
+#: the green panel behind it instead of reading as white.
+_RADAR_PALETTE = dict(
+    grid="#B3FFFFFF", spoke="#CCFFFFFF", label="#FFFFFF",
+    data_stroke="#FFFFFF", data_fill="#E6FFFFFF", data_dot="#FFFFFF",
+    grid_width=2, spoke_width=2, data_stroke_width=3, bold_label=True,
+)
 _MARGIN = 64
-_TEXT_COLOR = "#1C1C1E"
-_MUTED_COLOR = "#4C4C50"
+_TEXT_COLOR = "#FFFFFF"
+#: White text throughout, per the redesign -- this is the same white at
+#: reduced opacity for the secondary/label role _MUTED_COLOR used to play in
+#: a dark grey, so labels still read as secondary next to full-white values.
+_MUTED_COLOR = "#B3FFFFFF"
+#: The bean-info/session-info divider used to be a pale green line, chosen
+#: for a white card -- nearly invisible on the deep green background, so it's
+#: a translucent white here instead, same role.
+_DIVIDER_COLOR = "#4DFFFFFF"
+_AVATAR_SIZE = 72
 
 # Mirrors bean_dialog.FIELD_LABELS -- kept as a separate small copy rather
 # than importing from bean_dialog.py, since bean_dialog.py is the one that
@@ -82,6 +107,59 @@ def _fitted_photo(path: str, rotation: int, max_width: int, max_height: int, rad
     return result
 
 
+def _draw_share_header(painter: QPainter, y: float, content_width: int, margin: int) -> float:
+    """The "XXX share with you:" line every card opens with: the local
+    profile's avatar (or the same generic placeholder profile_dialog.py falls
+    back to when there's no photo) beside their name. Returns the y position
+    the rest of the card should continue from."""
+    data = profile.load_profile()
+    path = data.get("image_path")
+    avatar = circular_pixmap(path, _AVATAR_SIZE) if path and Path(path).exists() else QPixmap()
+    if avatar.isNull():
+        avatar = default_avatar_pixmap(_AVATAR_SIZE, background="#FFFFFF", foreground=BACKGROUND)
+    painter.drawPixmap(margin, int(y), avatar)
+
+    name = (data.get("name") or "").strip() or "Someone"
+    header_font = QFont()
+    header_font.setPointSize(28)
+    header_font.setBold(True)
+    painter.setFont(header_font)
+    painter.setPen(QColor(_TEXT_COLOR))
+    text_x = margin + _AVATAR_SIZE + 28
+    painter.drawText(
+        QRectF(text_x, y, margin + content_width - text_x, _AVATAR_SIZE),
+        Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+        f"{name} share with you:",
+    )
+    return y + _AVATAR_SIZE + 56
+
+
+def _draw_centered_field(painter: QPainter, y: float, label: str, value: str, content_width: int, margin: int, row_height: int = 44) -> float:
+    """One "Label: value" row, centered as a single unit -- the label in the
+    muted (translucent-white) color, the value in full white, sized and
+    positioned from the two segments' actual widths so the pair reads as one
+    centered phrase rather than two independently-centered pieces."""
+    label_text = f"{label}: "
+    metrics = painter.fontMetrics()
+    label_width = metrics.horizontalAdvance(label_text)
+    value_width = metrics.horizontalAdvance(str(value))
+    start_x = margin + (content_width - label_width - value_width) / 2
+
+    painter.setPen(QColor(_MUTED_COLOR))
+    painter.drawText(
+        QRectF(start_x, y, label_width, row_height),
+        Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+        label_text,
+    )
+    painter.setPen(QColor(_TEXT_COLOR))
+    painter.drawText(
+        QRectF(start_x + label_width, y, value_width, row_height),
+        Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+        str(value),
+    )
+    return y + row_height
+
+
 def _flavor_snapshot(conn, bean_id: int):
     """Same manual-vs-averaged decision as bean_dialog.BeanDialog._refresh_flavor,
     returning (values_or_None, has_data, caption)."""
@@ -106,6 +184,8 @@ def render_share_card(conn, bean_id: int) -> QPixmap:
     y = _MARGIN
     content_width = WIDTH - 2 * _MARGIN
 
+    y = _draw_share_header(painter, y, content_width, _MARGIN)
+
     # --- first uploaded page photo -- shown in full, never cropped ---
     if images:
         photo_max_height = int(WIDTH * 0.45)
@@ -122,39 +202,28 @@ def render_share_card(conn, bean_id: int) -> QPixmap:
     painter.setFont(name_font)
     painter.setPen(QColor(_TEXT_COLOR))
     name_rect = QRectF(_MARGIN, y, content_width, 90)
-    painter.drawText(name_rect, Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap, bean["name"] or "Untitled")
+    painter.drawText(
+        name_rect,
+        Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap,
+        bean["name"] or "Untitled",
+    )
     y += 124
 
-    # --- detail fields ---
-    detail_font = QFont()
-    detail_font.setPointSize(26)
-    painter.setFont(detail_font)
-    for field, label in _DETAIL_FIELDS:
-        value = bean[field]
-        if not value:
-            continue
-        painter.setPen(QColor(_MUTED_COLOR))
-        painter.drawText(QRectF(_MARGIN, y, 220, 40), Qt.AlignmentFlag.AlignLeft, label)
-        painter.setPen(QColor(_TEXT_COLOR))
-        painter.drawText(QRectF(_MARGIN + 230, y, content_width - 230, 40), Qt.AlignmentFlag.AlignLeft, str(value))
-        y += 44
-
-    y += 48
-
-    # --- flavor radar --- (white card behind it: the "no data" grey grid is
-    # designed for the app's white QGroupBox cards and is nearly invisible
-    # directly on our light-green background; the radar itself is grabbed
-    # with a transparent background so it overlays the card cleanly)
+    # --- flavor radar --- (green panel matching the card, white net/labels/
+    # polygon via _RADAR_PALETTE -- the radar itself is grabbed with a
+    # transparent background so it overlays the panel cleanly)
+    # Ahead of the detail fields below: the chart is the card's visual draw,
+    # so it leads: name, then the flavor picture, then the text specifics.
     values, has_data, caption = _flavor_snapshot(conn, bean_id)
-    radar_size = 570
-    # 2x the in-app label size (8pt -> 16pt), readable at phone-screen scale.
-    # Independent of radar_size on purpose, so the extra size goes to the
-    # polygon rather than to label margin -- see RadarChart.set_label_scale.
-    radar_label_scale = 2.0
+    radar_size = 741  # 570 * 1.3
+    # 2.6x the in-app label size (8pt -> ~21pt), readable at phone-screen
+    # scale. Independent of radar_size on purpose, so the extra size goes to
+    # the polygon rather than to label margin -- see RadarChart.set_label_scale.
+    radar_label_scale = 2.6
     panel_pad = 24
     panel_rect = QRectF((WIDTH - radar_size) / 2 - panel_pad, y - panel_pad, radar_size + 2 * panel_pad, radar_size + 2 * panel_pad)
-    painter.setPen(QPen(QColor(_PANEL_BORDER), 2))
-    painter.setBrush(QColor("#FFFFFF"))
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.setBrush(QColor(_PANEL_FILL))
     painter.drawRoundedRect(panel_rect, 28, 28)
 
     radar = RadarChart([label for _, label in repo.FLAVOR_AXES])
@@ -162,6 +231,7 @@ def render_share_card(conn, bean_id: int) -> QPixmap:
     radar.setStyleSheet("background: transparent;")
     radar.resize(radar_size, radar_size)
     radar.set_label_scale(radar_label_scale)
+    radar.set_palette(**_RADAR_PALETTE)
     radar.set_values(values, has_data=has_data)
     radar_pixmap = radar.grab()
     painter.drawPixmap(int((WIDTH - radar_size) / 2), y, radar_pixmap)
@@ -174,6 +244,17 @@ def render_share_card(conn, bean_id: int) -> QPixmap:
     painter.drawText(
         QRectF(_MARGIN, y, content_width, 40), Qt.AlignmentFlag.AlignHCenter, caption
     )
+    y += 64
+
+    # --- detail fields -- centered as a block, each row its own centered unit ---
+    detail_font = QFont()
+    detail_font.setPointSize(26)
+    painter.setFont(detail_font)
+    for field, label in _DETAIL_FIELDS:
+        value = bean[field]
+        if not value:
+            continue
+        y = _draw_centered_field(painter, y, label, str(value), content_width, _MARGIN)
 
     # --- small logo, bottom-right corner ---
     icon = icon_path()
@@ -217,6 +298,8 @@ def render_session_share_card(conn, session_id: int) -> QPixmap:
     detail_font = QFont()
     detail_font.setPointSize(24)
 
+    y = _draw_share_header(painter, y, content_width, _MARGIN)
+
     # --- bean name ---
     name_font = QFont()
     name_font.setPointSize(44)
@@ -224,7 +307,9 @@ def render_session_share_card(conn, session_id: int) -> QPixmap:
     painter.setFont(name_font)
     painter.setPen(QColor(_TEXT_COLOR))
     painter.drawText(
-        QRectF(_MARGIN, y, content_width, 78), Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap, bean["name"] or "Untitled"
+        QRectF(_MARGIN, y, content_width, 78),
+        Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap,
+        bean["name"] or "Untitled",
     )
     y += 96
 
@@ -237,21 +322,49 @@ def render_session_share_card(conn, session_id: int) -> QPixmap:
             painter.drawPixmap(photo_x, y, photo)
             y += photo.height() + 48
 
-    # --- bean basic details ---
+    # --- this session's own flavor radar (never averaged/manual bean data) ---
+    # Ahead of all the text below: the chart is the card's visual draw, so it
+    # leads, with the detail text (bean's, then the session's own) following.
+    values = [session[field] or 0 for field in repo.FLAVOR_FIELDS]
+    has_data = any(values)
+    caption = "This session's flavor profile" if has_data else "No flavor data for this session"
+    radar_size = 741  # 570 * 1.3
+    radar_label_scale = 2.6
+    panel_pad = 24
+    panel_rect = QRectF((WIDTH - radar_size) / 2 - panel_pad, y - panel_pad, radar_size + 2 * panel_pad, radar_size + 2 * panel_pad)
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.setBrush(QColor(_PANEL_FILL))
+    painter.drawRoundedRect(panel_rect, 28, 28)
+
+    radar = RadarChart([label for _, label in repo.FLAVOR_AXES])
+    radar.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+    radar.setStyleSheet("background: transparent;")
+    radar.resize(radar_size, radar_size)
+    radar.set_label_scale(radar_label_scale)
+    radar.set_palette(**_RADAR_PALETTE)
+    radar.set_values(values, has_data=has_data)
+    radar_pixmap = radar.grab()
+    painter.drawPixmap(int((WIDTH - radar_size) / 2), y, radar_pixmap)
+    y += radar_size + panel_pad + 40
+
+    caption_font = QFont()
+    caption_font.setPointSize(22)
+    painter.setFont(caption_font)
+    painter.setPen(QColor(_MUTED_COLOR))
+    painter.drawText(QRectF(_MARGIN, y, content_width, 40), Qt.AlignmentFlag.AlignHCenter, caption)
+    y += 64
+
+    # --- bean basic details -- centered as a block ---
     painter.setFont(detail_font)
     for field, label in _DETAIL_FIELDS:
         value = bean[field]
         if not value:
             continue
-        painter.setPen(QColor(_MUTED_COLOR))
-        painter.drawText(QRectF(_MARGIN, y, 220, 38), Qt.AlignmentFlag.AlignLeft, label)
-        painter.setPen(QColor(_TEXT_COLOR))
-        painter.drawText(QRectF(_MARGIN + 230, y, content_width - 230, 38), Qt.AlignmentFlag.AlignLeft, str(value))
-        y += 42
+        y = _draw_centered_field(painter, y, label, str(value), content_width, _MARGIN, row_height=42)
     y += 40
 
     # --- divider ---
-    painter.setPen(QColor("#A9DBB4"))
+    painter.setPen(QColor(_DIVIDER_COLOR))
     painter.drawLine(int(_MARGIN), int(y), int(WIDTH - _MARGIN), int(y))
     y += 40
 
@@ -267,23 +380,15 @@ def render_session_share_card(conn, session_id: int) -> QPixmap:
     painter.drawText(QRectF(_MARGIN, y, content_width, 54), Qt.AlignmentFlag.AlignLeft, title)
     y += 70
 
-    # --- session brew details ---
+    # --- session brew details -- centered as a block ---
     painter.setFont(detail_font)
     for field, label in _SESSION_DETAIL_FIELDS:
         value = session[field]
         if not value:
             continue
-        painter.setPen(QColor(_MUTED_COLOR))
-        painter.drawText(QRectF(_MARGIN, y, 220, 38), Qt.AlignmentFlag.AlignLeft, label)
-        painter.setPen(QColor(_TEXT_COLOR))
-        painter.drawText(QRectF(_MARGIN + 230, y, content_width - 230, 38), Qt.AlignmentFlag.AlignLeft, str(value))
-        y += 42
+        y = _draw_centered_field(painter, y, label, str(value), content_width, _MARGIN, row_height=42)
     if session["dose_g"]:
-        painter.setPen(QColor(_MUTED_COLOR))
-        painter.drawText(QRectF(_MARGIN, y, 220, 38), Qt.AlignmentFlag.AlignLeft, "Dose")
-        painter.setPen(QColor(_TEXT_COLOR))
-        painter.drawText(QRectF(_MARGIN + 230, y, content_width - 230, 38), Qt.AlignmentFlag.AlignLeft, f"{session['dose_g']:g} g")
-        y += 42
+        y = _draw_centered_field(painter, y, "Dose", f"{session['dose_g']:g} g", content_width, _MARGIN, row_height=42)
     y += 30
 
     # --- stages ---
@@ -314,11 +419,7 @@ def render_session_share_card(conn, session_id: int) -> QPixmap:
     # --- evaluation: score + note ---
     if session["score"] is not None:
         painter.setFont(detail_font)
-        painter.setPen(QColor(_MUTED_COLOR))
-        painter.drawText(QRectF(_MARGIN, y, 220, 38), Qt.AlignmentFlag.AlignLeft, "Score")
-        painter.setPen(QColor(_TEXT_COLOR))
-        painter.drawText(QRectF(_MARGIN + 230, y, content_width - 230, 38), Qt.AlignmentFlag.AlignLeft, f"{session['score']:g}/5")
-        y += 46
+        y = _draw_centered_field(painter, y, "Score", f"{session['score']:g}/5", content_width, _MARGIN, row_height=46)
     if session["note"]:
         painter.setPen(QColor(_MUTED_COLOR))
         painter.drawText(QRectF(_MARGIN, y, 220, 38), Qt.AlignmentFlag.AlignLeft, "Note")
@@ -329,35 +430,6 @@ def render_session_share_card(conn, session_id: int) -> QPixmap:
         painter.drawText(note_rect, Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap, session["note"])
         y = note_rect.bottom() + 30
     y += 20
-
-    # --- this session's own flavor radar (never averaged/manual bean data) ---
-    values = [session[field] or 0 for field in repo.FLAVOR_FIELDS]
-    has_data = any(values)
-    caption = "This session's flavor profile" if has_data else "No flavor data for this session"
-    radar_size = 570
-    radar_label_scale = 2.0
-    panel_pad = 24
-    panel_rect = QRectF((WIDTH - radar_size) / 2 - panel_pad, y - panel_pad, radar_size + 2 * panel_pad, radar_size + 2 * panel_pad)
-    painter.setPen(QPen(QColor(_PANEL_BORDER), 2))
-    painter.setBrush(QColor("#FFFFFF"))
-    painter.drawRoundedRect(panel_rect, 28, 28)
-
-    radar = RadarChart([label for _, label in repo.FLAVOR_AXES])
-    radar.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-    radar.setStyleSheet("background: transparent;")
-    radar.resize(radar_size, radar_size)
-    radar.set_label_scale(radar_label_scale)
-    radar.set_values(values, has_data=has_data)
-    radar_pixmap = radar.grab()
-    painter.drawPixmap(int((WIDTH - radar_size) / 2), y, radar_pixmap)
-    y += radar_size + panel_pad + 40
-
-    caption_font = QFont()
-    caption_font.setPointSize(22)
-    painter.setFont(caption_font)
-    painter.setPen(QColor(_MUTED_COLOR))
-    painter.drawText(QRectF(_MARGIN, y, content_width, 40), Qt.AlignmentFlag.AlignHCenter, caption)
-    y += 40
 
     # --- small logo, bottom-right corner ---
     icon = icon_path()

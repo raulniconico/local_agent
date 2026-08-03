@@ -18,7 +18,7 @@ from PySide6.QtCore import (
     QUrl,
     Signal,
 )
-from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap, QPolygonF, QTransform
+from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPen, QPixmap, QPolygonF, QTransform
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PySide6.QtWidgets import (
     QComboBox,
@@ -1279,11 +1279,35 @@ class RadarChart(QWidget):
         self._values = [0] * len(self._axes)
         self._has_data = True
         self._label_scale = 1.0
+        # None means "use the built-in light-grey-on-white scheme below" --
+        # every in-app use (main window, bean/brew dialogs) sits on a white
+        # QGroupBox card and relies on that default. Only share_card.py's
+        # green cards override these, via set_palette().
+        self._palette_override = {}
         self.setMinimumSize(self.sizeHint())
 
     def set_values(self, values, has_data: bool = True) -> None:
         self._values = list(values) if values is not None else [0] * len(self._axes)
         self._has_data = has_data
+        self.update()
+
+    def set_palette(
+        self, *, grid=None, spoke=None, label=None, data_stroke=None, data_fill=None, data_dot=None,
+        grid_width=None, spoke_width=None, data_stroke_width=None, bold_label=None,
+    ) -> None:
+        """Override this instance's line/text/data colors and weights -- for
+        a caller rendering on a background other than the white card every
+        other chart in the app sits on (currently just share_card.py's green
+        cards, where the default dark-on-grey scheme and green data polygon
+        would both be unreadable, and hairline grid/spoke/label weight reads
+        as too faint against a solid color). Anything left as None keeps the
+        in-app default."""
+        self._palette_override = {
+            "grid": grid, "spoke": spoke, "label": label,
+            "data_stroke": data_stroke, "data_fill": data_fill, "data_dot": data_dot,
+            "grid_width": grid_width, "spoke_width": spoke_width, "data_stroke_width": data_stroke_width,
+            "bold_label": bold_label,
+        }
         self.update()
 
     def set_label_scale(self, scale) -> None:
@@ -1324,27 +1348,39 @@ class RadarChart(QWidget):
             self.height() / 2 - self._LABEL_MARGIN_Y * scale,
         )
 
-        grid_color = QColor("#E5E5EA" if self._has_data else "#EFEFEF")
-        spoke_color = QColor("#D1D1D6" if self._has_data else "#E3E3E3")
-        label_color = QColor("#1C1C1E" if self._has_data else "#B0B0B0")
+        override = self._palette_override
+        grid_color = QColor(override["grid"]) if override.get("grid") else QColor("#E5E5EA" if self._has_data else "#EFEFEF")
+        spoke_color = QColor(override["spoke"]) if override.get("spoke") else QColor("#D1D1D6" if self._has_data else "#E3E3E3")
+        label_color = QColor(override["label"]) if override.get("label") else QColor("#1C1C1E" if self._has_data else "#B0B0B0")
+        # Hairline (Qt's cosmetic 0-width pen) by default, same as always;
+        # only overridden explicitly, since a share-card-sized chart wants a
+        # visibly bolder net than a small in-app one does.
+        grid_width = override.get("grid_width") or 1
+        spoke_width = override.get("spoke_width") or 1
+        data_stroke_width = override.get("data_stroke_width") or 2
 
         # gridlines (one nested polygon per scale level)
-        painter.setPen(grid_color)
+        painter.setPen(QPen(grid_color, grid_width))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         for level in range(1, self.MAX_VALUE + 1):
             painter.drawPolygon(QPolygonF([self._point_for(cx, cy, radius, i, level) for i in range(n)]))
 
         # spokes + labels
-        painter.setPen(spoke_color)
+        painter.setPen(QPen(spoke_color, spoke_width))
         for i in range(n):
             painter.drawLine(QPointF(cx, cy), self._point_for(cx, cy, radius, i, self.MAX_VALUE))
 
         # 8pt at scale 1.0 -- the size these labels have always been in-app.
         font = painter.font()
         font.setPointSize(max(8, round(8 * scale)))
+        font.setBold(bool(override.get("bold_label")))
         painter.setFont(font)
         painter.setPen(label_color)
-        label_box_w, label_box_h = 88 * scale, 24 * scale
+        # Bold glyphs run a bit wider than regular ones at the same point
+        # size -- widen the box so a long label ("Green/Vegetative") doesn't
+        # clip against it (drawText clips to its rect) when bold_label is on.
+        label_box_w = (104 if override.get("bold_label") else 88) * scale
+        label_box_h = 24 * scale
         for i, label in enumerate(self._axes):
             point = self._point_for(cx, cy, radius + 16 * scale, i, self.MAX_VALUE)
             rect = QRectF(point.x() - label_box_w / 2, point.y() - label_box_h / 2, label_box_w, label_box_h)
@@ -1356,12 +1392,15 @@ class RadarChart(QWidget):
         # data polygon
         values = self._values + [0] * (n - len(self._values))
         data_points = [self._point_for(cx, cy, radius, i, v) for i, v in enumerate(values)]
-        painter.setPen(QPen(QColor("#34C759"), 2))
-        painter.setBrush(QColor(52, 199, 89, 90))
+        stroke_color = QColor(override["data_stroke"]) if override.get("data_stroke") else QColor("#34C759")
+        fill_color = QColor(override["data_fill"]) if override.get("data_fill") else QColor(52, 199, 89, 90)
+        dot_color = QColor(override["data_dot"]) if override.get("data_dot") else QColor("#248A3D")
+        painter.setPen(QPen(stroke_color, data_stroke_width))
+        painter.setBrush(fill_color)
         painter.drawPolygon(QPolygonF(data_points))
 
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor("#248A3D"))
+        painter.setBrush(dot_color)
         for point in data_points:
             painter.drawEllipse(point, 3, 3)
 
@@ -1636,7 +1675,10 @@ class VerticalTicker(QWidget):
     def _paint_entry(self, painter, y, title, subtitle):
         font = painter.font()
         font.setPointSize(9)
-        font.setBold(True)
+        # Medium rather than full Bold -- still reads as a headline next to
+        # the subtitle's Normal weight, without the heavier, extra-bold
+        # look full Bold rendered as at this small a point size.
+        font.setWeight(QFont.Weight.Medium)
         painter.setFont(font)
         painter.setPen(QColor("#1C1C1E"))
         title_rect = QRectF(0, y + 3, self.width(), 16)

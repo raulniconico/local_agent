@@ -88,9 +88,9 @@ coffee/
 | --- | --- |
 | `cli.py` | The `coffeecan` command tree, built on `click`, rendered with `rich`. Interactive prompt helpers (`ask`, `ask_float`, `ask_time`) drive the add/edit flows field by field. |
 | `gui/app.py` | Entry point: registers the bundled Fredoka fonts, applies the stylesheet, opens `MainWindow`. |
-| `gui/main_window.py` | Welcome screen: header banner, the bean table, and a four-pane row (contribution calendar, flavor radar, the **What's New** news ticker, the **Can see** coffee shelf). Also `CoffeeShelfCard`, one clickable coffee on that shelf. |
+| `gui/main_window.py` | Welcome screen: header banner, the bean table, and a four-pane row (contribution calendar, flavor radar, the **Can read** news ticker, the **Can drink** coffee shelf). Also `CoffeeShelfCard`, one clickable coffee on that shelf. |
 | `gui/whats_new_dialog.py` | A roaster list, then a product table for whichever one is picked, fetched via `whats_new.py` on a background thread. Two stacked pages in one dialog rather than nested modals. Currently has no entry point in the window (`MainWindow._open_whats_new` is kept, unconnected). |
-| `gui/can_see_dialog.py` | **Can see**'s "more": every fetched coffee in one table, filtered locally by roaster, origin, stock and name. Fed the listings the main window already holds, so opening it costs no requests. |
+| `gui/can_see_dialog.py` | **Can drink**'s "more": every fetched coffee in one table, filtered locally by roaster, origin, stock and name. Fed the listings the main window already holds, so opening it costs no requests. |
 | `gui/bean_dialog.py` | The bean profile editor — fields, photo carousel, label scanning, the sessions table, and the per-bean flavor profile. Hosts the scan worker and its review dialog. |
 | `gui/brew_dialog.py` | The session editor — brew details, the stages table with its `StageDialog`, and the evaluation block (score, extraction bar, note, eleven flavor sliders, live radar). |
 | `gui/ai_brew_dialog.py` | "Ask AI": pick a dripper, get a Qwen recipe, review it, turn it into a real session with real stage rows. |
@@ -296,7 +296,7 @@ Each module calls `load_dotenv()` (walks up from the package) *and* `load_dotenv
 `whats_new.py` reads what a handful of French roasters currently have on
 sale, from each roaster's *own* site: name, price, weight, in stock, a short
 description excerpt, a link to the real product page, and the URL of the
-listing photo. Two front ends consume it — the **Can see** pane and its
+listing photo. Two front ends consume it — the **Can drink** pane and its
 "more" dialog (§3.7.1), and `whats_new_dialog.py`, a per-roaster table that
 is fully built but currently has no button wired to it.
 
@@ -354,9 +354,9 @@ the risk table.
 so a slow or dead network shows the walking-can loader instead of freezing
 the window.
 
-#### 3.7.1 "Can see" — the shelf and its "more" dialog
+#### 3.7.1 "Can drink" — the shelf and its "more" dialog
 
-The overview card's right-hand pane, **Can see**, shows **three coffees
+The overview card's right-hand pane, **Can drink**, shows **three coffees
 picked at random** from everything the roasters currently list in stock:
 photo, name, and `roaster · origin · price`, each card opening the product
 page in the browser when clicked. `more ›`, top-right of the pane, opens

@@ -36,14 +36,14 @@ not just a vague memory of "that one was better."
 
 ### 🛍️ Something new to try
 
-The **Can see** shelf puts three coffees currently for sale at real French
+The **Can drink** shelf puts three coffees currently for sale at real French
 specialty roasters (Datura, Belleville Brûlerie, Coutume, L'Arbre à Café,
 Tanat) right on your welcome screen -- click the refresh icon for three more,
 or **more ›** for the full catalogue, filterable by roaster, origin and
 stock. Everything shown -- name, price, weight, stock, photo -- comes
 straight from each roaster's own public listing, with a link to buy.
 
-![The "Can see" catalogue: every coffee currently listed by five French roasters, filterable by roaster, origin, stock and name](docs/screenshots/can_see_dialog.png)
+![The "Can drink" catalogue: every coffee currently listed by five French roasters, filterable by roaster, origin, stock and name](docs/screenshots/can_see_dialog.png)
 
 ### 📈 The bigger picture
 
@@ -68,7 +68,7 @@ to remove typing, not to gatekeep the app.
 - **Getting a starting recipe.** *Ask AI* suggests a full brewing recipe --
   dose, grind size, temperature and timing per stage -- for a given bean and
   dripper, which you can then tweak and log like any other session.
-- **A ranked "What's New" feed.** Coffee news headlines are pulled from real
+- **A ranked "Can read" feed.** Coffee news headlines are pulled from real
   outlets' own RSS feeds (never AI-generated), with Qwen used only to rank
   which ones are worth your five seconds.
 
@@ -170,7 +170,7 @@ showing the last ~3 months as a color-graded grid, one cell per day; hover a
 cell for the exact date and count), and a **Flavor Profile** card averaging
 the eleven flavor axes across every brewing session you've ever logged.
 
-**Can see**, the pane on the right, puts three coffees picked at random from
+**Can drink**, the pane on the right, puts three coffees picked at random from
 a few French specialty roasters (Datura, Belleville Brûlerie, Coutume,
 L'Arbre à Café, Tanat) on a shelf -- photo, name, and who sells it for how
 much. Click one and it opens the roaster's own product page in your browser.
