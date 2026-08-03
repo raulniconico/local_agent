@@ -333,8 +333,12 @@ Other spec rules this module implements: a truthful, contactable
 `User-Agent` (§3.5, never a spoofed browser string); a fixed 3-second delay
 between paginated requests to the same host (§3.4); `RoasterUnavailableError`
 on any network/parse failure rather than an exception surfacing on the GUI
-thread (§3.7 "fail closed" in spirit); and a 15-minute in-memory cache so
-reopening the dialog doesn't re-hit a roaster's server needlessly. It does
+thread (§3.7 "fail closed" in spirit); and a 24-hour cache, persisted to the
+data dir (per-roaster entries in one `whats_new_cache.json`, same reasoning
+and read/write pattern as `coffee_news.py`'s disk cache — the app is normally
+launched fresh via the pipx entry point, so an in-memory-only cache would
+never survive to be observed), so reopening the dialog or relaunching the app
+doesn't re-hit a roaster's server needlessly. It does
 **not** implement the fuller crawler machinery the spec describes for a
 recurring/scheduled crawl (robots.txt parsing, a circuit breaker, a
 persisted kill switch, an allowlist file) — those govern a background daemon
@@ -367,9 +371,11 @@ Three decisions worth keeping:
   each batch landed would both bias the picks toward whoever replied first
   and re-fetch photos on every batch.
 - **The dialog fetches nothing.** It is constructed with the listings the
-  window already holds. `whats_new.py`'s cache is per-process, so a fetch
-  there would be either a no-op or five fresh requests for a browse — see
-  `specs/legal.md` §3.4; the request budget is spent once, by the window.
+  window already holds, rather than calling `whats_new.fetch_listings()`
+  itself — even though that would usually be a cache hit (24h, see §3.7),
+  there is no reason to pay for a second lookup when the caller already has
+  the answer. See `specs/legal.md` §3.4; the request budget is spent once, by
+  the window, at most once a day.
 - **The window keeps out-of-stock coffees**, filtering them out only for the
   shelf, so the dialog's "In stock only" toggle has something to toggle.
 

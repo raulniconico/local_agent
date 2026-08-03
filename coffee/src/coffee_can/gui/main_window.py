@@ -497,9 +497,9 @@ class MainWindow(QMainWindow):
         """Fill the "Can see" shelf from the roasters' own product endpoints.
 
         One worker per roaster, off the GUI thread. whats_new.fetch_listings()
-        caches for 15 minutes, so re-opening the window inside that window
-        costs no requests at all -- the shelf never becomes a reason to hit a
-        host more often than the dialog already would."""
+        caches to the data dir for 24h, so relaunching the app inside that
+        window costs no requests at all -- the shelf never becomes a reason
+        to hit a host more often than the dialog already would."""
         self._shelf_listings = []
         self._shelf_pending = len(whats_new.ROASTERS)
         self._market_workers = []
@@ -548,6 +548,12 @@ class MainWindow(QMainWindow):
             card.set_listing(listing)
             card.show()
 
+    def _refresh_shelf(self):
+        """Refresh button: re-roll the three picks from listings already in
+        hand -- no new requests, since _shelf_listings already holds every
+        roaster's current catalogue."""
+        self._fill_shelf()
+
     def closeEvent(self, event):
         # The requests keep running to completion (background.py owns the
         # threads and app shutdown waits on them), but their signals must
@@ -572,16 +578,20 @@ class MainWindow(QMainWindow):
         header_row = QHBoxLayout()
         header_row.addWidget(self._pane_header("Can see"))
         header_row.addStretch()
-        # A link rather than a QPushButton: the global button rule pads to a
-        # pill that would tower over the 13px heading beside it. The anchor
-        # colour has to be inline -- a QSS `color` on the label styles the
-        # label's own text, not the <a> inside it.
-        more = QLabel('<a href="#" style="color:#8E8E93; text-decoration:none;">more ›</a>')
-        more.setToolTip("Every coffee on sale, by roaster or origin")
-        more.setStyleSheet("font-size: 12px;")
-        more.setCursor(Qt.CursorShape.PointingHandCursor)
-        more.linkActivated.connect(self._open_can_see)
-        header_row.addWidget(more)
+        refresh_btn = QPushButton("⟳")
+        refresh_btn.setFixedSize(22, 22)
+        refresh_btn.setToolTip("Show three different coffees")
+        # Same small-round-button treatment as the header's settings gear --
+        # the default QPushButton rule pads to a pill with no room for a
+        # single glyph.
+        refresh_btn.setStyleSheet(
+            "QPushButton { padding: 0px; font-size: 13px; border-radius: 11px; "
+            "background-color: #E5E5EA; color: #1C1C1E; }"
+            "QPushButton:hover { background-color: #DCDCE1; }"
+            "QPushButton:pressed { background-color: #CFCFD4; }"
+        )
+        refresh_btn.clicked.connect(self._refresh_shelf)
+        header_row.addWidget(refresh_btn)
         layout.addLayout(header_row)
         layout.addSpacing(self._HEADER_GAP)
 
@@ -591,8 +601,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.shelf_status)
 
         # Three fixed-height cards can't fill a pane sized by the calendar and
-        # the radar beside them, so centre the trio in what's left rather than
-        # hanging it off the heading with a drop of empty card underneath.
+        # the radar beside them, so centre the block (cards + "more") in what's
+        # left rather than hanging it off the heading with a drop of empty
+        # card underneath.
         layout.addStretch(1)
         self.shelf_cards = []
         for _ in range(self._SHELF_PICKS):
@@ -601,6 +612,25 @@ class MainWindow(QMainWindow):
             card.hide()  # shown once there is something to put on it
             self.shelf_cards.append(card)
             layout.addWidget(card)
+
+        # Below the cards rather than beside the heading: it reads as "more
+        # of what's on the shelf" instead of a header-bar action, and it no
+        # longer competes with the "Can see" title for the same row.
+        more_row = QHBoxLayout()
+        more_row.addStretch()
+        # A link rather than a QPushButton: the global button rule pads to a
+        # pill that would be a heavier weight than three quiet coffee cards
+        # deserve. The anchor colour has to be inline -- a QSS `color` on the
+        # label styles the label's own text, not the <a> inside it.
+        more = QLabel('<a href="#" style="color:#8E8E93; text-decoration:none;">more ›</a>')
+        more.setToolTip("Every coffee on sale, by roaster or origin")
+        more.setStyleSheet("font-size: 12px;")
+        more.setCursor(Qt.CursorShape.PointingHandCursor)
+        more.linkActivated.connect(self._open_can_see)
+        more_row.addWidget(more)
+        layout.addSpacing(4)
+        layout.addLayout(more_row)
+
         layout.addStretch(1)
         return pane
 
@@ -663,12 +693,23 @@ class MainWindow(QMainWindow):
         inner.setContentsMargins(0, 0, 0, 0)
         inner.addWidget(self.calendar, 0, Qt.AlignmentFlag.AlignLeft)
 
+        # "Less"/"More" bracket the swatches the same way GitHub's own
+        # contribution graph does, so the gradient reads as an intensity
+        # scale (session count that day) rather than five arbitrary colors.
         legend = QHBoxLayout()
+        legend.setSpacing(4)
+        legend_label_style = "color: #8E8E93; font-size: 10px;"
+        less_label = QLabel("Less")
+        less_label.setStyleSheet(legend_label_style)
+        legend.addWidget(less_label)
         for color in ("#EBEDF0", "#C8F0D4", "#7FDB9E", "#42CE7C", "#34C759"):
             swatch = QLabel()
             swatch.setFixedSize(10, 10)
             swatch.setStyleSheet(f"background-color: {color}; border-radius: 2px;")
             legend.addWidget(swatch)
+        more_label = QLabel("More")
+        more_label.setStyleSheet(legend_label_style)
+        legend.addWidget(more_label)
         legend.addStretch()
         inner.addLayout(legend)
 
@@ -686,7 +727,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 4, 4, 4)
         # Heading pinned top-left over the chart, matching how "Brewing
         # Activity" sits above the calendar in the pane to the left.
-        layout.addWidget(self._pane_header("Flavor Profile"))
+        layout.addWidget(self._pane_header("My Flavor"))
         layout.addSpacing(self._HEADER_GAP)
 
         column = QWidget()

@@ -29,12 +29,16 @@ it first:
 """
 
 import html
+import json
+import os
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 
 import httpx
+
+from .paths import data_dir
 
 # A truthful, contactable User-Agent (specs/legal.md §3.5 rule 17/18): never
 # spoof a browser. Replace the contact address if this ever leaves personal
@@ -44,7 +48,19 @@ USER_AGENT = f"CoffeeCanWhatsNew/0.1 (personal/non-commercial use; contact: {_CO
 
 _TIMEOUT = httpx.Timeout(connect=10.0, read=20.0, write=10.0, pool=20.0)
 _PAGE_DELAY_SECONDS = 3.0  # between paginated requests to the same host -- §3.4
-_CACHE_TTL = timedelta(minutes=15)  # avoids re-hitting a host on every re-open
+#: Matches coffee_news.py's reasoning exactly: nine outlets there, five
+#: roasters (several paginated) here -- either way too much to repeat on
+#: every window open, and a roaster's own shelf doesn't turn over within a
+#: day. 24h rather than the RSS feed's 2h because a product catalogue changes
+#: far slower than a news cycle.
+_CACHE_TTL = timedelta(hours=24)
+#: Persisted to the data dir, not just held in memory, for the same reason as
+#: coffee_news.py's cache: the app is normally launched fresh (pipx entry
+#: point) rather than left running, so an in-memory-only cache would expire
+#: with every quit and 24h would never actually be observed. One file with a
+#: key per roaster rather than one file per roaster -- five fetches happen
+#: together at startup, so there's no benefit to invalidating them separately.
+_CACHE_FILE = "whats_new_cache.json"
 
 
 class RoasterUnavailableError(Exception):
@@ -87,6 +103,66 @@ ROASTERS = {
 }
 
 _cache: dict[str, tuple[datetime, list]] = {}
+
+
+def _cache_path():
+    return data_dir() / _CACHE_FILE
+
+
+def _is_fresh(cached_at: datetime) -> bool:
+    return datetime.now(timezone.utc) - cached_at < _CACHE_TTL
+
+
+def _listing_to_json(listing: Listing) -> dict:
+    payload = asdict(listing)
+    payload["fetched_at"] = listing.fetched_at.isoformat()
+    payload["published_at"] = listing.published_at.isoformat() if listing.published_at else None
+    return payload
+
+
+def _listing_from_json(payload: dict) -> Listing:
+    payload = dict(payload)
+    payload["fetched_at"] = datetime.fromisoformat(payload["fetched_at"])
+    payload["published_at"] = (
+        datetime.fromisoformat(payload["published_at"]) if payload.get("published_at") else None
+    )
+    return Listing(**payload)
+
+
+def _load_disk_cache(roaster_key: str) -> "tuple[datetime, list[Listing]] | None":
+    """The last stored fetch for one roaster, or None if there isn't one, the
+    file can't be read, or it doesn't parse. Never raises into the caller --
+    a corrupt cache file must fall back to a fresh fetch, not a dead pane."""
+    try:
+        whole = json.loads(_cache_path().read_text(encoding="utf-8"))
+        entry = whole[roaster_key]
+        cached_at = datetime.fromisoformat(entry["cached_at"])
+        listings = [_listing_from_json(item) for item in entry["listings"]]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return cached_at, listings
+
+
+def _store_disk_cache(roaster_key: str, cached_at: datetime, listings: "list[Listing]") -> None:
+    """Persist one roaster's fetch for the next launch, preserving whatever
+    other roasters' entries are already in the file. Written via a temp file
+    and os.replace so a crash mid-write can't corrupt a still-valid cache."""
+    path = _cache_path()
+    try:
+        whole = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        whole = {}
+    whole[roaster_key] = {
+        "cached_at": cached_at.isoformat(),
+        "listings": [_listing_to_json(listing) for listing in listings],
+    }
+    temporary = path.with_suffix(".json.tmp")
+    try:
+        temporary.write_text(json.dumps(whole), encoding="utf-8")
+        os.replace(temporary, path)
+    except OSError:
+        # A read-only or full data dir costs a cache, never the listing itself.
+        temporary.unlink(missing_ok=True)
 
 
 def _excerpt(raw_html: str, limit: int = 200) -> str:
@@ -399,15 +475,27 @@ _FETCHERS = {"shopify": _fetch_shopify, "woocommerce": _fetch_woocommerce}
 
 
 def fetch_listings(roaster_key: str, force: bool = False) -> list[Listing]:
-    """Fetch (or return cached) listings for one roaster. Raises
-    RoasterUnavailableError on any network/parse failure rather than letting
-    an exception surface from a background thread -- see whats_new_dialog.py."""
+    """Fetch (or return cached) listings for one roaster.
+
+    Served from the cache -- in memory first, then the copy in the data dir --
+    while it is inside _CACHE_TTL (24h), so relaunching the app inside that
+    window never re-hits a roaster's server. `force=True` skips both and
+    refreshes.
+
+    Raises RoasterUnavailableError on any network/parse failure rather than
+    letting an exception surface from a background thread -- see
+    whats_new_dialog.py."""
     label, domain, platform = ROASTERS[roaster_key]
 
-    if not force and roaster_key in _cache:
-        cached_at, cached_listings = _cache[roaster_key]
-        if datetime.now(timezone.utc) - cached_at < _CACHE_TTL:
-            return cached_listings
+    if not force:
+        if roaster_key not in _cache:
+            disk = _load_disk_cache(roaster_key)
+            if disk is not None:
+                _cache[roaster_key] = disk
+        if roaster_key in _cache:
+            cached_at, cached_listings = _cache[roaster_key]
+            if _is_fresh(cached_at):
+                return cached_listings
 
     try:
         with httpx.Client(
@@ -419,5 +507,7 @@ def fetch_listings(roaster_key: str, force: bool = False) -> list[Listing]:
     except (httpx.HTTPError, ValueError, KeyError) as exc:
         raise RoasterUnavailableError(f"Couldn't reach {label}: {exc}") from exc
 
-    _cache[roaster_key] = (datetime.now(timezone.utc), listings)
+    cached_at = datetime.now(timezone.utc)
+    _cache[roaster_key] = (cached_at, listings)
+    _store_disk_cache(roaster_key, cached_at, listings)
     return listings
