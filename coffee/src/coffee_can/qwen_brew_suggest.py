@@ -148,6 +148,11 @@ def suggest_brew(bean_info: dict, dripper: str) -> dict:
         response = client.chat.completions.create(
             model=_MODEL,
             response_format={"type": "json_object"},
+            # Thinking off -- see coffee_news.py's _rank_with_qwen for the same
+            # fix: qwen3.6-plus reasons by default, which turned this bounded
+            # "fill in this JSON shape" task into a multi-minute call. The
+            # recipe doesn't need chain-of-thought, just the numbers.
+            extra_body={"enable_thinking": False},
             messages=[{"role": "user", "content": prompt}],
         )
     except Exception as exc:  # network errors, auth errors, rate limits, etc.

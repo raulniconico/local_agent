@@ -82,22 +82,36 @@ def default_avatar_pixmap(size: int, background: str = "#D7F5DE", foreground: st
     painter.setBrush(QColor(background))
     painter.drawEllipse(0, 0, size, size)
 
-    # Same proportions as HeaderBanner._draw_can (body 22x19, lid 24x8,
-    # overlapping the body by 3), scaled to this avatar's size.
+    # Same proportions as WalkingCanStrip._draw_can (body 22x19, lid 24x8,
+    # overlapping the body by 3; feet 3x2 ellipses set 5 in from each side and
+    # 1 below the body), scaled to this avatar's size.
     body_w = size * 0.34
-    body_h = body_w * (19 / 22)
-    lid_w = body_w * (24 / 22)
-    lid_h = body_w * (8 / 22)
-    overlap = body_w * (3 / 22)
-    radius_body = body_w * (4 / 22)
-    radius_lid = body_w * (3 / 22)
+    unit = body_w / 22  # one pixel of _draw_can's 22-wide can, at this size
+    body_h = unit * 19
+    lid_w = unit * 24
+    lid_h = unit * 8
+    overlap = unit * 3
+    radius_body = unit * 4
+    radius_lid = unit * 3
+    foot_rx, foot_ry = unit * 3, unit * 2
+    foot_gap = unit * 1
 
-    total_h = lid_h + body_h - overlap
-    top_y = (size - total_h) / 2
+    # Centre the can *including* its feet, so adding them doesn't push the
+    # whole character off the circle's middle.
+    can_h = lid_h + body_h - overlap
+    top_y = (size - (can_h + foot_gap + foot_ry)) / 2
+    body_left = (size - body_w) / 2
+    body_bottom = top_y + can_h
 
     painter.setBrush(QColor(foreground))
-    painter.drawRoundedRect(QRectF((size - body_w) / 2, top_y + lid_h - overlap, body_w, body_h), radius_body, radius_body)
+    painter.drawRoundedRect(QRectF(body_left, top_y + lid_h - overlap, body_w, body_h), radius_body, radius_body)
     painter.drawRoundedRect(QRectF((size - lid_w) / 2, top_y, lid_w, lid_h), radius_lid, radius_lid)
+
+    # Feet, level rather than mid-stride: this is the can standing still (the
+    # strip's version splays them alternately to read as a walking gait).
+    foot_y = body_bottom + foot_gap
+    painter.drawEllipse(QPointF(body_left + unit * 5, foot_y), foot_rx, foot_ry)
+    painter.drawEllipse(QPointF(body_left + unit * 17, foot_y), foot_rx, foot_ry)
 
     painter.end()
     return result
@@ -1324,6 +1338,22 @@ class RadarChart(QWidget):
         # width, so a square hint would just cap the polygon at the
         # horizontal constraint while wasting vertical space.
         return QSize(320, 250)
+
+    @classmethod
+    def height_for_width(cls, width, label_scale: float = 1.0) -> int:
+        """The shortest height at which a `width`-wide chart still draws its
+        full polygon -- i.e. the height that leaves no dead vertical space.
+
+        paintEvent's radius is min(w/2 - LABEL_MARGIN_X*scale,
+        h/2 - LABEL_MARGIN_Y*scale), and the X margin is much the larger of
+        the two (long labels like "Green/Vegetative" sit on the left/right
+        axes). So a *square* chart is always width-limited, and every pixel
+        of height past what this returns is blank -- 231px of it on the share
+        card's 741px square, which is what motivated this. Callers sizing a
+        chart themselves should use this for the height rather than reusing
+        the width."""
+        radius = width / 2 - cls._LABEL_MARGIN_X * label_scale
+        return math.ceil(2 * (radius + cls._LABEL_MARGIN_Y * label_scale))
 
     def _point_for(self, cx, cy, radius, index, value) -> QPointF:
         n = len(self._axes)

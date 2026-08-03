@@ -1,18 +1,22 @@
 """Renders shareable PNG summaries: a portrait, phone-screen-sized card
 (1080 wide, 9:16-ish -- matches Instagram/WhatsApp/Snapchat story formats)
-with a pure white background and a small app-icon logo tucked into the
-bottom-right corner.
+on the app's green, all text in white, with a small app-icon logo tucked
+into the bottom-right corner. Both open with "<user> share with you:" and
+lead with the flavor radar, the text details following it.
 
 Two flavors:
-- render_share_card: a bean profile -- first uploaded page photo, basic
-  details, and its flavor radar. Used by bean_dialog.py's Share button.
-- render_session_share_card: a single brewing session -- the bean's basic
-  info and photo (no bean-level radar, since the session has its own),
-  followed by the session's brew details, every stage, the evaluation
-  note/score, and *that session's* flavor radar. Used by brew_dialog.py's
-  Share button. Its height is content-dependent (stage count and note
-  length vary), so it's rendered onto an oversized scratch canvas and then
-  cropped to the actual content height.
+- render_share_card: a bean profile -- first uploaded page photo, its flavor
+  radar, then basic details. Used by bean_dialog.py's Share button.
+- render_session_share_card: a single brewing session -- the bean's photo,
+  *that session's* flavor radar (never the bean-level one), the bean's basic
+  info, then the session's brew details, every stage, and the evaluation
+  note/score. Used by brew_dialog.py's Share button.
+
+Neither card's height is known up front (a bean's photo and filled-in field
+count vary; a session's stage count and note length do), so both render onto
+an oversized scratch canvas and crop to the real content height. HEIGHT is a
+floor rather than a fixed size -- content past it grows the card instead of
+being clipped off the bottom.
 
 Both dialogs also share save_share_image() (the save-to-disk + tips-dialog
 flow) and _ShareTipsDialog, defined here to avoid a circular import between
@@ -34,11 +38,7 @@ WIDTH = 1080
 HEIGHT = 1920
 #: The logo's own green (theme.ACCENT), unmodified.
 BACKGROUND = "#34C759"
-#: The radar panel is the same green as the card, not a white box -- no
-#: border either, so it reads as part of the card rather than a box dropped
-#: on top of it.
-_PANEL_FILL = BACKGROUND
-#: RadarChart.set_palette() overrides for a green panel: the default
+#: RadarChart.set_palette() overrides for a green card: the default
 #: dark-text/grey-grid/green-polygon scheme (right for the app's white cards)
 #: would be unreadable here, so grid, spokes, labels and the data polygon are
 #: all shades of white instead, at bolder weights than the in-app hairline
@@ -51,6 +51,19 @@ _RADAR_PALETTE = dict(
     data_stroke="#FFFFFF", data_fill="#E6FFFFFF", data_dot="#FFFFFF",
     grid_width=2, spoke_width=2, data_stroke_width=3, bold_label=True,
 )
+_RADAR_WIDTH = 741
+#: 2.6x the in-app label size (8pt -> ~21pt), readable at phone-screen scale.
+#: Independent of the chart's pixel size on purpose, so extra size goes to the
+#: polygon rather than to label margin -- see RadarChart.set_label_scale.
+_RADAR_LABEL_SCALE = 2.6
+#: Breathing room under the chart before its caption. Small because the chart
+#: is sized by height_for_width(), which already trims the dead space the
+#: widget used to carry internally.
+_RADAR_GAP = 24
+#: Generous scratch height both cards are rendered onto and then cropped down
+#: from. Neither has a height known up front: a session's stage count and note
+#: length vary, and a bean's photo and detail-field count do.
+_SCRATCH_HEIGHT = 4000
 _MARGIN = 64
 _TEXT_COLOR = "#FFFFFF"
 #: White text throughout, per the redesign -- this is the same white at
@@ -160,6 +173,38 @@ def _draw_centered_field(painter: QPainter, y: float, label: str, value: str, co
     return y + row_height
 
 
+def _draw_radar_block(painter: QPainter, y: float, values, has_data: bool, caption: str, content_width: int, margin: int) -> float:
+    """The flavor chart plus its caption, centered on the card. Returns the y
+    to continue from.
+
+    Shared by both cards rather than copy-pasted: the two copies had already
+    drifted apart once (one kept an older label scale after the other was
+    bumped). The chart is sized by RadarChart.height_for_width() so its box
+    hugs what is actually painted -- sizing it as a square left ~230px of
+    blank green above and below the chart.
+
+    There is no panel behind it: once the card went green, the "panel" was
+    filling green-on-green with no border, so it drew nothing at all."""
+    radar_h = RadarChart.height_for_width(_RADAR_WIDTH, _RADAR_LABEL_SCALE)
+
+    radar = RadarChart([label for _, label in repo.FLAVOR_AXES])
+    radar.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+    radar.setStyleSheet("background: transparent;")
+    radar.resize(_RADAR_WIDTH, radar_h)
+    radar.set_label_scale(_RADAR_LABEL_SCALE)
+    radar.set_palette(**_RADAR_PALETTE)
+    radar.set_values(values, has_data=has_data)
+    painter.drawPixmap(int((WIDTH - _RADAR_WIDTH) / 2), int(y), radar.grab())
+    y += radar_h + _RADAR_GAP
+
+    caption_font = QFont()
+    caption_font.setPointSize(22)
+    painter.setFont(caption_font)
+    painter.setPen(QColor(_MUTED_COLOR))
+    painter.drawText(QRectF(margin, y, content_width, 40), Qt.AlignmentFlag.AlignHCenter, caption)
+    return y + 56
+
+
 def _flavor_snapshot(conn, bean_id: int):
     """Same manual-vs-averaged decision as bean_dialog.BeanDialog._refresh_flavor,
     returning (values_or_None, has_data, caption)."""
@@ -176,13 +221,16 @@ def render_share_card(conn, bean_id: int) -> QPixmap:
     bean = repo.get_bean(conn, bean_id)
     images = repo.list_bean_images(conn, bean_id)
 
-    card = QPixmap(WIDTH, HEIGHT)
+    # Oversized scratch canvas, cropped to the real height at the end -- see
+    # the card_height note below.
+    card = QPixmap(WIDTH, _SCRATCH_HEIGHT)
     card.fill(QColor(BACKGROUND))
     painter = QPainter(card)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
     y = _MARGIN
     content_width = WIDTH - 2 * _MARGIN
+    logo_size = 168
 
     y = _draw_share_header(painter, y, content_width, _MARGIN)
 
@@ -209,42 +257,11 @@ def render_share_card(conn, bean_id: int) -> QPixmap:
     )
     y += 124
 
-    # --- flavor radar --- (green panel matching the card, white net/labels/
-    # polygon via _RADAR_PALETTE -- the radar itself is grabbed with a
-    # transparent background so it overlays the panel cleanly)
-    # Ahead of the detail fields below: the chart is the card's visual draw,
-    # so it leads: name, then the flavor picture, then the text specifics.
+    # --- flavor radar --- ahead of the detail fields below: the chart is the
+    # card's visual draw, so it leads: name, then the flavor picture, then the
+    # text specifics.
     values, has_data, caption = _flavor_snapshot(conn, bean_id)
-    radar_size = 741  # 570 * 1.3
-    # 2.6x the in-app label size (8pt -> ~21pt), readable at phone-screen
-    # scale. Independent of radar_size on purpose, so the extra size goes to
-    # the polygon rather than to label margin -- see RadarChart.set_label_scale.
-    radar_label_scale = 2.6
-    panel_pad = 24
-    panel_rect = QRectF((WIDTH - radar_size) / 2 - panel_pad, y - panel_pad, radar_size + 2 * panel_pad, radar_size + 2 * panel_pad)
-    painter.setPen(Qt.PenStyle.NoPen)
-    painter.setBrush(QColor(_PANEL_FILL))
-    painter.drawRoundedRect(panel_rect, 28, 28)
-
-    radar = RadarChart([label for _, label in repo.FLAVOR_AXES])
-    radar.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-    radar.setStyleSheet("background: transparent;")
-    radar.resize(radar_size, radar_size)
-    radar.set_label_scale(radar_label_scale)
-    radar.set_palette(**_RADAR_PALETTE)
-    radar.set_values(values, has_data=has_data)
-    radar_pixmap = radar.grab()
-    painter.drawPixmap(int((WIDTH - radar_size) / 2), y, radar_pixmap)
-    y += radar_size + panel_pad + 40
-
-    caption_font = QFont()
-    caption_font.setPointSize(22)
-    painter.setFont(caption_font)
-    painter.setPen(QColor(_MUTED_COLOR))
-    painter.drawText(
-        QRectF(_MARGIN, y, content_width, 40), Qt.AlignmentFlag.AlignHCenter, caption
-    )
-    y += 64
+    y = _draw_radar_block(painter, y, values, has_data, caption, content_width, _MARGIN)
 
     # --- detail fields -- centered as a block, each row its own centered unit ---
     detail_font = QFont()
@@ -257,14 +274,17 @@ def render_share_card(conn, bean_id: int) -> QPixmap:
         y = _draw_centered_field(painter, y, label, str(value), content_width, _MARGIN)
 
     # --- small logo, bottom-right corner ---
+    # HEIGHT is a floor, not a fixed size: a bean with a photo and a full set
+    # of detail fields runs past 1920, and this card used to simply clip it.
+    # Grow to fit in that case, and keep the logo pinned to the real bottom.
+    card_height = max(HEIGHT, int(y) + logo_size + _MARGIN)
     icon = icon_path()
     if icon:
-        logo_size = 84
         logo = QIcon(icon).pixmap(logo_size, logo_size)
-        painter.drawPixmap(WIDTH - _MARGIN - logo_size, HEIGHT - _MARGIN - logo_size, logo)
+        painter.drawPixmap(WIDTH - _MARGIN - logo_size, card_height - _MARGIN - logo_size, logo)
 
     painter.end()
-    return card
+    return card.copy(0, 0, WIDTH, min(card_height, _SCRATCH_HEIGHT))
 
 
 _SESSION_DETAIL_FIELDS = (
@@ -276,19 +296,13 @@ _SESSION_DETAIL_FIELDS = (
     ("humidity", "Humidity %"),
 )
 
-# Generous scratch height a session card is cropped down from -- see the
-# module docstring for why this can't just be a fixed HEIGHT like the bean
-# card: stage count and note length both vary per session.
-_SESSION_SCRATCH_HEIGHT = 4000
-
-
 def render_session_share_card(conn, session_id: int) -> QPixmap:
     session = repo.get_session(conn, session_id)
     bean = repo.get_bean(conn, session["bean_id"])
     images = repo.list_bean_images(conn, bean["id"])
     stages = repo.list_stages(conn, session_id)
 
-    card = QPixmap(WIDTH, _SESSION_SCRATCH_HEIGHT)
+    card = QPixmap(WIDTH, _SCRATCH_HEIGHT)
     card.fill(QColor(BACKGROUND))
     painter = QPainter(card)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -328,31 +342,7 @@ def render_session_share_card(conn, session_id: int) -> QPixmap:
     values = [session[field] or 0 for field in repo.FLAVOR_FIELDS]
     has_data = any(values)
     caption = "This session's flavor profile" if has_data else "No flavor data for this session"
-    radar_size = 741  # 570 * 1.3
-    radar_label_scale = 2.6
-    panel_pad = 24
-    panel_rect = QRectF((WIDTH - radar_size) / 2 - panel_pad, y - panel_pad, radar_size + 2 * panel_pad, radar_size + 2 * panel_pad)
-    painter.setPen(Qt.PenStyle.NoPen)
-    painter.setBrush(QColor(_PANEL_FILL))
-    painter.drawRoundedRect(panel_rect, 28, 28)
-
-    radar = RadarChart([label for _, label in repo.FLAVOR_AXES])
-    radar.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-    radar.setStyleSheet("background: transparent;")
-    radar.resize(radar_size, radar_size)
-    radar.set_label_scale(radar_label_scale)
-    radar.set_palette(**_RADAR_PALETTE)
-    radar.set_values(values, has_data=has_data)
-    radar_pixmap = radar.grab()
-    painter.drawPixmap(int((WIDTH - radar_size) / 2), y, radar_pixmap)
-    y += radar_size + panel_pad + 40
-
-    caption_font = QFont()
-    caption_font.setPointSize(22)
-    painter.setFont(caption_font)
-    painter.setPen(QColor(_MUTED_COLOR))
-    painter.drawText(QRectF(_MARGIN, y, content_width, 40), Qt.AlignmentFlag.AlignHCenter, caption)
-    y += 64
+    y = _draw_radar_block(painter, y, values, has_data, caption, content_width, _MARGIN)
 
     # --- bean basic details -- centered as a block ---
     painter.setFont(detail_font)
@@ -377,7 +367,7 @@ def render_session_share_card(conn, session_id: int) -> QPixmap:
     title = "Brewing Session"
     if session["brew_date"]:
         title += f" -- {session['brew_date']}"
-    painter.drawText(QRectF(_MARGIN, y, content_width, 54), Qt.AlignmentFlag.AlignLeft, title)
+    painter.drawText(QRectF(_MARGIN, y, content_width, 54), Qt.AlignmentFlag.AlignHCenter, title)
     y += 70
 
     # --- session brew details -- centered as a block ---
@@ -398,7 +388,7 @@ def render_session_share_card(conn, session_id: int) -> QPixmap:
         stage_header_font.setBold(True)
         painter.setFont(stage_header_font)
         painter.setPen(QColor(_TEXT_COLOR))
-        painter.drawText(QRectF(_MARGIN, y, content_width, 40), Qt.AlignmentFlag.AlignLeft, "Stages")
+        painter.drawText(QRectF(_MARGIN, y, content_width, 40), Qt.AlignmentFlag.AlignHCenter, "Stages")
         y += 46
 
         painter.setFont(detail_font)
@@ -412,7 +402,7 @@ def render_session_share_card(conn, session_id: int) -> QPixmap:
             if stage["circling"]:
                 parts.append(stage["circling"])
             painter.setPen(QColor(_TEXT_COLOR))
-            painter.drawText(QRectF(_MARGIN, y, content_width, 40), Qt.AlignmentFlag.AlignLeft, "  ·  ".join(parts))
+            painter.drawText(QRectF(_MARGIN, y, content_width, 40), Qt.AlignmentFlag.AlignHCenter, "  ·  ".join(parts))
             y += 44
         y += 30
 
@@ -421,26 +411,30 @@ def render_session_share_card(conn, session_id: int) -> QPixmap:
         painter.setFont(detail_font)
         y = _draw_centered_field(painter, y, "Score", f"{session['score']:g}/5", content_width, _MARGIN, row_height=46)
     if session["note"]:
+        # Centred and wrapped across the full width, rather than the old
+        # label-column-plus-text-column pair: a note is the one free-text
+        # field here and can run to several lines, so it gets its own block
+        # with the "Note" label centred above it.
         painter.setPen(QColor(_MUTED_COLOR))
-        painter.drawText(QRectF(_MARGIN, y, 220, 38), Qt.AlignmentFlag.AlignLeft, "Note")
+        painter.drawText(QRectF(_MARGIN, y, content_width, 38), Qt.AlignmentFlag.AlignHCenter, "Note")
+        y += 44
         painter.setPen(QColor(_TEXT_COLOR))
-        note_rect = painter.boundingRect(
-            QRectF(_MARGIN + 230, y, content_width - 230, 600), Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap, session["note"]
-        )
-        painter.drawText(note_rect, Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap, session["note"])
+        note_flags = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap
+        note_rect = painter.boundingRect(QRectF(_MARGIN, y, content_width, 600), note_flags, session["note"])
+        painter.drawText(note_rect, note_flags, session["note"])
         y = note_rect.bottom() + 30
     y += 20
 
     # --- small logo, bottom-right corner ---
     icon = icon_path()
     if icon:
-        logo_size = 84
+        logo_size = 168
         painter.drawPixmap(WIDTH - _MARGIN - logo_size, int(y), QIcon(icon).pixmap(logo_size, logo_size))
         y += logo_size
 
     y += _MARGIN
     painter.end()
-    return card.copy(0, 0, WIDTH, min(int(y), _SESSION_SCRATCH_HEIGHT))
+    return card.copy(0, 0, WIDTH, min(int(y), _SCRATCH_HEIGHT))
 
 
 class _ShareTipsDialog(QDialog):
