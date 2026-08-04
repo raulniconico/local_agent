@@ -76,17 +76,29 @@ def welcome(fade: float = 1.0):
 def home(beans=None):
     """Home once at least one bean profile exists: the empty state's single
     CTA (home_empty) is replaced by a grid of bean blocks -- the same card
-    language as -1_can_drink's product blocks (photo, title, meta, a status
-    pill), just carrying bean fields instead of roaster/price/stock.
+    language as -1_can_drink's product blocks (title, meta, a status pill),
+    just carrying bean fields instead of roaster/price/stock.
 
-    `beans` is a sequence of (name, roast_meta, brew_count); defaults to a
-    small sample so the page renders on its own.
+    Where -1_can_drink's cards top out with photo() (a plausible stand-in
+    for a real roaster photo scraped off the web), these top out with
+    origin_tile() instead: a bean a user just added has no photo yet, and
+    photo()'s gradient is a *placeholder for one that will exist* -- exactly
+    wrong for a card that may never get one. origin_tile() is the codebase's
+    already-designed answer to that ("never a grey box"): a deterministic
+    tan/brown gradient, seeded off the origin code so every bean reads as a
+    distinct block on sight, watermarked with the code itself. Reusing it
+    here (bean_row(), the pre-scheme-e list layout, already falls back to it
+    the same way) beats inventing a second placeholder language for the
+    same problem.
+
+    `beans` is a sequence of (name, roast_meta, brew_count, origin_code);
+    defaults to a small sample so the page renders on its own.
     """
     beans = beans or [
-        ("Ethiopia Guji Natural", "Natural · Roasted 28 Jul", 4),
-        ("Colombia Huila Washed", "Washed · Roasted 20 Jul", 2),
-        ("Kenya Nyeri AB", "Washed · Roasted 02 Aug", 0),
-        ("Guatemala Huehue", "Washed · Roasted 15 Jul", 1),
+        ("Ethiopia Guji Natural", "Natural · Roasted 28 Jul", 4, "ET"),
+        ("Colombia Huila Washed", "Washed · Roasted 20 Jul", 2, "CO"),
+        ("Kenya Nyeri AB", "Washed · Roasted 02 Aug", 0, "KE"),
+        ("Guatemala Huehue", "Washed · Roasted 15 Jul", 1, "GT"),
     ]
     c = wf.Canvas("Home — scheme E")
     wf.status_bar(c)
@@ -94,11 +106,11 @@ def home(beans=None):
     wf.section(c, 112, "Your beans", "Search")
 
     card_h, photo_h, row_gap = 164, 84, 12
-    for i, (name, meta, sessions) in enumerate(beans):
+    for i, (name, meta, sessions, code) in enumerate(beans):
         cx = wf.GUTTER + (i % 2) * 168
         cy = 128 + (i // 2) * (card_h + row_gap)
         wf.card(c, cy, card_h, x=cx, w=152)
-        wf.photo(c, cx, cy, 152, photo_h, r=wf.R_LG)
+        wf.origin_tile(c, cx, cy, 152, photo_h, code, r=wf.R_LG)
         wf.rect(c, cx, cy + photo_h - 16, 152, 16, wf.C["cardSurface"])
         wf.text(c, cx + 12, cy + 100, name, "titleMedium", size=13)
         wf.text(c, cx + 12, cy + 116, meta, "bodyMedium", wf.C["onSurfaceVariant"], size=11)
