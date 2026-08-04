@@ -72,6 +72,80 @@ def welcome(fade: float = 1.0):
     return c
 
 
+# --------------------------------------------------------------- bag tile --
+def bag_tile(c, x, y, w, h, code, r=None):
+    """origin_tile()'s gradient (wireframes.py), topped with a small drawn
+    coffee bag instead of a two-letter code watermark. Letters read as an
+    avatar/initial -- the metaphor for a *person* -- which is the wrong
+    association for produce you can hold; a generated figure reads as "this
+    is coffee" on sight instead. The gradient is still seeded off `code`, so
+    tiles keep their per-bean colour variety.
+
+    A loose bean cluster was the first pass here; a bag reads as *the thing
+    on your shelf* rather than raw produce, and it's what every specialty
+    roaster's own product photography actually shows. So the figure is
+    drawn off real roaster-bag conventions rather than invented: a
+    gusseted stand-up pouch, a folded/crimped top seal (the pleat creases),
+    a circular one-way degassing valve, and a labelled patch -- the same
+    cues that make a Stumptown or Blue Bottle bag legible as "coffee" before
+    you read a word on it. Green is the main fill (this app's brand colour),
+    not a photographic kraft-paper brown, since the figure is a generated
+    brand asset, not a product photo.
+
+    The label itself takes its cue from two of the roasters already named in
+    -1_can_drink's sample data (Tanat, Terres de Café) rather than from a
+    third invented style -- WebFetch on their sites gives only text (no
+    actual product photo pixels), but what came back was consistent: Terres
+    de Café leans on a linoprint/woodblock-stamp look and an origin marker
+    above the name; Tanat stays minimal, one deliberate mark rather than a
+    busy label. So: a single bold stamped cup silhouette, plus a thin origin
+    rule above it, and nothing else on the patch.
+    """
+    r = wf.R_MD if r is None else r
+    gid = c.uid("bt")
+    seed = sum(ord(ch) for ch in code)
+    a = ["#DCEFDD", "#D2ECD8", "#E3F3E1", "#CDE9D2"][seed % 4]
+    b = ["#4C9A5B", "#3E8B4C", "#5AAE68", "#347A44"][(seed // 3) % 4]
+    c.defs.append(f'<linearGradient id="{gid}" x1="0" y1="0" x2="0.9" y2="1">'
+                  f'<stop offset="0" stop-color="{a}"/>'
+                  f'<stop offset="1" stop-color="{b}"/></linearGradient>')
+    wf.rect(c, x, y, w, h, f"url(#{gid})", r)
+
+    m = min(w, h)
+    cx0, cy0 = x + w / 2, y + h / 2
+    ink = "#1B4D2A"
+    c.add(f'<g transform="translate({cx0:.1f} {cy0:.1f}) scale({m/100:.3f})">')
+    # body: slightly wider at the base, like a gusseted stand-up pouch
+    c.add(f'<path d="M-24 -30 Q-24 -36 -18 -36 L18 -36 Q24 -36 24 -30 '
+          f'L26 26 Q26 34 18 34 L-18 34 Q-26 34 -26 26 Z" '
+          f'fill="{b}" stroke="{ink}" stroke-width="2.2"/>')
+    # folded top seal, with pleat creases
+    c.add(f'<path d="M-19 -36 Q-19 -42 -13 -42 L13 -42 Q19 -42 19 -36 Z" '
+          f'fill="{b}" stroke="{ink}" stroke-width="2.2"/>')
+    for lx in (-11, -1, 9):
+        c.add(f'<path d="M{lx} -41 L{lx+3} -37" stroke="{ink}" stroke-width="1.4" '
+              f'stroke-linecap="round"/>')
+    # label patch: a thin origin rule (Terres de Café's flag-strip habit,
+    # generalised rather than an invented flag per bean) over a single bold
+    # stamped cup -- Tanat's one-mark restraint, not a busy label
+    c.add(f'<rect x="-17" y="-6" width="34" height="24" rx="4" fill="{a}" '
+          f'stroke="{ink}" stroke-width="1.6"/>')
+    c.add(f'<path d="M-15 -3.5 h30" stroke="{ink}" stroke-width="1.6" opacity="0.5"/>')
+    c.add(f'<g transform="translate(0 8)" fill="{ink}">')
+    c.add('<path d="M-7.5 -4.2 Q-7.8 -4.6 -7.2 -4.8 L7.2 -4.8 Q7.9 -4.6 7.6 -4.1 '
+          'L6.3 4.4 Q5.9 6.6 3.6 6.6 L-3.6 6.6 Q-5.9 6.6 -6.3 4.4 Z"/>')
+    c.add(f'<path d="M7.4 -3.0 Q11 -3 11 0.4 Q11 3.6 7.1 3.4" fill="none" '
+          f'stroke="{ink}" stroke-width="1.6"/>')
+    for sx in (-3, 1.4):
+        c.add(f'<path d="M{sx} -7.4 Q{sx+1.4} -9.4 {sx} -11.2" fill="none" '
+              f'stroke="{ink}" stroke-width="1.3" stroke-linecap="round" opacity="0.75"/>')
+    c.add('</g>')
+    # one-way degassing valve
+    c.add(f'<circle cx="10" cy="-20" r="5.4" fill="none" stroke="{ink}" stroke-width="2"/>')
+    c.add(f'<circle cx="10" cy="-20" r="1.8" fill="{ink}"/>')
+    c.add('</g>')
+
+
 # -------------------------------------------------------------- 00 home ----
 def home(beans=None):
     """Home once at least one bean profile exists: the empty state's single
@@ -81,15 +155,12 @@ def home(beans=None):
 
     Where -1_can_drink's cards top out with photo() (a plausible stand-in
     for a real roaster photo scraped off the web), these top out with
-    origin_tile() instead: a bean a user just added has no photo yet, and
+    bag_tile() instead: a bean a user just added has no photo yet, and
     photo()'s gradient is a *placeholder for one that will exist* -- exactly
-    wrong for a card that may never get one. origin_tile() is the codebase's
-    already-designed answer to that ("never a grey box"): a deterministic
-    tan/brown gradient, seeded off the origin code so every bean reads as a
-    distinct block on sight, watermarked with the code itself. Reusing it
-    here (bean_row(), the pre-scheme-e list layout, already falls back to it
-    the same way) beats inventing a second placeholder language for the
-    same problem.
+    wrong for a card that may never get one. bag_tile() draws a small figure
+    (a coffee bag) in place of a real photo rather than falling back to
+    text -- see its docstring for why that beats origin_tile()'s two-letter
+    watermark.
 
     `beans` is a sequence of (name, roast_meta, brew_count, origin_code);
     defaults to a small sample so the page renders on its own.
@@ -110,7 +181,7 @@ def home(beans=None):
         cx = wf.GUTTER + (i % 2) * 168
         cy = 128 + (i // 2) * (card_h + row_gap)
         wf.card(c, cy, card_h, x=cx, w=152)
-        wf.origin_tile(c, cx, cy, 152, photo_h, code, r=wf.R_LG)
+        bag_tile(c, cx, cy, 152, photo_h, code, r=wf.R_LG)
         wf.rect(c, cx, cy + photo_h - 16, 152, 16, wf.C["cardSurface"])
         wf.text(c, cx + 12, cy + 100, name, "titleMedium", size=13)
         wf.text(c, cx + 12, cy + 116, meta, "bodyMedium", wf.C["onSurfaceVariant"], size=11)
@@ -170,7 +241,7 @@ def home_list(beans=None):
     for i, (name, meta, sessions, code) in enumerate(beans):
         cx, cy = wf.GUTTER, start_y + i * (card_h + row_gap)
         wf.card(c, cy, card_h, x=cx, w=card_w)
-        wf.origin_tile(c, cx + 12, cy + 7, tile, tile, code, r=wf.R_MD)
+        bag_tile(c, cx + 12, cy + 7, tile, tile, code, r=wf.R_MD)
         tx = cx + 12 + tile + 14
         wf.text(c, tx, cy + 30, name, "titleMedium", size=14)
         wf.text(c, tx, cy + 47, meta, "bodyMedium", wf.C["onSurfaceVariant"], size=11)
