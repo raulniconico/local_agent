@@ -110,19 +110,39 @@ def home_empty(headline_font=None, shake=0.0):
 # filled hand/foot caps. The "Can" lettering is not redrawn in outline: it
 # reuses the shipped wordmark's own solid glyphs (wf._LOGO_WORD) rescaled
 # into the belly, so the text matches the real logo exactly.
-def can_boy(c, cx, cy, size):
-    """Spec'd in a 100x100 box; `size` is the rendered edge in dp."""
+def can_boy(c, cx, cy, size, bean_angle=0.0):
+    """Spec'd in a 100x100 box; `size` is the rendered edge in dp.
+
+    `bean_angle` pivots the raised arm -- can-boy's own left hand, screen
+    right since he faces the viewer -- about the shoulder (degrees); the
+    bean rides along with it. The shake animation drives this frame to frame.
+    """
     g = size / 100.0
     c.add(f'<g transform="translate({cx - size/2:.2f} {cy - size/2:.2f}) scale({g:.4f})">')
     c.add(f'<circle cx="50" cy="50" r="50" fill="{wf.BRAND_MARK}"/>')
 
+    # the figure itself is drawn smaller than the disc and shrunk toward its
+    # centre: the raised arm swings through +-15 deg, and at full size that
+    # carried the hand and bean past the disc's edge
+    c.add('<g transform="translate(50 50) scale(0.82) translate(-50 -50)">')
     c.add('<g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">')
     # limbs, drawn under the can so its outline overlaps the shoulder/hip join
     c.add('<g stroke-width="4.2">')
-    c.add('<path d="M30 40 Q19 44 17 55"/>')   # left arm, hand on hip
-    c.add('<path d="M70 38 Q81 29 79 16"/>')   # right arm, raised
+    c.add('<path d="M30 40 Q19 44 17 55"/>')   # right arm, hand on hip
     c.add('<path d="M41 75 L37 90"/>')          # left leg
     c.add('<path d="M59 75 L63 90"/>')          # right leg
+    c.add('</g>')
+    # left arm, raised, holding the bean -- pivots as one piece at the
+    # shoulder (70,38) so the wave and the bean shake together, not the bean
+    # wobbling in a fixed hand
+    c.add(f'<g transform="translate(70 38) rotate({bean_angle:.2f})">')
+    c.add('<path d="M0 0 Q11 -9 9 -22" fill="none" stroke="#FFFFFF" stroke-width="4.2"/>')
+    # the bean, at the hand's rest position (9,-22) relative to the shoulder
+    # -- an S crease with unequal bulges reads as a bean seam rather than an eye
+    c.add('<g transform="translate(9 -22) rotate(-10)" stroke="#FFFFFF" stroke-width="2.4">')
+    c.add('<ellipse cx="0" cy="0" rx="4.6" ry="6.2" fill="none"/>')
+    c.add('<path d="M0.5 -4.5 C1.8 -2.1 -1.8 1.6 0.2 4.5" fill="none" stroke-width="1.6"/>')
+    c.add('</g>')
     c.add('</g>')
     # the can itself: lid + a barrel-bulged body, funky rather than a
     # straight-sided box so it reads as a can and not a carton
@@ -143,15 +163,16 @@ def can_boy(c, cx, cy, size):
     # -- small enough to clear the body outline's stroke width on both sides
     c.add('<g transform="translate(50 57) scale(0.5) translate(-63.54 -50.33)" '
           'fill="#FFFFFF">' + "".join(wf._LOGO_WORD) + '</g>')
+    c.add("</g>")  # close the shrink-toward-centre group
     c.add("</g>")
 
 
 # ------------------------------------------------------------- -1w intro ----
-def can_drink_intro():
+def can_drink_intro(bean_angle=0.0):
     """First run of the Can Drink page (swipe left from Home)."""
     c = wf.Canvas("Can Drink · intro — scheme E")
     wf.status_bar(c)
-    can_boy(c, 180, 210, 220)
+    can_boy(c, 180, 208, 195, bean_angle=bean_angle)
     wf.text(c, 180, 424, "What's good", "headlineMedium", wf.C["onSurface"],
             "middle", family=HEADLINE, size=33)
     wf.text(c, 180, 460, "right now", "headlineMedium", wf.C["onSurface"],
@@ -200,7 +221,17 @@ def home_empty_frames():
     return fr + [(rest, 1200), (rest, 1200)]
 
 
-MOTION = {"00w_welcome": welcome_frames, "00_home_empty": home_empty_frames}
+def can_drink_intro_frames():
+    """Can-boy shakes the held bean, a continuous ±15° rock rather than a
+    one-off idle wiggle -- it's the page's whole reason for a GIF, not a
+    background detail."""
+    n, ms = 24, 60
+    return [(can_drink_intro(bean_angle=15 * math.sin(2 * math.pi * i / n)), ms)
+            for i in range(n)]
+
+
+MOTION = {"00w_welcome": welcome_frames, "00_home_empty": home_empty_frames,
+          "-1w_can_drink_intro": can_drink_intro_frames}
 
 
 def build_gif(name: str, frames_fn):
