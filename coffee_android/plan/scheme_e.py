@@ -83,23 +83,37 @@ def bag_tile(c, x, y, w, h, code, r=None):
 
     A loose bean cluster was the first pass here; a bag reads as *the thing
     on your shelf* rather than raw produce, and it's what every specialty
-    roaster's own product photography actually shows. So the figure is
-    drawn off real roaster-bag conventions rather than invented: a
-    gusseted stand-up pouch, a folded/crimped top seal (the pleat creases),
-    a circular one-way degassing valve, and a labelled patch -- the same
-    cues that make a Stumptown or Blue Bottle bag legible as "coffee" before
-    you read a word on it. Green is the main fill (this app's brand colour),
-    not a photographic kraft-paper brown, since the figure is a generated
-    brand asset, not a product photo.
+    roaster's own product photography actually shows. So the figure keeps
+    real roaster-bag conventions: a gusseted stand-up pouch, a folded/
+    crimped top seal (the pleat creases), and a circular one-way degassing
+    valve -- the cues that make a Stumptown or Blue Bottle bag legible as
+    "coffee" before you read a word on it.
 
-    The label itself takes its cue from two of the roasters already named in
-    -1_can_drink's sample data (Tanat, Terres de Café) rather than from a
-    third invented style -- WebFetch on their sites gives only text (no
-    actual product photo pixels), but what came back was consistent: Terres
-    de Café leans on a linoprint/woodblock-stamp look and an origin marker
-    above the name; Tanat stays minimal, one deliberate mark rather than a
-    busy label. So: a single bold stamped cup silhouette, plus a thin origin
-    rule above it, and nothing else on the patch.
+    Second pass, on rendering technique rather than subject: the first
+    drawn bag was filled, dark-outlined, multi-stroke-weight line art --
+    closer to a Material stock icon than to anything else in this app.
+    can_boy() below already sets this app's own convention for generated
+    figures: white line only, flat, on the brand green, no filled shapes.
+    This bag now follows that same recipe so the two pieces of generated
+    art read as siblings instead of two different illustration systems.
+
+    The old label patch (a filled rounded-rect swatch behind a stamped cup
+    pictogram -- steam wisps, handle, an origin rule) is dropped for the
+    same reason: it was the most Material-icon-shaped part of the figure,
+    it added a third fill colour the rest of the mark doesn't use, and its
+    detail didn't survive down to the 72dp list tile anyway. In its place:
+    the bean's own origin `code`, stamped in bold Fredoka. That's the same
+    idiom can_boy uses to stamp "Can" in its belly from the shipped
+    wordmark, extended here to a per-bean mark -- two bold letters read at
+    any tile size a multi-stroke pictogram can't, and unlike the old cup
+    (identical on every bag) it makes the mark carry real information.
+
+    The figure is also scaled to fill its tile more fully and clipped to
+    the tile's own rounded rect, rather than floating at a fixed size in
+    the middle of a padded field. A tall, narrow pouch silhouette centred
+    in the 152x84 wide grid tile left a lot of dead gradient down both
+    sides; filling closer to the frame -- like a tight product photo, not
+    a centred spot icon -- reads as a photo stand-in rather than a logo.
     """
     r = wf.R_MD if r is None else r
     gid = c.uid("bt")
@@ -111,47 +125,57 @@ def bag_tile(c, x, y, w, h, code, r=None):
                   f'<stop offset="1" stop-color="{b}"/></linearGradient>')
     wf.rect(c, x, y, w, h, f"url(#{gid})", r)
 
+    # clip to the tile's own rounded rect so the figure below can be scaled
+    # up to fill the frame -- like a tight product photo -- without
+    # spilling past the card edge into whatever sits behind it
+    cid = c.uid("btc")
+    c.defs.append(f'<clipPath id="{cid}"><rect x="{x}" y="{y}" width="{w}" '
+                  f'height="{h}" rx="{r}"/></clipPath>')
+
     m = min(w, h)
+    s = m / 100 * 1.3   # fills the tile edge to edge at both tile shapes
     cx0, cy0 = x + w / 2, y + h / 2
-    ink = "#1B4D2A"
-    c.add(f'<g transform="translate({cx0:.1f} {cy0:.1f}) scale({m/100:.3f})">')
+    c.add(f'<g clip-path="url(#{cid})">')
+    c.add(f'<g transform="translate({cx0:.1f} {cy0:.1f}) scale({s:.3f})" '
+          f'fill="none" stroke="#FFFFFF" stroke-linecap="round" '
+          f'stroke-linejoin="round">')
     # body: slightly wider at the base, like a gusseted stand-up pouch
-    c.add(f'<path d="M-24 -30 Q-24 -36 -18 -36 L18 -36 Q24 -36 24 -30 '
-          f'L26 26 Q26 34 18 34 L-18 34 Q-26 34 -26 26 Z" '
-          f'fill="{b}" stroke="{ink}" stroke-width="2.2"/>')
+    c.add('<path d="M-24 -30 Q-24 -36 -18 -36 L18 -36 Q24 -36 24 -30 '
+          'L26 26 Q26 34 18 34 L-18 34 Q-26 34 -26 26 Z" stroke-width="4.4"/>')
     # folded top seal, with pleat creases
-    c.add(f'<path d="M-19 -36 Q-19 -42 -13 -42 L13 -42 Q19 -42 19 -36 Z" '
-          f'fill="{b}" stroke="{ink}" stroke-width="2.2"/>')
-    for lx in (-11, -1, 9):
-        c.add(f'<path d="M{lx} -41 L{lx+3} -37" stroke="{ink}" stroke-width="1.4" '
-              f'stroke-linecap="round"/>')
-    # label patch: a thin origin rule (Terres de Café's flag-strip habit,
-    # generalised rather than an invented flag per bean) over a single bold
-    # stamped cup -- Tanat's one-mark restraint, not a busy label
-    c.add(f'<rect x="-17" y="-6" width="34" height="24" rx="4" fill="{a}" '
-          f'stroke="{ink}" stroke-width="1.6"/>')
-    c.add(f'<path d="M-15 -3.5 h30" stroke="{ink}" stroke-width="1.6" opacity="0.5"/>')
-    c.add(f'<g transform="translate(0 8)" fill="{ink}">')
-    c.add('<path d="M-7.5 -4.2 Q-7.8 -4.6 -7.2 -4.8 L7.2 -4.8 Q7.9 -4.6 7.6 -4.1 '
-          'L6.3 4.4 Q5.9 6.6 3.6 6.6 L-3.6 6.6 Q-5.9 6.6 -6.3 4.4 Z"/>')
-    c.add(f'<path d="M7.4 -3.0 Q11 -3 11 0.4 Q11 3.6 7.1 3.4" fill="none" '
-          f'stroke="{ink}" stroke-width="1.6"/>')
-    for sx in (-3, 1.4):
-        c.add(f'<path d="M{sx} -7.4 Q{sx+1.4} -9.4 {sx} -11.2" fill="none" '
-              f'stroke="{ink}" stroke-width="1.3" stroke-linecap="round" opacity="0.75"/>')
+    c.add('<path d="M-19 -36 Q-19 -42 -13 -42 L13 -42 Q19 -42 19 -36" '
+          'stroke-width="4.4"/>')
+    for lx in (-10, 0, 10):
+        c.add(f'<path d="M{lx} -41 L{lx+3} -37" stroke-width="2.4"/>')
+    # one-way degassing valve -- a ring only, no filled centre dot, so the
+    # figure stays true to can_boy's "line only, nothing solid" rule
+    c.add('<circle cx="10" cy="-20" r="6" stroke-width="3"/>')
     c.add('</g>')
-    # one-way degassing valve
-    c.add(f'<circle cx="10" cy="-20" r="5.4" fill="none" stroke="{ink}" stroke-width="2"/>')
-    c.add(f'<circle cx="10" cy="-20" r="1.8" fill="{ink}"/>')
     c.add('</g>')
+
+    # origin code, stamped in the belly -- can_boy's own idiom (the shipped
+    # wordmark reused in its belly), extended to a per-bean mark here
+    wf.text(c, cx0, cy0 + s * 10, code.upper(), "titleMedium", "#FFFFFF",
+             "middle", family=HEADLINE, size=s * 30, weight=700)
 
 
 # -------------------------------------------------------------- 00 home ----
 def home(beans=None):
     """Home once at least one bean profile exists: the empty state's single
-    CTA (home_empty) is replaced by a grid of bean blocks -- the same card
-    language as -1_can_drink's product blocks (title, meta, a status pill),
-    just carrying bean fields instead of roaster/price/stock.
+    CTA (home_empty) is replaced by full-width bean profile cards in a
+    single column.
+
+    This was chosen over a -1_can_drink-style 2-up block grid after building
+    both (the grid lived here first; see git history / 00_home_1 in past
+    revisions if it needs re-examining). The grid borrows -1_can_drink's
+    language, which fits that page well -- browsing many roasters' products
+    is a discovery task, and a photo-led grid is the right pattern for
+    discovery. Home isn't that: it's a handful of bags someone already
+    owns, not a catalogue to browse. A list trades density (fewer beans per
+    screen) for room per bean -- a bigger bag_tile(), a clearer single tap
+    target, a chevron instead of a same-sized twin -- which is the right
+    trade once the collection itself is small. bean_row() (wireframes.py's
+    pre-scheme-e sketch of this same idea) made the same call originally.
 
     Where -1_can_drink's cards top out with photo() (a plausible stand-in
     for a real roaster photo scraped off the web), these top out with
@@ -172,66 +196,6 @@ def home(beans=None):
         ("Guatemala Huehue", "Washed · Roasted 15 Jul", 1, "GT"),
     ]
     c = wf.Canvas("Home — scheme E")
-    wf.status_bar(c)
-    wf.top_bar(c, "Coffee Can", brand=True, actions=("avatar",))
-    wf.section(c, 112, "Your beans", "Search")
-
-    card_h, photo_h, row_gap = 164, 84, 12
-    for i, (name, meta, sessions, code) in enumerate(beans):
-        cx = wf.GUTTER + (i % 2) * 168
-        cy = 128 + (i // 2) * (card_h + row_gap)
-        wf.card(c, cy, card_h, x=cx, w=152)
-        bag_tile(c, cx, cy, 152, photo_h, code, r=wf.R_LG)
-        wf.rect(c, cx, cy + photo_h - 16, 152, 16, wf.C["cardSurface"])
-        wf.text(c, cx + 12, cy + 100, name, "titleMedium", size=13)
-        wf.text(c, cx + 12, cy + 116, meta, "bodyMedium", wf.C["onSurfaceVariant"], size=11)
-        if sessions:
-            wf.rect(c, cx + 12, cy + 140, 66, 16, wf.C["primaryContainer"], wf.R_XS)
-            label = "1 brew" if sessions == 1 else f"{sessions} brews"
-            wf.text(c, cx + 45, cy + 152, label, "labelSmall",
-                    wf.C["onPrimaryContainer"], "middle")
-        else:
-            wf.rect(c, cx + 12, cy + 140, 92, 16, wf.C["surfaceContainer"], wf.R_XS)
-            wf.text(c, cx + 58, cy + 152, "No brews yet", "labelSmall",
-                    wf.C["onSurfaceVariant"], "middle")
-
-    rows = -(-len(beans) // 2)
-    grid_bottom = 128 + rows * card_h + (rows - 1) * row_gap
-    wf.section(c, grid_bottom + 32, "Brewing activity")
-    wf.card(c, grid_bottom + 46, 140)
-    wf.heatmap(c, 28, grid_bottom + 78, 304)
-
-    # FAB, clear of the bar tips -- adds another 0.5 bean profile
-    fab_cy = grid_bottom + 46 + 140 + 44
-    wf.circle(c, 312, fab_cy, 28, wf.C["primary"], stroke=wf.C.get("primaryOutline"))
-    wf.path(c, f"M300 {fab_cy} h24 M312 {fab_cy - 12} v24", stroke=wf.C["onPrimary"], sw=2.6)
-    wf.gesture_bar(c)
-    return c
-
-
-# ---------------------------------------------------------- 00 home (v1) ---
-def home_list(beans=None):
-    """Alternate take on the populated Home: full-width profile cards in a
-    single column, instead of home()'s 2-up block grid.
-
-    The grid borrows -1_can_drink's language, which fits that page well --
-    browsing many roasters' products is a discovery task, and a photo-led
-    grid is the right pattern for discovery. Home isn't that: it's a
-    handful of bags someone already owns, not a catalogue to browse. A
-    list trades density (fewer beans per screen) for room per bean -- a
-    bigger origin tile, a clearer single tap target, a chevron instead of a
-    same-sized twin -- which is the right trade once the collection itself
-    is small. bean_row() (wireframes.py's pre-scheme-e sketch of this same
-    idea) made the same call; this restores it in scheme E's own type/tokens
-    rather than reusing home()'s grid just for consistency's sake.
-    """
-    beans = beans or [
-        ("Ethiopia Guji Natural", "Natural · Roasted 28 Jul", 4, "ET"),
-        ("Colombia Huila Washed", "Washed · Roasted 20 Jul", 2, "CO"),
-        ("Kenya Nyeri AB", "Washed · Roasted 02 Aug", 0, "KE"),
-        ("Guatemala Huehue", "Washed · Roasted 15 Jul", 1, "GT"),
-    ]
-    c = wf.Canvas("Home · list variant — scheme E")
     wf.status_bar(c)
     wf.top_bar(c, "Coffee Can", brand=True, actions=("avatar",))
     wf.section(c, 112, "Your beans", "Search")
@@ -501,13 +465,71 @@ def can_drink(seed=11):
     return c
 
 
+# ----------------------------------------------------------------- +1 sessions
+def sessions():
+    """+1: every brew session across every bean, sorted by date (newest
+    first) -- the chronological counterpart to Home's per-bean grouping.
+
+    Reuses bean_detail_lower's own session-row convention (wireframes.py:
+    date, method, dose, score and an extraction word on one compact line, a
+    hairline divider, no card chrome) rather than -1_can_drink/Home's card
+    treatment: a log is denser and more numerous than a shelf of beans or
+    products, and card chrome per row would fight that density. The one
+    thing added on top of that existing convention is what a *cross-bean*
+    list needs and a single-bean section doesn't: which bean each row
+    belongs to, shown as a small circular origin monogram -- the same
+    circle+letters idiom already used for the top bar's own avatar -- plus
+    the bean's name.
+
+    Session counts per bean here match home()'s sample brew_count values
+    (Ethiopia 4, Colombia 2, Guatemala 1, Kenya 0) so the two pages agree.
+    """
+    log = [
+        ("30 Jul", "Ethiopia Guji Natural", "ET", "V60", "15.0 g", 4.5, "well extracted"),
+        ("25 Jul", "Ethiopia Guji Natural", "ET", "Kalita", "16.0 g", 4.0, "slightly under"),
+        ("22 Jul", "Colombia Huila Washed", "CO", "V60", "15.5 g", 3.5, "slightly over"),
+        ("18 Jul", "Ethiopia Guji Natural", "ET", "V60", "15.0 g", 4.0, "well extracted"),
+        ("15 Jul", "Guatemala Huehue", "GT", "V60", "15.0 g", 3.0, "slightly under"),
+        ("12 Jul", "Ethiopia Guji Natural", "ET", "Chemex", "20.0 g", 4.5, "well extracted"),
+        ("08 Jul", "Colombia Huila Washed", "CO", "Kalita", "16.0 g", 4.0, "well extracted"),
+    ]
+    c = wf.Canvas("Sessions — scheme E")
+    wf.status_bar(c)
+    wf.top_bar(c, "Sessions", back=True, actions=("sort",))
+    wf.text(c, 20, 112, f"Newest first · {len(log)} sessions", "labelMedium",
+            wf.C["onSurfaceVariant"])
+
+    row_h, row_gap, y0 = 64, 4, 132
+    for i, (date, bean, code, dripper, dose, score, note) in enumerate(log):
+        ry = y0 + i * (row_h + row_gap)
+        wf.circle(c, wf.GUTTER + 20, ry + 24, 20, wf.C["secondaryContainer"])
+        wf.text(c, wf.GUTTER + 20, ry + 29, code, "titleSmall",
+                wf.C["onSecondaryContainer"], "middle")
+        tx = wf.GUTTER + 52
+        wf.text(c, tx, ry + 20, bean, "titleMedium", size=14)
+        wf.text(c, W - wf.GUTTER - 24, ry + 20, date, "bodyMedium",
+                wf.C["onSurfaceVariant"], "end", size=12)
+        wf.text(c, tx, ry + 40, f"{dripper} · {dose} · {score:.1f} · {note}",
+                "bodyMedium", wf.C["onSurfaceVariant"], size=12)
+        wf.path(c, f"M{W-wf.GUTTER-14} {ry+19} l5 5 l-5 5", stroke=wf.C["outline"], sw=1.6)
+        if i < len(log) - 1:
+            wf.line(c, tx, ry + row_h - 8, W - wf.GUTTER, ry + row_h - 8)
+
+    # FAB, clear of the last row -- logs a new session
+    fab_cy = y0 + len(log) * (row_h + row_gap) + 32
+    wf.circle(c, 312, fab_cy, 28, wf.C["primary"], stroke=wf.C.get("primaryOutline"))
+    wf.path(c, f"M300 {fab_cy} h24 M312 {fab_cy - 12} v24", stroke=wf.C["onPrimary"], sw=2.6)
+    wf.gesture_bar(c)
+    return c
+
+
 PAGES = [("00w_welcome.svg", welcome),
          ("00_home.svg", home),
-         ("00_home_1.svg", home_list),
          ("00_home_empty.svg", home_empty),
          ("0.5_bean_profile.svg", bean_profile_empty),
          ("-1w_can_drink_intro.svg", can_drink_intro),
-         ("-1_can_drink.svg", can_drink)]
+         ("-1_can_drink.svg", can_drink),
+         ("+1_sessions.svg", sessions)]
 
 # ----------------------------------------------------------------- motion ---
 def _ease_out_cubic(t: float) -> float:
