@@ -10,6 +10,7 @@ Pages live in screenshots/scheme-e/.
 Numbering follows the swipe axis, centred on Home:
 
     00w   welcome / splash — off-axis, shown once at cold launch
+    0.5   add-a-bean form — off-axis, reached by tapping Add bean from Home
     -2    <- swipe left     -1    <- swipe left
     00    HOME
     +1    swipe right ->    +2    swipe right ->
@@ -100,6 +101,58 @@ def home_empty(headline_font=None, shake=0.0):
     wf.gesture_bar(c)
     return c
 
+
+# --------------------------------------------------------- 0.5 add-a-bean ---
+def bean_profile_empty():
+    """The blank "add a bean" form: what 02/02b (bean_detail /
+    bean_detail_lower in wireframes.py) look like before any data exists.
+    Reached by tapping Add bean from Home (00_home_empty's CTA, or the top
+    bar's add action once beans exist).
+
+    02b buries its "Scan label" action as one more tile in the Documents
+    grid, well down the second scroll page — fine for a bean that already
+    has data, but for a brand-new one that tile *is* the fastest way to fill
+    in the rest of the form, so it moves to the page's first action instead
+    of competing with fields the user hasn't touched yet.
+
+    02's photo hero has nothing to show yet either (no bag has been scanned),
+    so that space becomes the scan prompt rather than staying empty.
+    """
+    c = wf.Canvas("Bean profile — empty (0.5)")
+    wf.status_bar(c)
+    wf.top_bar(c, "New bean", back=True)
+
+    wf.rect(c, wf.GUTTER, 104, W - 2 * wf.GUTTER, 140, wf.C["secondaryContainer"], wf.R_LG)
+    icon_cy = 104 + 54
+    c.add(f'<g transform="translate(0 {icon_cy - 263:.1f})">')
+    wf.rect(c, 156, 246, 48, 34, "none", wf.R_SM, stroke=wf.C["onSecondaryContainer"], sw=2)
+    wf.circle(c, 180, 263, 9, "none", stroke=wf.C["onSecondaryContainer"], sw=2)
+    c.add("</g>")
+    wf.text(c, 180, 104 + 100, "Scan label", "titleMedium",
+            wf.C["onSecondaryContainer"], "middle")
+    wf.text(c, 180, 104 + 122, "Point your camera at the bag to fill this in",
+            "labelSmall", wf.C["onSecondaryContainer"], "middle")
+
+    wf.text(c, 180, 268, "or enter it by hand", "labelMedium", wf.C["outline"], "middle")
+
+    wf.textfield(c, wf.GUTTER, 286, W - 2 * wf.GUTTER, "Bean name", "")
+    rows = (("Variety", "", "Altitude", ""),
+            ("Roaster", "", "Producer", ""),
+            ("Process", "", "Roast date", ""))
+    for i, (l1, v1, l2, v2) in enumerate(rows):
+        ry = 374 + i * 52
+        wf.field(c, 20, ry, 145, l1, v1, placeholder=True)
+        wf.field(c, 195, ry, 145, l2, v2, placeholder=True)
+
+    wf.section(c, 546, "Flavor", "Set manually")
+    wf.card(c, 560, 90)
+    wf.text(c, 180, 598, "Log a brew to start building this bean's",
+            "bodyMedium", wf.C["onSurfaceVariant"], "middle")
+    wf.text(c, 180, 618, "flavor profile", "bodyMedium", wf.C["onSurfaceVariant"], "middle")
+
+    wf.button(c, wf.GUTTER, 674, W - 2 * wf.GUTTER, "Save bean")
+    wf.gesture_bar(c)
+    return c
 
 
 # ----------------------------------------------------------------- can-boy --
@@ -256,6 +309,7 @@ def can_drink(seed=11):
 
 PAGES = [("00w_welcome.svg", welcome),
          ("00_home_empty.svg", home_empty),
+         ("0.5_bean_profile.svg", bean_profile_empty),
          ("-1w_can_drink_intro.svg", can_drink_intro),
          ("-1_can_drink.svg", can_drink)]
 
