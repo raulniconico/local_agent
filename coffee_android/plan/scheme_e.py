@@ -18,7 +18,7 @@ A page's state is a suffix on the same number (00_home, 00_home_empty), since
 states are the same destination, not a different one.
 """
 from __future__ import annotations
-import math, pathlib, sys, subprocess, tempfile
+import math, pathlib, random, sys, subprocess, tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -189,9 +189,75 @@ def can_drink_intro(bean_angle=0.0):
     return c
 
 
+# --------------------------------------------------------------- -1 drink ---
+# The real Can Drink catalogue -- where "Start" on the -1w intro lands. Same
+# card pattern as wireframes.catalogue() (the pre-scheme-e sketch of this
+# page, still rendered per-variant via PAGES in that file), just restyled
+# through scheme E's tokens/type and, per the brief, showing six roasters'
+# beans instead of four -- picked at random from a larger pool each run, the
+# way the real app would rotate what's featured.
+_BEAN_POOL = (
+    ("Kenya AA Karatu", "Lomi · Kenya", "€16 · 250 g", True, True),
+    ("Panama Geisha", "Tanat · Panama", "€42 · 100 g", False, True),
+    ("Brazil Cerrado", "Coutume · Brazil", "€13 · 250 g", False, False),
+    ("Guatemala Huehue", "Belleville · Guatemala", "€15 · 250 g", False, True),
+    ("Ethiopia Guji", "Terres de Café · Ethiopia", "€17 · 250 g", True, True),
+    ("Colombia Pink Bourbon", "La Cabra · Colombia", "€19 · 250 g", False, True),
+    ("Rwanda Nyungwe", "Café Lomi · Rwanda", "€14 · 250 g", False, False),
+    ("Yemen Haraaz", "Cafés Méo · Yemen", "€38 · 100 g", True, True),
+    ("Honduras Marcala", "Hexagon · Honduras", "€12 · 250 g", False, True),
+    ("Costa Rica Tarrazú", "Dak · Costa Rica", "€16 · 250 g", False, True),
+)
+
+
+def can_drink(seed=11):
+    """The Can Drink catalogue, six beans deep. `seed` pins the random six
+    for a reproducible build; drop it for a genuinely different six each run."""
+    c = wf.Canvas("Can Drink — scheme E")
+    wf.status_bar(c)
+    wf.top_bar(c, "Can Drink", back=True, actions=("sort",))
+    wf.rect(c, wf.GUTTER, 104, W - 2 * wf.GUTTER, 56, wf.C["surfaceContainer"], 28)
+    wf.circle(c, 44, 132, 8, "none", stroke=wf.C["onSurfaceVariant"], sw=2)
+    wf.line(c, 50, 138, 56, 144, wf.C["onSurfaceVariant"], 2)
+    wf.text(c, 72, 138, "Search roasters and beans", "bodyLarge", wf.C["onSurfaceVariant"])
+    x = wf.chip(c, wf.GUTTER, 168, "In stock", selected=True)
+    x = wf.chip(c, x, 168, "Roaster", menu=True)
+    wf.chip(c, x, 168, "Origin", menu=True)
+
+    beans = random.Random(seed).sample(_BEAN_POOL, 6)
+    wf.text(c, 20, 236, f"Newest first · {len(_BEAN_POOL) * 7} beans", "labelMedium",
+            wf.C["onSurfaceVariant"])
+
+    card_h, photo_h, row_gap = 164, 84, 12
+    for i, (name, roaster, price, new, stock) in enumerate(beans):
+        cx = wf.GUTTER + (i % 2) * 168
+        cy = 248 + (i // 2) * (card_h + row_gap)
+        wf.card(c, cy, card_h, x=cx, w=152)
+        wf.photo(c, cx, cy, 152, photo_h, r=wf.R_LG)
+        wf.rect(c, cx, cy + photo_h - 16, 152, 16, wf.C["cardSurface"])
+        if new:
+            wf.rect(c, cx + 10, cy + 8, 42, 18, wf.C["tertiary"], 9)
+            wf.text(c, cx + 31, cy + 21, "New", "labelSmall", wf.C["onTertiary"], "middle")
+        wf.text(c, cx + 12, cy + 100, name, "titleMedium", size=13)
+        wf.text(c, cx + 12, cy + 116, roaster, "bodyMedium", wf.C["onSurfaceVariant"], size=11)
+        wf.text(c, cx + 12, cy + 132, price, "bodyMedium", wf.C["onSurfaceVariant"], size=11)
+        if stock:
+            wf.rect(c, cx + 12, cy + 140, 66, 16, wf.C["primaryContainer"], wf.R_XS)
+            wf.text(c, cx + 45, cy + 152, "In stock", "labelSmall",
+                    wf.C["onPrimaryContainer"], "middle")
+        else:
+            wf.rect(c, cx + 12, cy + 140, 74, 16, wf.C["surfaceContainer"], wf.R_XS)
+            wf.text(c, cx + 49, cy + 152, "Sold out", "labelSmall",
+                    wf.C["onSurfaceVariant"], "middle")
+        wf.ext_link(c, cx + 128, cy + 141)
+    wf.gesture_bar(c)
+    return c
+
+
 PAGES = [("00w_welcome.svg", welcome),
          ("00_home_empty.svg", home_empty),
-         ("-1w_can_drink_intro.svg", can_drink_intro)]
+         ("-1w_can_drink_intro.svg", can_drink_intro),
+         ("-1_can_drink.svg", can_drink)]
 
 # ----------------------------------------------------------------- motion ---
 def _ease_out_cubic(t: float) -> float:
