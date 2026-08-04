@@ -5,7 +5,7 @@ Canvas is 360 x 800 dp: 1 SVG unit == 1 dp on a baseline Android phone, so
 every number in the output is a buildable spec rather than a drawing.
 """
 from __future__ import annotations
-import math, pathlib, html
+import math, pathlib, html, re
 
 OUT = pathlib.Path(__file__).resolve().parent / "screenshots"
 
@@ -14,25 +14,41 @@ STATUS_H, BAR_H, GESTURE_H = 24, 64, 24
 GUTTER = 16
 
 # ---------------------------------------------------------------- tokens ----
+# The brand green at M3 tone 40: hue 144.3 deg, i.e. dHue 0.1 from the logo
+# disc, so it reads as the same green — but at 6.43:1 behind white instead of
+# the disc's unusable 2.22:1.
 C = dict(
-    primary="#B4401F", onPrimary="#FFFFFF",
-    primaryContainer="#FFDFD2", onPrimaryContainer="#3E1207",
+    primary="#196D2E", onPrimary="#FFFFFF", primaryText="#196D2E",
+    primaryContainer="#C8ECC9", onPrimaryContainer="#002602",
     secondary="#6B5B4E", secondaryContainer="#F0E5DA", onSecondaryContainer="#2A211A",
-    tertiary="#2E6B4E", tertiaryContainer="#CFE9DA", onTertiaryContainer="#0B3F1E",
-    error="#A32A1D", errorContainer="#FFDAD4",
+    # caramel, not ember: ember sits 6.8 deg of hue from `error`, so a "New"
+    # badge and an error badge would read as the same colour.
+    tertiary="#8B5000", onTertiary="#FFFFFF",
+    tertiaryContainer="#FFDCBF", onTertiaryContainer="#301B00",
+    error="#AB3426", errorContainer="#FEDBD3",
     surface="#FAF7F2", onSurface="#211A15", onSurfaceVariant="#5C5147",
-    cardSurface="#FFFFFF", surfaceContainer="#F3ECE3", surfaceVariant="#EFE7DC",
+    cardSurface="#FFFFFF", surfaceContainerLow="#F9F3EA",
+    surfaceContainer="#F3ECE3", surfaceContainerHigh="#E9E1D7",
+    surfaceContainerHighest="#E0D9CF", surfaceVariant="#EFE7DC",
     outline="#8C7F72", outlineVariant="#DFD5C9",
-    scrim="#1A120C",
+    inverseSurface="#39342D", inverseOnSurface="#F6F0E7", inversePrimary="#89D890",
+    scrim="#1A120C", primaryOutline=None,
+    camGround="#241C16", cardInk="#FFF6EE", cardInkDim="#E4D3C4",
+    radarInk="#FFB894",
     # dark (camera surfaces)
-    dSurface="#14100D", dOnSurface="#F2EAE1", dOnSurfaceVariant="#C6B7A9",
-    dPrimary="#FF8A5C", dContainer="#1E1815", dOutline="#3A302A",
-    # viz
-    vizInk="#5C5147", vizGrid="#DFD5C9", vizTrack="#EFE7DC", vizSeries="#B4401F",
-    vizUnder="#2A6FD6", vizOver="#C2410C", vizBand="#EFE7DC",
+    dSurface="#1B1712", dOnSurface="#E7E2DB", dOnSurfaceVariant="#CEC5BA",
+    dPrimary="#89D890", dContainer="#25211B", dOutline="#4D463C",
+    # viz — primary means "touch this" or "on target", NEVER "this much of a
+    # thing", so quantitative series stay roast brown.
+    vizInk="#5C5147", vizGrid="#DFD5C9", vizTrack="#EFE7DC", vizSeries="#7E4A2E",
+    vizUnder="#2A6FD6", vizWell="#196D2E", vizOver="#C2410C", vizBand="#EFE7DC",
 )
+# Logo artwork only. Never referenced by a UI role — it is 2.08:1 on paper.
+BRAND_MARK = "#34C759"
+
 # roast ramp for the activity heatmap: t0 is a NEUTRAL warm grey (absence),
-# t1..t4 descend monotonically in lightness so the scale survives CVD.
+# t1..t4 descend monotonically in lightness so the scale survives CVD. Stays
+# warm deliberately — green brand plus roast data reads as one material.
 SEQ = ["#E8E1D7", "#F2C9A8", "#E09A62", "#C0651F", "#7E340D"]
 
 FD = "Fraunces,'Noto Serif Display',Georgia,serif"       # display / headline
@@ -47,6 +63,9 @@ T = dict(
     labelLarge=(14, 600, FU), labelMedium=(12, 600, FU), labelSmall=(11, 500, FU),
 )
 R_XS, R_SM, R_MD, R_LG, R_XL = 4, 8, 12, 16, 28
+# read at call time so variants can swap the shape language
+SHAPE = dict(card=R_LG, sheet=R_XL, chip=R_SM, thumb=R_MD, field=R_SM)
+FIELD_STYLE = "rule"      # "rule" = hairline score sheet | "capsule" = soft slot
 
 FLAVOR = ["Fruity", "Floral", "Tea-like", "Sweet", "Nutty/Cocoa", "Spices",
           "Roasted", "Cereal", "Green/Veg.", "Sour", "Fermented"]
@@ -130,18 +149,48 @@ def gesture_bar(c, dark=False):
          opacity=0.5)
 
 
-def crescent(c, cx, cy, size, fill):
-    """Brand mark: a filled crescent with the bean's centre crease as negative space."""
-    mid = c.uid("cres")
-    r = size / 2
-    c.defs.append(
-        f'<mask id="{mid}"><rect x="{cx-r-2}" y="{cy-r-2}" width="{size+4}" '
-        f'height="{size+4}" fill="#fff"/>'
-        f'<circle cx="{cx + r*0.42}" cy="{cy - r*0.30}" r="{r*0.86}" fill="#000"/>'
-        f'</mask>')
-    c.add(f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{fill}" mask="url(#{mid})"/>')
-    path(c, f"M{cx-r*0.62} {cy+r*0.52} Q{cx-r*0.05} {cy+r*0.02} "
-            f"{cx+r*0.30} {cy+r*0.66}", stroke=fill, sw=size * 0.075, opacity=0.55)
+_ICON = pathlib.Path("/home/zixing/PycharmProjects/agent/coffee/src/coffee_can/"
+                     "assets/icon.svg")
+
+
+def _logo_paths():
+    """Split the shipped icon into its two lettering groups.
+
+    In the 128-unit viewBox the wordmark 'Can' is the group translated to
+    y=66; the 'Brewing chemist' tagline is the group translated to y=87. The
+    tagline is illegible below ~32dp and its corners fall outside the 66dp
+    adaptive-icon safe zone, so every small lockup drops it.
+    """
+    src = _ICON.read_text()
+    paths = re.findall(r'<path [^>]*/>', src)
+    word = [p for p in paths if "66.000" in p]
+    tag = [p for p in paths if "87.000" in p]
+    return word, tag
+
+
+_LOGO_WORD, _LOGO_TAG = _logo_paths()
+
+
+def logo(c, cx, cy, size, tagline=True, disc=True):
+    """The shipped mark, unmodified. `tagline=False` is the small lockup."""
+    s = size / 128.0
+    # 'Can' alone sits high in the viewBox because the tagline balanced it
+    shift = 0 if tagline else 7
+    c.add(f'<g transform="translate({cx - size/2} {cy - size/2}) scale({s:.5f}) '
+          f'translate(0 {shift})">')
+    if disc:
+        c.add(f'<circle cx="64" cy="64" r="64" fill="{BRAND_MARK}"/>')
+    c.add('<g fill="#FFFFFF">' + "".join(_LOGO_WORD)
+          + ("".join(_LOGO_TAG) if tagline else "") + '</g>')
+    c.add("</g>")
+
+
+def sparkle(c, cx, cy, r, fill):
+    """Neutral AI glyph. The brand mark does not belong on a consent screen."""
+    path(c, f"M{cx} {cy-r} Q{cx+r*0.18} {cy-r*0.18} {cx+r} {cy} "
+            f"Q{cx+r*0.18} {cy+r*0.18} {cx} {cy+r} "
+            f"Q{cx-r*0.18} {cy+r*0.18} {cx-r} {cy} "
+            f"Q{cx-r*0.18} {cy-r*0.18} {cx} {cy-r} Z", fill=fill)
 
 
 def top_bar(c, title, back=False, actions=(), brand=False, ink=None, bg=None):
@@ -153,9 +202,6 @@ def top_bar(c, title, back=False, actions=(), brand=False, ink=None, bg=None):
     if back:
         path(c, f"M{GUTTER+16} {cy-7} l-7 7 l7 7", stroke=ink, sw=2)
         tx = GUTTER + 40
-    elif brand:
-        crescent(c, GUTTER + 12, cy, 24, C["primary"])
-        tx = GUTTER + 34
     text(c, tx, cy + 8, title,
          "titleLarge" if brand else ("headlineSmall" if not back else "titleMedium"),
          ink)
@@ -184,11 +230,11 @@ def _bar_action(c, x, cy, kind, ink):
 def section(c, y, label, action=None):
     text(c, 20, y, label, "titleSmall", C["onSurface"])
     if action:
-        text(c, W - 20, y, action, "labelLarge", C["primary"], "end")
+        text(c, W - 20, y, action, "labelLarge", C["primaryText"], "end")
 
 
-def card(c, y, h, x=GUTTER, w=W - 2 * GUTTER, r=R_LG, fill=None):
-    rect(c, x, y, w, h, fill or C["cardSurface"], r)
+def card(c, y, h, x=GUTTER, w=W - 2 * GUTTER, r=None, fill=None):
+    rect(c, x, y, w, h, fill or C["cardSurface"], SHAPE["card"] if r is None else r)
     return y + h
 
 
@@ -198,7 +244,8 @@ def button(c, x, y, w, label, kind="filled", enabled=True, h=48):
     if kind == "filled":
         fill = C["primary"] if enabled else C["surfaceContainer"]
         ink = C["onPrimary"] if enabled else C["outline"]
-        rect(c, x, vy, w, vh, fill, vh / 2)
+        rect(c, x, vy, w, vh, fill, vh / 2,
+             stroke=C.get("primaryOutline") if enabled else None)
     elif kind == "tonal":
         fill, ink = C["secondaryContainer"], C["onSecondaryContainer"]
         rect(c, x, vy, w, vh, fill, R_SM)
@@ -212,30 +259,36 @@ def button(c, x, y, w, label, kind="filled", enabled=True, h=48):
         ink = C["outline"]
         rect(c, x, vy, w, vh, C["surfaceContainer"], R_SM)
     else:  # text
-        ink = C["primary"]
+        ink = C["primaryText"]
     text(c, x + w / 2, vy + 25, label, "labelLarge", ink, "middle")
 
 
 def field(c, x, y, w, label, value, placeholder=False):
     """The score-sheet motif: label above a hairline rule, value below."""
+    if FIELD_STYLE == "capsule":
+        text(c, x, y, label, "labelMedium", C["onSurfaceVariant"], letter=0.4)
+        rect(c, x, y + 8, w, 30, C["surfaceContainer"], 15)
+        text(c, x + 12, y + 29, value if value else "—", "bodyLarge",
+             C["outline"] if (placeholder or not value) else C["onSurface"])
+        return
     text(c, x, y, label, "labelMedium", C["onSurfaceVariant"], letter=0.4)
-    line(c, x, y + 8, x + w, y + 8)
+    line(c, x, y + 8, x + w, y + 8, C["outline"])
     text(c, x, y + 30, value if value else "—", "bodyLarge",
          C["outline"] if (placeholder or not value) else C["onSurface"])
 
 
 def textfield(c, x, y, w, label, value, h=56, required=False, focused=False):
     """M3 outlined text field, 56dp."""
-    stroke = C["primary"] if focused else C["outline"]
+    stroke = C["primaryText"] if focused else C["outline"]
     rect(c, x, y, w, h, C["cardSurface"], R_SM, stroke=stroke, sw=2 if focused else 1)
     rect(c, x + 12, y - 6, len(label) * 6.6 + 8, 12, C["cardSurface"])
     text(c, x + 16, y + 4, label + ("*" if required else ""), "labelMedium",
-         C["primary"] if focused else C["onSurfaceVariant"])
+         C["primaryText"] if focused else C["onSurfaceVariant"])
     text(c, x + 16, y + 36, value if value else "—", "bodyLarge",
          C["onSurface"] if value else C["outline"])
     if focused:
         line(c, x + 16 + len(value) * 8.2, y + 22, x + 16 + len(value) * 8.2, y + 42,
-             C["primary"], 2)
+             C["primaryText"], 2)
 
 
 def chip(c, x, y, label, selected=False, menu=False, h=48):
@@ -354,21 +407,31 @@ def heatmap(c, x, y, w, weeks=21, cell=11, gap=2):
 
 
 def extraction(c, x, y, w, value, readout, unset=False):
-    """Bipolar meter. Hue encodes direction only; distance encodes severity."""
-    th, cy = 12, y + 6
-    rect(c, x, y, w, th, C["vizTrack"], th / 2)
-    b0, b1 = x + w / 3, x + 2 * w / 3
-    rect(c, b0, y, b1 - b0, th, C["vizBand"], 0)
-    line(c, b0, y, b0, y + th, C["outline"], 1)
-    line(c, b1, y, b1, y + th, C["outline"], 1)
+    """Two builds. Schemes with vizDeviation get the monochrome one: the target
+    band is the only saturated green, so deviation can never render failure in
+    the success colour. Direction is position + the worded readout."""
+    th, third = 12, w / 3
     mid = x + w / 2
-    line(c, mid, y - 3, mid, y + th + 3, C["outline"], 1)
-    if not unset:
-        vx = mid + value * (w / 2)
-        col = C["vizUnder"] if value < 0 else C["vizOver"]
-        rect(c, min(mid, vx), y, abs(vx - mid), th, col, 0)
-        rect(c, vx - 2, y - 4, 4, th + 8, C["surface"], 3)
-        rect(c, vx - 2, y - 4, 4, th + 8, C["onSurface"], 3)
+    if C.get("vizDeviation"):
+        rect(c, x, y, w, th, C["vizTrack"], th / 2)
+        rect(c, x + third, y, third, th, C["vizBand"])
+        for bx in (x + third, x + 2 * third):
+            line(c, bx, y, bx, y + th, C["vizBandEdge"], 1.5)
+        line(c, mid, y - 3, mid, y + th + 3, C["vizBandEdge"], 1.5)
+        if not unset:
+            vx = mid + value * (w / 2)
+            rect(c, min(mid, vx), y, abs(vx - mid), th, C["vizDeviation"])
+            rect(c, vx - 3, y - 5, 6, th + 10, C["surface"], 3)
+            rect(c, vx - 1.5, y - 3.5, 3, th + 7, C["vizThumb"], 1.5)
+    else:
+        for i, col in enumerate((C["vizUnder"], C["vizWell"], C["vizOver"])):
+            rect(c, x + i * third, y, third, th, col)
+        rect(c, x, y, th / 2, th, C["vizUnder"], th / 2)
+        rect(c, x + w - th / 2, y, th / 2, th, C["vizOver"], th / 2)
+        if not unset:
+            vx = mid + value * (w / 2)
+            rect(c, vx - 3, y - 5, 6, th + 10, C["surface"], 3)
+            rect(c, vx - 1.5, y - 3.5, 3, th + 7, C["onSurface"], 1.5)
     text(c, x, y - 12, readout, "labelLarge",
          C["outline"] if unset else C["onSurface"])
     for lx, an, lab, hot in ((x, "start", "Under", value < -1 / 3 and not unset),
@@ -406,7 +469,7 @@ def stars(c, x, y, score, size=24, gap=8):
         cid = c.uid("st")
         c.defs.append(f'<clipPath id="{cid}"><rect x="{cx-r}" y="{cy-r-1}" '
                       f'width="{2*r*fill}" height="{2*r+2}"/></clipPath>')
-        c.add(f'<path d="{d}" fill="{C["primary"]}" clip-path="url(#{cid})"/>')
+        c.add(f'<path d="{d}" fill="{C["primaryText"]}" clip-path="url(#{cid})"/>')
     rx = x + 5 * (size + gap) + 4
     text(c, rx, y + size / 2 + 6, "Not rated" if unset else f"{score:.1f} / 5",
          "labelLarge", C["outline"] if unset else C["onSurface"])
@@ -516,7 +579,7 @@ def home():
     idx = sorted(range(11), key=lambda i: -BEAN_FLAVOR[i])[:4]
     flavor_bars(c, 28, 648, 292, BEAN_FLAVOR, rows=idx, gutter=76)
     # FAB, clear of the bar tips — the only pill-shaped thing on the screen
-    circle(c, 312, 716, 28, C["primary"])
+    circle(c, 312, 716, 28, C["primary"], stroke=C.get("primaryOutline"))
     path(c, "M300 716 h24 M312 704 v24", stroke=C["onPrimary"], sw=2.6)
     gesture_bar(c)
     return c
@@ -526,9 +589,7 @@ def home_empty():
     c = Canvas("Home · empty state")
     status_bar(c)
     top_bar(c, "Coffee Can", brand=True, actions=("avatar",))
-    crescent(c, 180, 296, 96, C["primary"])
-    c.body[-2] = c.body[-2].replace(f'fill="{C["primary"]}"',
-                                    f'fill="{C["primaryContainer"]}"')
+    logo(c, 180, 288, 96)          # full lockup, 96dp: the tagline's one home
     text(c, 180, 396, "No beans yet", "headlineMedium", C["onSurface"], "middle")
     for i, ln in enumerate(("Add the bag you're brewing this week and",
                             "start keeping the log.")):
@@ -609,7 +670,7 @@ def bean_detail_lower():
         text(c, 20, ry + 20, d, "titleMedium")
         text(c, 20, ry + 40, sub, "bodyMedium", C["onSurfaceVariant"], size=13)
         line(c, 20, ry + 48, 340, ry + 48)
-    circle(c, 312, 712, 28, C["primary"])
+    circle(c, 312, 712, 28, C["primary"], stroke=C.get("primaryOutline"))
     path(c, "M300 712 h24 M312 700 v24", stroke=C["onPrimary"], sw=2.6)
     gesture_bar(c)
     return c
@@ -624,7 +685,7 @@ def scan_states():
     for i, x in enumerate((32, 128)):
         rect(c, x, 152, 88, 112, C["surfaceContainer"], 2)
     rect(c, 32, 152, 296, 112, C["surface"], R_SM, opacity=0.72)
-    spinner(c, 180, 208, 16, C["primary"])
+    spinner(c, 180, 208, 16, C["primaryText"])
     text(c, 180, 250, "Reading the label…", "bodyMedium", C["onSurfaceVariant"],
          "middle")
     text(c, 180, 288, "You can keep typing while this runs", "labelSmall",
@@ -750,9 +811,9 @@ def brew_session_eval():
          C["onSurfaceVariant"])
     text(c, 20, 716, "Saved automatically", "labelSmall", C["outline"])
     # M3 snackbar — replaces the fake full-width "Saved ✓" button
-    rect(c, GUTTER, 728, W - 2 * GUTTER, 48, C["onSurface"], R_XS)
-    text(c, 32, 757, "Session saved", "bodyMedium", C["surface"])
-    text(c, 316, 757, "Undo", "labelLarge", C["dPrimary"], "end")
+    rect(c, GUTTER, 728, W - 2 * GUTTER, 48, C["inverseSurface"], R_XS)
+    text(c, 32, 757, "Session saved", "bodyMedium", C["inverseOnSurface"])
+    text(c, 316, 757, "Undo", "labelLarge", C["inversePrimary"], "end")
     gesture_bar(c)
     return c
 
@@ -768,8 +829,8 @@ def stage_editor():
     text(c, 20, 296, "Temperature", "labelMedium", C["onSurfaceVariant"], letter=0.4)
     text(c, 340, 300, "92 °C", "titleMedium", C["onSurface"], "end", family=FM)
     rect(c, 20, 318, 320, 6, C["vizTrack"], 3)
-    rect(c, 20, 318, 262, 6, C["primary"], 3)
-    circle(c, 282, 321, 11, C["primary"])
+    rect(c, 20, 318, 262, 6, C["primaryText"], 3)
+    circle(c, 282, 321, 11, C["primaryText"])
     for v, x in ((-10, 20), (110, 340)):
         text(c, x, 346, f"{v} °C", "labelSmall", C["onSurfaceVariant"],
              "start" if v < 0 else "end")
@@ -807,8 +868,8 @@ def flavor_sliders():
         text(c, 340, ry + 4, f"{v:.1f}", "labelLarge", C["onSurfaceVariant"], "end",
              family=FM)
         rect(c, 20, ry + 14, 320, 6, C["vizTrack"], 3)
-        rect(c, 20, ry + 14, v / 5 * 320, 6, C["primary"], 3)
-        circle(c, 20 + v / 5 * 320, ry + 17, 11, C["primary"])
+        rect(c, 20, ry + 14, v / 5 * 320, 6, C["vizSeries"], 3)
+        circle(c, 20 + v / 5 * 320, ry + 17, 11, C["vizSeries"])
     text(c, 20, 748, "Each row is a 48 dp target · values 0–5, step 0.1",
          "labelSmall", C["outline"])
     gesture_bar(c)
@@ -839,7 +900,7 @@ def ask_ai():
     line(c, 32, 552, 328, 552)
     for i, (n, s) in enumerate(((1, "93 °C · 50 g · 0:30 · circling"),
                                 (2, "92 °C · 200 g · 1:45 · centre"))):
-        text(c, 32, 576 + i * 22, str(n), "labelMedium", C["primary"], family=FM)
+        text(c, 32, 576 + i * 22, str(n), "labelMedium", C["primaryText"], family=FM)
         text(c, 50, 576 + i * 22, s, "bodyMedium", C["onSurface"])
     text(c, 32, 634, "A starting point, not a rule — edit anything.", "labelSmall",
          C["onSurfaceVariant"])
@@ -856,7 +917,7 @@ def ask_ai_states():
     text(c, 20, 124, "Working", "titleSmall")
     card(c, 136, 200)
     button(c, 32, 152, 296, "Getting a suggestion…", "disabled")
-    spinner(c, 180, 250, 14, C["primary"])
+    spinner(c, 180, 250, 14, C["primaryText"])
     text(c, 180, 296, "Usually about five seconds", "bodyMedium",
          C["onSurfaceVariant"], "middle")
 
@@ -899,16 +960,16 @@ def catalogue():
         photo(c, cx, cy, 152, 114, r=R_LG)
         rect(c, cx, cy + 98, 152, 16, C["cardSurface"])
         if new:
-            rect(c, cx + 10, cy + 10, 42, 22, C["primaryContainer"], 11)
-            text(c, cx + 31, cy + 25, "New", "labelSmall", C["onPrimaryContainer"],
+            rect(c, cx + 10, cy + 10, 42, 22, C["tertiary"], 11)
+            text(c, cx + 31, cy + 25, "New", "labelSmall", C["onTertiary"],
                  "middle")
         text(c, cx + 12, cy + 136, n, "titleMedium", size=15)
         text(c, cx + 12, cy + 156, r, "bodyMedium", C["onSurfaceVariant"], size=12)
         text(c, cx + 12, cy + 174, p, "bodyMedium", C["onSurfaceVariant"], size=12)
         if stock:
-            rect(c, cx + 12, cy + 186, 66, 22, C["tertiaryContainer"], R_XS)
+            rect(c, cx + 12, cy + 186, 66, 22, C["primaryContainer"], R_XS)
             text(c, cx + 45, cy + 201, "In stock", "labelSmall",
-                 C["onTertiaryContainer"], "middle")
+                 C["onPrimaryContainer"], "middle")
         else:
             rect(c, cx + 12, cy + 186, 74, 22, C["surfaceContainer"], R_XS)
             text(c, cx + 49, cy + 201, "Sold out", "labelSmall", C["onSurfaceVariant"],
@@ -923,7 +984,7 @@ def catalogue():
 # ======================================================= 08 · Camera =======
 def camera():
     c = Canvas("Camera capture", bg=C["dSurface"])
-    rect(c, 0, 0, W, H, "#241C16")
+    rect(c, 0, 0, W, H, C["camGround"])
     status_bar(c, dark=True)
     rect(c, 0, 0, W, 96, C["scrim"], opacity=0.45)
     rect(c, 0, 620, W, 180, C["scrim"], opacity=0.45)
@@ -976,7 +1037,7 @@ def profile():
     top_bar(c, "Profile", back=True)
     circle(c, 180, 168, 44, C["secondaryContainer"])
     text(c, 180, 182, "Z", "displaySmall", C["onSecondaryContainer"], "middle")
-    circle(c, 210, 198, 18, C["primary"])
+    circle(c, 210, 198, 18, C["primary"], stroke=C.get("primaryOutline"))
     path(c, "M204 200 l4 4 l8 -9", stroke=C["onPrimary"], sw=2)
     c.body[-1] = c.body[-1].replace("M204 200 l4 4 l8 -9",
                                     "M204 202 l7 -7 M204 202 v3 h3")
@@ -1024,16 +1085,16 @@ def share_card():
                   f'<stop offset="1" stop-color="{C["scrim"]}" stop-opacity="0.94"/>'
                   f'</linearGradient>')
     rect(c, X, Y, CW, CH, f"url(#{gid})")
-    text(c, X + 20, Y + 44, "Ethiopia Guji", "headlineSmall", "#FFF6EE", size=24)
-    text(c, X + 20, Y + 70, "Natural", "headlineSmall", "#FFF6EE", size=24)
-    text(c, X + 20, Y + 92, "Guji, Ethiopia · Belleville", "labelSmall", "#E4D3C4")
-    radar11(c, X + CW / 2, Y + 196, 62, BEAN_FLAVOR, "#FFB894", "#E4D3C4",
+    text(c, X + 20, Y + 44, "Ethiopia Guji", "headlineSmall", C["cardInk"], size=24)
+    text(c, X + 20, Y + 70, "Natural", "headlineSmall", C["cardInk"], size=24)
+    text(c, X + 20, Y + 92, "Guji, Ethiopia · Belleville", "labelSmall", C["cardInkDim"])
+    radar11(c, X + CW / 2, Y + 196, 62, BEAN_FLAVOR, C["radarInk"], C["cardInkDim"],
             fill_op=0.20)
-    line(c, X + 20, Y + 288, X + CW - 20, Y + 288, "#E4D3C4", 0.75)
-    text(c, X + 20, Y + 314, "4.5", "headlineSmall", "#FFF6EE", size=26, family=FM)
-    text(c, X + 76, Y + 314, "/ 5 · well extracted", "bodyMedium", "#E4D3C4")
-    crescent(c, X + CW - 34, Y + 306, 18, "#FFB894")
-    text(c, X + CW - 20, Y + 330, "Coffee Can", "labelSmall", "#E4D3C4", "end")
+    line(c, X + 20, Y + 288, X + CW - 20, Y + 288, C["cardInkDim"], 0.75)
+    text(c, X + 20, Y + 314, "4.5", "headlineSmall", C["cardInk"], size=26, family=FM)
+    text(c, X + 76, Y + 314, "/ 5 · well extracted", "bodyMedium", C["cardInkDim"])
+    logo(c, X + CW - 36, Y + 306, 30, tagline=False)   # exports at 1080px
+    text(c, X + CW - 20, Y + 330, "Coffee Can", "labelSmall", C["cardInkDim"], "end")
     c.add("</g>")
     text(c, 180, 486, "1080 × 1350 · rendered on device", "labelSmall",
          C["onSurfaceVariant"], "middle")
@@ -1062,7 +1123,7 @@ def ai_disclosure():
     D, DY, DW, DH = 24, 104, 312, 608
     rect(c, D, DY, DW, DH, C["cardSurface"], R_XL)
     circle(c, 180, DY + 56, 28, C["primaryContainer"])
-    crescent(c, 180, DY + 56, 26, C["primary"])
+    sparkle(c, 180, DY + 56, 15, C["onPrimaryContainer"])
     text(c, 180, DY + 118, "This uses an AI service", "headlineSmall", C["onSurface"],
          "middle")
     body = ("Your photo, and the bean and session|"
@@ -1089,7 +1150,7 @@ def ai_disclosure():
     button(c, D + 20, DY + 540, 104, "Not now", "text")
     button(c, D + 148, DY + 540, 144, "Continue")
     text(c, 180, 756, "Back and tap-outside behave exactly like “Not now”.",
-         "labelSmall", "#E4D3C4", "middle")
+         "labelSmall", C["cardInkDim"], "middle")
     gesture_bar(c, dark=True)
     return c
 

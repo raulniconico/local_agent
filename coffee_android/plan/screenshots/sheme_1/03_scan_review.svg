@@ -14,16 +14,16 @@
 <text x="56" y="64.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="600" fill="#211A15">Review scan</text>
 <line x1="0" y1="88" x2="360" y2="88" stroke="#DFD5C9" stroke-width="1"/>
 <text x="20" y="116" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="400" fill="#5C5147">Edit anything before it's applied to the bean.</text>
-<rect x="16" y="132" width="328" height="56" fill="#FFDAD4" rx="12"/>
-<circle cx="36" cy="152" r="8" fill="none" stroke="#A32A1D" stroke-width="1.5"/>
-<text x="36" y="156" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#A32A1D" text-anchor="middle">!</text>
-<text x="54" y="157" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="400" fill="#A32A1D">Couldn't read much from this photo — the blank</text>
-<text x="54" y="175" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="400" fill="#A32A1D">fields were left for you to fill in.</text>
-<rect x="16" y="212" width="328" height="56" fill="#FFFFFF" rx="8" stroke="#B4401F" stroke-width="2"/>
+<rect x="16" y="132" width="328" height="56" fill="#FEDBD3" rx="12"/>
+<circle cx="36" cy="152" r="8" fill="none" stroke="#AB3426" stroke-width="1.5"/>
+<text x="36" y="156" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#AB3426" text-anchor="middle">!</text>
+<text x="54" y="157" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="400" fill="#AB3426">Couldn't read much from this photo — the blank</text>
+<text x="54" y="175" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="400" fill="#AB3426">fields were left for you to fill in.</text>
+<rect x="16" y="212" width="328" height="56" fill="#FFFFFF" rx="8" stroke="#196D2E" stroke-width="2"/>
 <rect x="28" y="206" width="34.4" height="12" fill="#FFFFFF"/>
-<text x="32" y="216" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#B4401F">Name*</text>
+<text x="32" y="216" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#196D2E">Name*</text>
 <text x="32" y="248" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#211A15">Ethiopia Guji Natural</text>
-<line x1="204.2" y1="234" x2="204.2" y2="254" stroke="#B4401F" stroke-width="2"/>
+<line x1="204.2" y1="234" x2="204.2" y2="254" stroke="#196D2E" stroke-width="2"/>
 <rect x="16" y="280" width="328" height="56" fill="#FFFFFF" rx="8" stroke="#8C7F72" stroke-width="1"/>
 <rect x="28" y="274" width="47.599999999999994" height="12" fill="#FFFFFF"/>
 <text x="32" y="284" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#5C5147">Origin</text>
@@ -54,8 +54,8 @@
 <text x="32" y="724" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#8C7F72">—</text>
 <rect x="0" y="712" width="360" height="88" fill="#FAF7F2"/>
 <line x1="0" y1="712" x2="360" y2="712" stroke="#DFD5C9" stroke-width="1"/>
-<text x="86.0" y="753.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#B4401F" text-anchor="middle">Discard</text>
-<rect x="184" y="728.0" width="160" height="40" fill="#B4401F" rx="20.0"/>
+<text x="86.0" y="753.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#196D2E" text-anchor="middle">Discard</text>
+<rect x="184" y="728.0" width="160" height="40" fill="#196D2E" rx="20.0"/>
 <text x="264.0" y="753.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#FFFFFF" text-anchor="middle">Apply</text>
 <rect x="126.0" y="790" width="108" height="4" fill="#8C7F72" rx="2" opacity="0.5"/>
 </svg>

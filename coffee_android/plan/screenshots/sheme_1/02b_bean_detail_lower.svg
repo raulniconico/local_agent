@@ -16,7 +16,7 @@
 <path d="M312 57.0 v7 h16 v-7" fill="none" stroke="#211A15" stroke-width="2"/>
 <line x1="0" y1="88" x2="360" y2="88" stroke="#DFD5C9" stroke-width="1"/>
 <text x="20" y="116" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#211A15">Flavor</text>
-<text x="340" y="116" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#B4401F" text-anchor="end">Set manually</text>
+<text x="340" y="116" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#196D2E" text-anchor="end">Set manually</text>
 <rect x="16" y="130" width="328" height="326" fill="#FFFFFF" rx="16"/>
 <line x1="118.0" y1="148" x2="118.0" y2="428" stroke="#DFD5C9" stroke-width="1"/>
 <line x1="160.8" y1="148" x2="160.8" y2="428" stroke="#DFD5C9" stroke-width="1"/>
@@ -26,50 +26,50 @@
 <line x1="332.0" y1="148" x2="332.0" y2="428" stroke="#DFD5C9" stroke-width="1"/>
 <text x="108" y="158" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147" text-anchor="end">Fruity</text>
 <rect x="118" y="150" width="214" height="10" fill="#EFE7DC" rx="4"/>
-<rect x="118" y="150" width="196.88" height="10" fill="#B4401F" rx="4"/>
-<rect x="118" y="150" width="4" height="10" fill="#B4401F"/>
+<rect x="118" y="150" width="196.88" height="10" fill="#7E4A2E" rx="4"/>
+<rect x="118" y="150" width="4" height="10" fill="#7E4A2E"/>
 <text x="320.88" y="159" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147">4.6</text>
 <text x="108" y="184" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147" text-anchor="end">Floral</text>
 <rect x="118" y="176" width="214" height="10" fill="#EFE7DC" rx="4"/>
-<rect x="118" y="176" width="166.92000000000002" height="10" fill="#B4401F" rx="4"/>
-<rect x="118" y="176" width="4" height="10" fill="#B4401F"/>
+<rect x="118" y="176" width="166.92000000000002" height="10" fill="#7E4A2E" rx="4"/>
+<rect x="118" y="176" width="4" height="10" fill="#7E4A2E"/>
 <text x="108" y="210" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147" text-anchor="end">Tea-like</text>
 <rect x="118" y="202" width="214" height="10" fill="#EFE7DC" rx="4"/>
-<rect x="118" y="202" width="102.72" height="10" fill="#B4401F" rx="4"/>
-<rect x="118" y="202" width="4" height="10" fill="#B4401F"/>
+<rect x="118" y="202" width="102.72" height="10" fill="#7E4A2E" rx="4"/>
+<rect x="118" y="202" width="4" height="10" fill="#7E4A2E"/>
 <text x="108" y="236" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147" text-anchor="end">Sweet</text>
 <rect x="118" y="228" width="214" height="10" fill="#EFE7DC" rx="4"/>
-<rect x="118" y="228" width="175.48" height="10" fill="#B4401F" rx="4"/>
-<rect x="118" y="228" width="4" height="10" fill="#B4401F"/>
+<rect x="118" y="228" width="175.48" height="10" fill="#7E4A2E" rx="4"/>
+<rect x="118" y="228" width="4" height="10" fill="#7E4A2E"/>
 <text x="299.48" y="237" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147">4.1</text>
 <text x="108" y="262" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147" text-anchor="end">Nutty/Cocoa</text>
 <rect x="118" y="254" width="214" height="10" fill="#EFE7DC" rx="4"/>
-<rect x="118" y="254" width="77.03999999999999" height="10" fill="#B4401F" rx="4"/>
-<rect x="118" y="254" width="4" height="10" fill="#B4401F"/>
+<rect x="118" y="254" width="77.03999999999999" height="10" fill="#7E4A2E" rx="4"/>
+<rect x="118" y="254" width="4" height="10" fill="#7E4A2E"/>
 <text x="108" y="288" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147" text-anchor="end">Spices</text>
 <rect x="118" y="280" width="214" height="10" fill="#EFE7DC" rx="4"/>
-<rect x="118" y="280" width="51.36" height="10" fill="#B4401F" rx="4"/>
-<rect x="118" y="280" width="4" height="10" fill="#B4401F"/>
+<rect x="118" y="280" width="51.36" height="10" fill="#7E4A2E" rx="4"/>
+<rect x="118" y="280" width="4" height="10" fill="#7E4A2E"/>
 <text x="108" y="314" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147" text-anchor="end">Roasted</text>
 <rect x="118" y="306" width="214" height="10" fill="#EFE7DC" rx="4"/>
-<rect x="118" y="306" width="64.2" height="10" fill="#B4401F" rx="4"/>
-<rect x="118" y="306" width="4" height="10" fill="#B4401F"/>
+<rect x="118" y="306" width="64.2" height="10" fill="#7E4A2E" rx="4"/>
+<rect x="118" y="306" width="4" height="10" fill="#7E4A2E"/>
 <text x="108" y="340" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147" text-anchor="end">Cereal</text>
 <rect x="118" y="332" width="214" height="10" fill="#EFE7DC" rx="4"/>
-<rect x="118" y="332" width="42.800000000000004" height="10" fill="#B4401F" rx="4"/>
-<rect x="118" y="332" width="4" height="10" fill="#B4401F"/>
+<rect x="118" y="332" width="42.800000000000004" height="10" fill="#7E4A2E" rx="4"/>
+<rect x="118" y="332" width="4" height="10" fill="#7E4A2E"/>
 <text x="108" y="366" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147" text-anchor="end">Green/Veg.</text>
 <rect x="118" y="358" width="214" height="10" fill="#EFE7DC" rx="4"/>
-<rect x="118" y="358" width="25.68" height="10" fill="#B4401F" rx="4"/>
-<rect x="118" y="358" width="4" height="10" fill="#B4401F"/>
+<rect x="118" y="358" width="25.68" height="10" fill="#7E4A2E" rx="4"/>
+<rect x="118" y="358" width="4" height="10" fill="#7E4A2E"/>
 <text x="108" y="392" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147" text-anchor="end">Sour</text>
 <rect x="118" y="384" width="214" height="10" fill="#EFE7DC" rx="4"/>
-<rect x="118" y="384" width="124.11999999999999" height="10" fill="#B4401F" rx="4"/>
-<rect x="118" y="384" width="4" height="10" fill="#B4401F"/>
+<rect x="118" y="384" width="124.11999999999999" height="10" fill="#7E4A2E" rx="4"/>
+<rect x="118" y="384" width="4" height="10" fill="#7E4A2E"/>
 <text x="108" y="418" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147" text-anchor="end">Fermented</text>
 <rect x="118" y="410" width="214" height="10" fill="#EFE7DC" rx="4"/>
-<rect x="118" y="410" width="145.51999999999998" height="10" fill="#B4401F" rx="4"/>
-<rect x="118" y="410" width="4" height="10" fill="#B4401F"/>
+<rect x="118" y="410" width="145.51999999999998" height="10" fill="#7E4A2E" rx="4"/>
+<rect x="118" y="410" width="4" height="10" fill="#7E4A2E"/>
 <text x="118" y="440" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147" text-anchor="middle">0</text>
 <text x="332" y="440" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147" text-anchor="middle">5</text>
 <text x="20" y="474" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147">Averaged from 4 sessions · fixed axis order, 0–5 scale</text>
@@ -105,14 +105,14 @@
 <path d="M304 562 h12 M310 556 v12" fill="none" stroke="#2A211A" stroke-width="2"/>
 <text x="310" y="588" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#2A211A" text-anchor="middle">Scan label</text>
 <text x="20" y="652" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#211A15">Sessions</text>
-<text x="340" y="652" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#B4401F" text-anchor="end">Ask AI</text>
+<text x="340" y="652" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#196D2E" text-anchor="end">Ask AI</text>
 <text x="20" y="684" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="600" fill="#211A15">30 Jul</text>
 <text x="20" y="704" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="13" font-weight="400" fill="#5C5147">V60 · 15.0 g · 4.5 · well extracted</text>
 <line x1="20" y1="712" x2="340" y2="712" stroke="#DFD5C9" stroke-width="1"/>
 <text x="20" y="732" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="600" fill="#211A15">25 Jul</text>
 <text x="20" y="752" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="13" font-weight="400" fill="#5C5147">Kalita · 16.0 g · 4.0 · slightly under</text>
 <line x1="20" y1="760" x2="340" y2="760" stroke="#DFD5C9" stroke-width="1"/>
-<circle cx="312" cy="712" r="28" fill="#B4401F"/>
+<circle cx="312" cy="712" r="28" fill="#196D2E"/>
 <path d="M300 712 h24 M312 700 v24" fill="none" stroke="#FFFFFF" stroke-width="2.6"/>
 <rect x="126.0" y="790" width="108" height="4" fill="#8C7F72" rx="2" opacity="0.5"/>
 </svg>

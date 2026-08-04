@@ -17,25 +17,25 @@
 <line x1="0" y1="88" x2="360" y2="88" stroke="#DFD5C9" stroke-width="1"/>
 <text x="20" y="116" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#211A15">Brew details</text>
 <text x="20" y="132" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#5C5147" letter-spacing="0.4">Dripper</text>
-<line x1="20" y1="140" x2="165" y2="140" stroke="#DFD5C9" stroke-width="1"/>
+<line x1="20" y1="140" x2="165" y2="140" stroke="#8C7F72" stroke-width="1"/>
 <text x="20" y="162" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#211A15">Hario V60</text>
 <text x="195" y="132" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#5C5147" letter-spacing="0.4">Grinder</text>
-<line x1="195" y1="140" x2="340" y2="140" stroke="#DFD5C9" stroke-width="1"/>
+<line x1="195" y1="140" x2="340" y2="140" stroke="#8C7F72" stroke-width="1"/>
 <text x="195" y="162" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#211A15">Comandante</text>
 <text x="20" y="192" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#5C5147" letter-spacing="0.4">Grind size</text>
-<line x1="20" y1="200" x2="165" y2="200" stroke="#DFD5C9" stroke-width="1"/>
+<line x1="20" y1="200" x2="165" y2="200" stroke="#8C7F72" stroke-width="1"/>
 <text x="20" y="222" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#211A15">22 clicks</text>
 <text x="195" y="192" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#5C5147" letter-spacing="0.4">Dose</text>
-<line x1="195" y1="200" x2="340" y2="200" stroke="#DFD5C9" stroke-width="1"/>
+<line x1="195" y1="200" x2="340" y2="200" stroke="#8C7F72" stroke-width="1"/>
 <text x="195" y="222" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#211A15">15.0 g</text>
 <text x="20" y="252" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#5C5147" letter-spacing="0.4">Water PPM</text>
-<line x1="20" y1="260" x2="165" y2="260" stroke="#DFD5C9" stroke-width="1"/>
+<line x1="20" y1="260" x2="165" y2="260" stroke="#8C7F72" stroke-width="1"/>
 <text x="20" y="282" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#211A15">72</text>
 <text x="195" y="252" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#5C5147" letter-spacing="0.4">Humidity</text>
-<line x1="195" y1="260" x2="340" y2="260" stroke="#DFD5C9" stroke-width="1"/>
+<line x1="195" y1="260" x2="340" y2="260" stroke="#8C7F72" stroke-width="1"/>
 <text x="195" y="282" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#8C7F72">—</text>
 <text x="20" y="332" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#211A15">Pours</text>
-<text x="340" y="332" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#B4401F" text-anchor="end">Add pour</text>
+<text x="340" y="332" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#196D2E" text-anchor="end">Add pour</text>
 <rect x="16" y="346" width="328" height="196" fill="#FFFFFF" rx="16"/>
 <text x="36" y="372" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#5C5147" letter-spacing="0.4">#</text>
 <text x="148" y="372" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#5C5147" text-anchor="end" letter-spacing="0.4">Temp</text>
@@ -77,15 +77,15 @@
 <rect x="16" y="620" width="328" height="128" fill="#FFFFFF" rx="16"/>
 <text x="28" y="646" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#5C5147" letter-spacing="0.4">Score</text>
 <path d="M39.00,658.00L41.72,665.26L49.46,665.60L43.39,670.43L45.47,677.90L39.00,673.62L32.53,677.90L34.61,670.43L28.54,665.60L36.28,665.26Z" fill="none" stroke="#8C7F72" stroke-width="1.4"/>
-<path d="M39.00,658.00L41.72,665.26L49.46,665.60L43.39,670.43L45.47,677.90L39.00,673.62L32.53,677.90L34.61,670.43L28.54,665.60L36.28,665.26Z" fill="#B4401F" clip-path="url(#st1)"/>
+<path d="M39.00,658.00L41.72,665.26L49.46,665.60L43.39,670.43L45.47,677.90L39.00,673.62L32.53,677.90L34.61,670.43L28.54,665.60L36.28,665.26Z" fill="#196D2E" clip-path="url(#st1)"/>
 <path d="M68.00,658.00L70.72,665.26L78.46,665.60L72.39,670.43L74.47,677.90L68.00,673.62L61.53,677.90L63.61,670.43L57.54,665.60L65.28,665.26Z" fill="none" stroke="#8C7F72" stroke-width="1.4"/>
-<path d="M68.00,658.00L70.72,665.26L78.46,665.60L72.39,670.43L74.47,677.90L68.00,673.62L61.53,677.90L63.61,670.43L57.54,665.60L65.28,665.26Z" fill="#B4401F" clip-path="url(#st2)"/>
+<path d="M68.00,658.00L70.72,665.26L78.46,665.60L72.39,670.43L74.47,677.90L68.00,673.62L61.53,677.90L63.61,670.43L57.54,665.60L65.28,665.26Z" fill="#196D2E" clip-path="url(#st2)"/>
 <path d="M97.00,658.00L99.72,665.26L107.46,665.60L101.39,670.43L103.47,677.90L97.00,673.62L90.53,677.90L92.61,670.43L86.54,665.60L94.28,665.26Z" fill="none" stroke="#8C7F72" stroke-width="1.4"/>
-<path d="M97.00,658.00L99.72,665.26L107.46,665.60L101.39,670.43L103.47,677.90L97.00,673.62L90.53,677.90L92.61,670.43L86.54,665.60L94.28,665.26Z" fill="#B4401F" clip-path="url(#st3)"/>
+<path d="M97.00,658.00L99.72,665.26L107.46,665.60L101.39,670.43L103.47,677.90L97.00,673.62L90.53,677.90L92.61,670.43L86.54,665.60L94.28,665.26Z" fill="#196D2E" clip-path="url(#st3)"/>
 <path d="M126.00,658.00L128.72,665.26L136.46,665.60L130.39,670.43L132.47,677.90L126.00,673.62L119.53,677.90L121.61,670.43L115.54,665.60L123.28,665.26Z" fill="none" stroke="#8C7F72" stroke-width="1.4"/>
-<path d="M126.00,658.00L128.72,665.26L136.46,665.60L130.39,670.43L132.47,677.90L126.00,673.62L119.53,677.90L121.61,670.43L115.54,665.60L123.28,665.26Z" fill="#B4401F" clip-path="url(#st4)"/>
+<path d="M126.00,658.00L128.72,665.26L136.46,665.60L130.39,670.43L132.47,677.90L126.00,673.62L119.53,677.90L121.61,670.43L115.54,665.60L123.28,665.26Z" fill="#196D2E" clip-path="url(#st4)"/>
 <path d="M155.00,658.00L157.72,665.26L165.46,665.60L159.39,670.43L161.47,677.90L155.00,673.62L148.53,677.90L150.61,670.43L144.54,665.60L152.28,665.26Z" fill="none" stroke="#8C7F72" stroke-width="1.4"/>
-<path d="M155.00,658.00L157.72,665.26L165.46,665.60L159.39,670.43L161.47,677.90L155.00,673.62L148.53,677.90L150.61,670.43L144.54,665.60L152.28,665.26Z" fill="#B4401F" clip-path="url(#st5)"/>
+<path d="M155.00,658.00L157.72,665.26L165.46,665.60L159.39,670.43L161.47,677.90L155.00,673.62L148.53,677.90L150.61,670.43L144.54,665.60L152.28,665.26Z" fill="#196D2E" clip-path="url(#st5)"/>
 <text x="177" y="675.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#211A15">4.5 / 5</text>
 <line x1="28" y1="704" x2="332" y2="704" stroke="#DFD5C9" stroke-width="1"/>
 <text x="28" y="730" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="400" fill="#5C5147">Extraction, note and 11 flavor axes below</text>

@@ -20,9 +20,9 @@
 <circle cx="44" cy="132" r="8" fill="none" stroke="#5C5147" stroke-width="2"/>
 <line x1="50" y1="138" x2="56" y2="144" stroke="#5C5147" stroke-width="2"/>
 <text x="72" y="138" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147">Search roasters and beans</text>
-<rect x="16" y="176" width="100.0" height="32" fill="#FFDFD2" rx="16.0"/>
-<path d="M30 192 l4 4 l8 -9" fill="none" stroke="#3E1207" stroke-width="2"/>
-<text x="48" y="197" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#3E1207">In stock</text>
+<rect x="16" y="176" width="100.0" height="32" fill="#C8ECC9" rx="16.0"/>
+<path d="M30 192 l4 4 l8 -9" fill="none" stroke="#002602" stroke-width="2"/>
+<text x="48" y="197" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#002602">In stock</text>
 <rect x="124.0" y="176" width="93.0" height="32" fill="none" rx="16.0" stroke="#8C7F72" stroke-width="1"/>
 <text x="138.0" y="197" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#211A15">Roaster</text>
 <path d="M193.0 190 l5 6 l5 -6" fill="none" stroke="#5C5147" stroke-width="2"/>
@@ -35,13 +35,13 @@
 <rect x="16" y="260" width="152" height="114" fill="url(#hl2)" rx="16"/>
 <rect x="16" y="260" width="152" height="114" fill="none" rx="16" stroke="#211A15" stroke-width="1" opacity="0.08"/>
 <rect x="16" y="358" width="152" height="16" fill="#FFFFFF"/>
-<rect x="26" y="270" width="42" height="22" fill="#FFDFD2" rx="11"/>
-<text x="47" y="285" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#3E1207" text-anchor="middle">New</text>
+<rect x="26" y="270" width="42" height="22" fill="#8B5000" rx="11"/>
+<text x="47" y="285" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#FFFFFF" text-anchor="middle">New</text>
 <text x="28" y="396" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="15" font-weight="600" fill="#211A15">Kenya AA Karatu</text>
 <text x="28" y="416" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="400" fill="#5C5147">Lomi · Kenya</text>
 <text x="28" y="434" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="400" fill="#5C5147">€16 · 250 g</text>
-<rect x="28" y="446" width="66" height="22" fill="#CFE9DA" rx="4"/>
-<text x="61" y="461" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#0B3F1E" text-anchor="middle">In stock</text>
+<rect x="28" y="446" width="66" height="22" fill="#C8ECC9" rx="4"/>
+<text x="61" y="461" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#002602" text-anchor="middle">In stock</text>
 <path d="M144 454 v7 h11 v-7" fill="none" stroke="#8C7F72" stroke-width="1.4"/>
 <path d="M148 456 l7 -6 M150 450 h5 v5" fill="none" stroke="#8C7F72" stroke-width="1.4"/>
 <rect x="184" y="260" width="152" height="218" fill="#FFFFFF" rx="16"/>
@@ -52,8 +52,8 @@
 <text x="196" y="396" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="15" font-weight="600" fill="#211A15">Panama Geisha</text>
 <text x="196" y="416" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="400" fill="#5C5147">Tanat · Panama</text>
 <text x="196" y="434" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="400" fill="#5C5147">€42 · 100 g</text>
-<rect x="196" y="446" width="66" height="22" fill="#CFE9DA" rx="4"/>
-<text x="229" y="461" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#0B3F1E" text-anchor="middle">In stock</text>
+<rect x="196" y="446" width="66" height="22" fill="#C8ECC9" rx="4"/>
+<text x="229" y="461" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#002602" text-anchor="middle">In stock</text>
 <path d="M312 454 v7 h11 v-7" fill="none" stroke="#8C7F72" stroke-width="1.4"/>
 <path d="M316 456 l7 -6 M318 450 h5 v5" fill="none" stroke="#8C7F72" stroke-width="1.4"/>
 <rect x="16" y="494" width="152" height="218" fill="#FFFFFF" rx="16"/>
@@ -76,8 +76,8 @@
 <text x="196" y="630" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="15" font-weight="600" fill="#211A15">Guatemala Huehue</text>
 <text x="196" y="650" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="400" fill="#5C5147">Belleville · Guatemala</text>
 <text x="196" y="668" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="400" fill="#5C5147">€15 · 250 g</text>
-<rect x="196" y="680" width="66" height="22" fill="#CFE9DA" rx="4"/>
-<text x="229" y="695" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#0B3F1E" text-anchor="middle">In stock</text>
+<rect x="196" y="680" width="66" height="22" fill="#C8ECC9" rx="4"/>
+<text x="229" y="695" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#002602" text-anchor="middle">In stock</text>
 <path d="M312 688 v7 h11 v-7" fill="none" stroke="#8C7F72" stroke-width="1.4"/>
 <path d="M316 690 l7 -6 M318 684 h5 v5" fill="none" stroke="#8C7F72" stroke-width="1.4"/>
 <text x="20" y="748" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#8C7F72">Opens the roaster's own page in your browser</text>

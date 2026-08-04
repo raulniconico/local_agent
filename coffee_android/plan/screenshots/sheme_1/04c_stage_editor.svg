@@ -13,15 +13,15 @@
 <text x="20" y="296" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#5C5147" letter-spacing="0.4">Temperature</text>
 <text x="340" y="300" font-family="'IBM Plex Mono','DejaVu Sans Mono',monospace" font-size="16" font-weight="600" fill="#211A15" text-anchor="end">92 °C</text>
 <rect x="20" y="318" width="320" height="6" fill="#EFE7DC" rx="3"/>
-<rect x="20" y="318" width="262" height="6" fill="#B4401F" rx="3"/>
-<circle cx="282" cy="321" r="11" fill="#B4401F"/>
+<rect x="20" y="318" width="262" height="6" fill="#196D2E" rx="3"/>
+<circle cx="282" cy="321" r="11" fill="#196D2E"/>
 <text x="20" y="346" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147">-10 °C</text>
 <text x="340" y="346" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147" text-anchor="end">110 °C</text>
-<rect x="20" y="378" width="150" height="56" fill="#FFFFFF" rx="8" stroke="#B4401F" stroke-width="2"/>
+<rect x="20" y="378" width="150" height="56" fill="#FFFFFF" rx="8" stroke="#196D2E" stroke-width="2"/>
 <rect x="32" y="372" width="67.4" height="12" fill="#FFFFFF"/>
-<text x="36" y="382" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#B4401F">Water (g)</text>
+<text x="36" y="382" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#196D2E">Water (g)</text>
 <text x="36" y="414" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#211A15">200</text>
-<line x1="60.599999999999994" y1="400" x2="60.599999999999994" y2="420" stroke="#B4401F" stroke-width="2"/>
+<line x1="60.599999999999994" y1="400" x2="60.599999999999994" y2="420" stroke="#196D2E" stroke-width="2"/>
 <rect x="190" y="378" width="150" height="56" fill="#FFFFFF" rx="8" stroke="#8C7F72" stroke-width="1"/>
 <rect x="202" y="372" width="34" height="12" fill="#FFFFFF"/>
 <text x="206" y="382" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#5C5147">Time</text>
@@ -34,9 +34,9 @@
 <text x="36" y="462" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#5C5147">Pour style</text>
 <text x="36" y="494" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#211A15">centre, slow</text>
 <text x="20" y="542" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#5C5147">Free text — “circling”, “centre pulse”, anything you use.</text>
-<rect x="20" y="592.0" width="150" height="40" fill="none" rx="8" stroke="#A32A1D" stroke-width="1"/>
-<text x="95.0" y="617.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#A32A1D" text-anchor="middle">Delete pour</text>
-<rect x="190" y="592.0" width="150" height="40" fill="#B4401F" rx="20.0"/>
+<rect x="20" y="592.0" width="150" height="40" fill="none" rx="8" stroke="#AB3426" stroke-width="1"/>
+<text x="95.0" y="617.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#AB3426" text-anchor="middle">Delete pour</text>
+<rect x="190" y="592.0" width="150" height="40" fill="#196D2E" rx="20.0"/>
 <text x="265.0" y="617.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#FFFFFF" text-anchor="middle">Save pour</text>
 <text x="20" y="676" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#8C7F72">skipPartiallyExpanded = true · imePadding()</text>
 <rect x="126.0" y="790" width="108" height="4" fill="#8C7F72" rx="2" opacity="0.5"/>

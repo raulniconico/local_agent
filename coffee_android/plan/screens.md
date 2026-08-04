@@ -23,7 +23,7 @@ reflects the original review structure, not shipping order.
 
 ## 1. Home
 
-**Wireframe:** `screenshots/01_home.svg`
+**Wireframe:** `screenshots/sheme_1/01_home.svg`
 
 **Purpose:** landing screen — bean list plus an at-a-glance activity/flavor
 overview, ported from `main_window.py`'s `MainWindow`.
@@ -56,7 +56,7 @@ instead of an empty list), loaded. (The v0 draft's catalogue-preview-loading/
 
 ## 2. Bean Detail
 
-**Wireframe:** `screenshots/02_bean_detail.svg`
+**Wireframe:** `screenshots/sheme_1/02_bean_detail.svg`
 
 **Purpose:** create/edit one bean profile — the most complex screen, ported
 from `bean_dialog.py`. **Revised after specialist review**: the desktop
@@ -102,7 +102,7 @@ from "photo unreadable," see `api.md`'s error-handling conventions).
 
 ## 3. Scan Review
 
-**Wireframe:** `screenshots/03_scan_review.svg`
+**Wireframe:** `screenshots/sheme_1/03_scan_review.svg`
 
 **Purpose:** review/edit AI-guessed fields before they overwrite the Bean
 Detail form — ported from `bean_dialog.py`'s `_ScanReviewDialog`. Modal
@@ -128,7 +128,7 @@ rather than assuming the feature is broken.
 
 ## 4. Brew Session Detail (+ Stage Editor sheet)
 
-**Wireframe:** `screenshots/04_brew_session.svg`
+**Wireframe:** `screenshots/sheme_1/04_brew_session.svg`
 
 **Purpose:** create/edit one brewing session — ported from `brew_dialog.py`.
 Same in-memory-draft pattern as Bean Detail (§2's revision applies here
@@ -172,7 +172,7 @@ pattern as Bean Detail (§2).
 
 ## 5. Ask-AI Suggestion
 
-**Wireframe:** `screenshots/05_ask_ai.svg`
+**Wireframe:** `screenshots/sheme_1/05_ask_ai.svg`
 
 **Purpose:** text-based recipe suggestion — ported from `ai_brew_dialog.py`.
 Modal sheet launched from Bean Detail's session list.
@@ -214,7 +214,7 @@ this ships, don't assume the existing disclosure copy covers it).
 
 ## 7. Can-Drink Catalogue — **v1.1** (moved out of v1 after specialist review)
 
-**Wireframe:** `screenshots/07_catalogue.svg`
+**Wireframe:** `screenshots/sheme_1/07_catalogue.svg`
 
 **Ships in v1.1, not v1** (README.md resolution #2, reversing the v0 draft):
 app-dev review found this screen's `coffee_server` dependency is real new
@@ -264,7 +264,7 @@ the error state at all).
 
 ## 8. Camera Capture
 
-**Wireframe:** `screenshots/08_camera.svg`
+**Wireframe:** `screenshots/sheme_1/08_camera.svg`
 
 **Purpose:** photograph a bean label — ported from `camera_dialog.py`.
 CameraX `PreviewView` full-screen, capture button, matches the desktop
@@ -297,7 +297,7 @@ of whether scanning is used.
 
 ## 9. Profile Settings
 
-**Wireframe:** `screenshots/09_profile.svg`
+**Wireframe:** `screenshots/sheme_1/09_profile.svg`
 
 **Purpose:** single app-wide user profile — ported from `profile_dialog.py`.
 
@@ -322,7 +322,7 @@ only screen with an obvious claim to them.
 
 ## 10. Share Card export
 
-**Wireframe:** `screenshots/10_share_card.svg`
+**Wireframe:** `screenshots/sheme_1/10_share_card.svg`
 
 **Purpose:** render and export a shareable image — ported from
 `share_card.py`'s `render_share_card`/`render_session_share_card` +
@@ -360,7 +360,7 @@ leaves the app.
 
 ## 11. AI disclosure & consent
 
-**Wireframe:** `screenshots/11_ai_disclosure.svg` (shows the photo-triggered
+**Wireframe:** `screenshots/sheme_1/11_ai_disclosure.svg` (shows the photo-triggered
 variant of the copy — see the genericization fix below; the text-only
 variant swaps the first paragraph, layout is identical).
 

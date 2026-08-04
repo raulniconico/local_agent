@@ -1,15 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 800" width="360" height="800" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif">
 <title>AI disclosure &amp; consent</title>
-<defs><linearGradient id="ph1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D8CCBE"/><stop offset="1" stop-color="#A99684"/></linearGradient><radialGradient id="hl2" cx="0.34" cy="0.28" r="0.75"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.34"/><stop offset="1" stop-color="#3B2A1C" stop-opacity="0.26"/></radialGradient><mask id="cres3"><rect x="165.0" y="145.0" width="30" height="30" fill="#fff"/><circle cx="185.46" cy="156.1" r="11.18" fill="#000"/></mask></defs>
+<defs><linearGradient id="ph1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D8CCBE"/><stop offset="1" stop-color="#A99684"/></linearGradient><radialGradient id="hl2" cx="0.34" cy="0.28" r="0.75"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.34"/><stop offset="1" stop-color="#3B2A1C" stop-opacity="0.26"/></radialGradient></defs>
 <rect width="360" height="800" fill="#FAF7F2"/>
 <rect x="0" y="0" width="360" height="800" fill="url(#ph1)"/>
 <rect x="0" y="0" width="360" height="800" fill="url(#hl2)"/>
 <rect x="0" y="0" width="360" height="800" fill="none" stroke="#211A15" stroke-width="1" opacity="0.08"/>
 <rect x="0" y="0" width="360" height="800" fill="#1A120C" opacity="0.6"/>
 <rect x="24" y="104" width="312" height="608" fill="#FFFFFF" rx="28"/>
-<circle cx="180" cy="160" r="28" fill="#FFDFD2"/>
-<circle cx="180" cy="160" r="13.0" fill="#B4401F" mask="url(#cres3)"/>
-<path d="M171.94 166.76 Q179.35 160.26 183.9 168.58" fill="none" stroke="#B4401F" stroke-width="1.95" opacity="0.55"/>
+<circle cx="180" cy="160" r="28" fill="#C8ECC9"/>
+<path d="M180 145 Q182.7 157.3 195 160 Q182.7 162.7 180 175 Q177.3 162.7 165 160 Q177.3 157.3 180 145 Z" fill="#002602"/>
 <text x="180" y="222" font-family="Fraunces,'Noto Serif Display',Georgia,serif" font-size="22" font-weight="600" fill="#211A15" text-anchor="middle">This uses an AI service</text>
 <text x="48" y="258" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147">Your photo, and the bean and session</text>
 <text x="48" y="280" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147">details you've typed in, may be sent</text>
@@ -22,12 +21,12 @@
 <text x="48" y="450" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147">button. You can log everything by</text>
 <text x="48" y="472" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147">hand without ever using this.</text>
 <line x1="48" y1="534" x2="312" y2="534" stroke="#DFD5C9" stroke-width="1"/>
-<text x="116.0" y="573.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#B4401F" text-anchor="middle">Privacy Policy</text>
+<text x="116.0" y="573.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#196D2E" text-anchor="middle">Privacy Policy</text>
 <text x="48" y="612" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#8C7F72">You'll see this again now and then, until</text>
 <text x="48" y="628" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#8C7F72">you accept it.</text>
-<text x="96.0" y="673.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#B4401F" text-anchor="middle">Not now</text>
-<rect x="172" y="648.0" width="144" height="40" fill="#B4401F" rx="20.0"/>
+<text x="96.0" y="673.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#196D2E" text-anchor="middle">Not now</text>
+<rect x="172" y="648.0" width="144" height="40" fill="#196D2E" rx="20.0"/>
 <text x="244.0" y="673.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#FFFFFF" text-anchor="middle">Continue</text>
 <text x="180" y="756" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="11" font-weight="500" fill="#E4D3C4" text-anchor="middle">Back and tap-outside behave exactly like “Not now”.</text>
-<rect x="126.0" y="790" width="108" height="4" fill="#3A302A" rx="2" opacity="0.5"/>
+<rect x="126.0" y="790" width="108" height="4" fill="#4D463C" rx="2" opacity="0.5"/>
 </svg>

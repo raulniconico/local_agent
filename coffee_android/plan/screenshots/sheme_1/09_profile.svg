@@ -15,9 +15,9 @@
 <line x1="0" y1="88" x2="360" y2="88" stroke="#DFD5C9" stroke-width="1"/>
 <circle cx="180" cy="168" r="44" fill="#F0E5DA"/>
 <text x="180" y="182" font-family="Fraunces,'Noto Serif Display',Georgia,serif" font-size="36" font-weight="600" fill="#2A211A" text-anchor="middle">Z</text>
-<circle cx="210" cy="198" r="18" fill="#B4401F"/>
+<circle cx="210" cy="198" r="18" fill="#196D2E"/>
 <path d="M204 202 l7 -7 M204 202 v3 h3" fill="none" stroke="#FFFFFF" stroke-width="2"/>
-<text x="180.0" y="253.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#B4401F" text-anchor="middle">Change photo</text>
+<text x="180.0" y="253.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#196D2E" text-anchor="middle">Change photo</text>
 <rect x="16" y="292" width="328" height="56" fill="#FFFFFF" rx="8" stroke="#8C7F72" stroke-width="1"/>
 <rect x="28" y="286" width="34.4" height="12" fill="#FFFFFF"/>
 <text x="32" y="296" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#5C5147">Name</text>

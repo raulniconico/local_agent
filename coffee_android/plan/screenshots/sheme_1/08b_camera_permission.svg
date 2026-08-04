@@ -21,7 +21,7 @@
 <text x="180" y="388" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147" text-anchor="middle">Scanning a label needs the camera. You</text>
 <text x="180" y="410" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147" text-anchor="middle">turned it off — you can turn it back on in</text>
 <text x="180" y="432" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="16" font-weight="400" fill="#5C5147" text-anchor="middle">Settings.</text>
-<rect x="80" y="472.0" width="200" height="40" fill="#B4401F" rx="20.0"/>
+<rect x="80" y="472.0" width="200" height="40" fill="#196D2E" rx="20.0"/>
 <text x="180.0" y="497.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#FFFFFF" text-anchor="middle">Open Settings</text>
 <rect x="60" y="532.0" width="240" height="40" fill="#F0E5DA" rx="8"/>
 <text x="180.0" y="557.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#2A211A" text-anchor="middle">Pick a photo instead</text>

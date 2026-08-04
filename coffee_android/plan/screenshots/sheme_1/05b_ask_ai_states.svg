@@ -17,24 +17,24 @@
 <rect x="16" y="136" width="328" height="200" fill="#FFFFFF" rx="16"/>
 <rect x="32" y="156.0" width="296" height="40" fill="#F3ECE3" rx="8"/>
 <text x="180.0" y="181.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#8C7F72" text-anchor="middle">Getting a suggestion…</text>
-<path d="M180 236 a14 14 0 1 1 -9.8 4.1" fill="none" stroke="#B4401F" stroke-width="3"/>
+<path d="M180 236 a14 14 0 1 1 -9.8 4.1" fill="none" stroke="#196D2E" stroke-width="3"/>
 <text x="180" y="296" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="400" fill="#5C5147" text-anchor="middle">Usually about five seconds</text>
 <text x="20" y="384" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#211A15">Offline</text>
 <rect x="16" y="396" width="328" height="152" fill="#FFFFFF" rx="16"/>
-<rect x="16" y="412" width="328" height="56" fill="#FFDAD4" rx="12"/>
-<circle cx="36" cy="432" r="8" fill="none" stroke="#A32A1D" stroke-width="1.5"/>
-<text x="36" y="436" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#A32A1D" text-anchor="middle">!</text>
-<text x="54" y="437" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="400" fill="#A32A1D">You're offline. This one needs a connection —</text>
-<text x="54" y="455" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="400" fill="#A32A1D">your past recipes are all still here.</text>
+<rect x="16" y="412" width="328" height="56" fill="#FEDBD3" rx="12"/>
+<circle cx="36" cy="432" r="8" fill="none" stroke="#AB3426" stroke-width="1.5"/>
+<text x="36" y="436" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#AB3426" text-anchor="middle">!</text>
+<text x="54" y="437" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="400" fill="#AB3426">You're offline. This one needs a connection —</text>
+<text x="54" y="455" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="400" fill="#AB3426">your past recipes are all still here.</text>
 <rect x="32" y="488.0" width="130" height="40" fill="none" rx="8" stroke="#8C7F72" stroke-width="1"/>
 <text x="97.0" y="513.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#211A15" text-anchor="middle">Try again</text>
 <text x="20" y="604" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#211A15">Server error</text>
 <rect x="16" y="616" width="328" height="152" fill="#FFFFFF" rx="16"/>
-<rect x="16" y="632" width="328" height="56" fill="#FFDAD4" rx="12"/>
-<circle cx="36" cy="652" r="8" fill="none" stroke="#A32A1D" stroke-width="1.5"/>
-<text x="36" y="656" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#A32A1D" text-anchor="middle">!</text>
-<text x="54" y="657" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="400" fill="#A32A1D">The suggestion service didn't answer.</text>
-<text x="54" y="675" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="400" fill="#A32A1D">Nothing was sent anywhere else.</text>
+<rect x="16" y="632" width="328" height="56" fill="#FEDBD3" rx="12"/>
+<circle cx="36" cy="652" r="8" fill="none" stroke="#AB3426" stroke-width="1.5"/>
+<text x="36" y="656" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="12" font-weight="600" fill="#AB3426" text-anchor="middle">!</text>
+<text x="54" y="657" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="400" fill="#AB3426">The suggestion service didn't answer.</text>
+<text x="54" y="675" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="400" fill="#AB3426">Nothing was sent anywhere else.</text>
 <rect x="32" y="708.0" width="130" height="40" fill="none" rx="8" stroke="#8C7F72" stroke-width="1"/>
 <text x="97.0" y="733.0" font-family="Inter,'Liberation Sans','DejaVu Sans',sans-serif" font-size="14" font-weight="600" fill="#211A15" text-anchor="middle">Try again</text>
 <rect x="126.0" y="790" width="108" height="4" fill="#8C7F72" rx="2" opacity="0.5"/>
