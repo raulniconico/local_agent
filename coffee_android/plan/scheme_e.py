@@ -102,87 +102,47 @@ def home_empty(headline_font=None, shake=0.0):
 
 
 
-# --------------------------------------------------------- the can character ---
-# A new pose of the mascot that already exists in the desktop app
-# (widgets.py: default_avatar_pixmap / thumbs_up_can_pixmap / WalkingCanStrip).
-# On-model proportions are preserved: body 22x19 with a 24x8 lid overlapping by
-# 3, feet at a 3:2 ellipse ratio, stubby and heavily rounded — squarer corners
-# are what made earlier attempts read as a waste bin.
-#
-# Limbs are drawn TWICE: a green pass (the outline) then, after the body, a
-# white pass inset by the stroke width. That is what lets an arm join the body
-# with a continuous contour instead of a gap. Layer order is load-bearing —
-# see _LAYERS below; interleaving it puts a green bar across the can's flank.
-CAN_INK = "#196D2E"
-
-
-def can_character(c, x, y, size):
+# ----------------------------------------------------------------- can-boy --
+# A separate mascot mark, distinct from the shipped logo (wf.logo /
+# coffee_can/assets/icon.svg, unmodified). White line only, flat, on its own
+# green disc so the white reads against this page's light background. Arms
+# and legs are each a single stroked line -- no double green+white pass, no
+# filled hand/foot caps. The "Can" lettering is not redrawn in outline: it
+# reuses the shipped wordmark's own solid glyphs (wf._LOGO_WORD) rescaled
+# into the belly, so the text matches the real logo exactly.
+def can_boy(c, cx, cy, size):
     """Spec'd in a 100x100 box; `size` is the rendered edge in dp."""
     g = size / 100.0
-    c.add(f'<g transform="translate({x - 2.3 * g:.2f} {y}) scale({g:.4f})" '
-          f'stroke-linecap="round" stroke-linejoin="round">')
+    c.add(f'<g transform="translate({cx - size/2:.2f} {cy - size/2:.2f}) scale({g:.4f})">')
+    c.add(f'<circle cx="50" cy="50" r="50" fill="{wf.BRAND_MARK}"/>')
 
-    # 1 · ground
-    c.add('<ellipse cx="50" cy="82" rx="26" ry="3.4" fill="#C3D3C4" opacity="0.55"/>')
+    c.add('<g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">')
+    # limbs, drawn under the can so its outline overlaps the shoulder/hip join
+    c.add('<g stroke-width="4.2">')
+    c.add('<path d="M30 40 Q19 44 17 55"/>')   # left arm, hand on hip
+    c.add('<path d="M70 38 Q81 29 79 16"/>')   # right arm, raised
+    c.add('<path d="M41 75 L37 90"/>')          # left leg
+    c.add('<path d="M59 75 L63 90"/>')          # right leg
+    c.add('</g>')
+    # the can itself: lid + a barrel-bulged body, funky rather than a
+    # straight-sided box so it reads as a can and not a carton
+    c.add('<g stroke-width="5.2">')
+    c.add('<path d="M33 27 C 29 41, 29 60, 33 74 C 40 78, 60 78, 67 74 '
+          'C 71 60, 71 41, 67 27"/>')
+    c.add('<ellipse cx="50" cy="24" rx="19" ry="6.5"/>')
+    c.add('</g>')
+    # pull tab: a small ring on a short rivet stem
+    c.add('<g transform="translate(58 12) rotate(-12)" stroke-width="3">')
+    c.add('<ellipse cx="0" cy="0" rx="5.4" ry="3.6"/>')
+    c.add('<path d="M0 3.6 L-0.8 7.6"/>')
+    c.add('</g>')
+    c.add('</g>')
 
-    LIMBS = (  # (path or ellipse, green width, white width)
-        ('<path d="M27.4 38 C20.2 40.4 15.4 45 14.8 50.4 '
-         'C14.4 54.4 18.6 55.6 22.4 52.4 L24.6 49.6" fill="none"', 10.0, 5.2),
-        ('<path d="M73 38.2 C79.4 37.4 84.4 34.6 86.8 30" fill="none"', 10.0, 5.2),
-        ('<path d="M38.6 62 L37.4 73.4" fill="none"', 9.4, 4.6),
-        ('<path d="M61.4 62 L62.6 73.4" fill="none"', 9.4, 4.6),
-    )
-    BLOBS = (  # (cx, cy, green rx, green ry, white rx, white ry)
-        (25.0, 48.0, 6.6, 6.0, 4.2, 3.6),      # akimbo fist, on the hip
-        (88.2, 27.6, 6.6, 6.2, 4.2, 3.8),      # raised fist, holding the bean
-        (35.0, 76.0, 9.0, 6.8, 6.6, 4.4),      # feet, planted wider than the
-        (65.0, 76.0, 9.0, 6.8, 6.6, 4.4),      # walk-cycle spacing
-    )
-
-    # 2 · green pass
-    for d, gw, _ in LIMBS:
-        c.add(f'{d} stroke="{CAN_INK}" stroke-width="{gw}"/>')
-    for cx, cy, rx, ry, _, _ in BLOBS:
-        c.add(f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="{CAN_INK}"/>')
-
-    # 3 · the can itself, over the green pass
-    c.add(f'<rect x="25.8" y="25" width="48.4" height="41.8" rx="8.8" '
-          f'fill="#FFFFFF" stroke="{CAN_INK}" stroke-width="2.4"/>')
-    c.add(f'<rect x="23.6" y="14" width="52.8" height="17.6" rx="6.6" '
-          f'fill="#C3EDC5" stroke="{CAN_INK}" stroke-width="2.4"/>')
-
-    # 4 · white pass — punches the joins through the body outline
-    for d, _, ww in LIMBS:
-        c.add(f'{d} stroke="#FFFFFF" stroke-width="{ww}"/>')
-    for cx, cy, _, _, rx, ry in BLOBS:
-        c.add(f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="#FFFFFF"/>')
-
-    # 5 · label band, covering the leg tops
-    c.add('<rect x="28.8" y="53" width="42.4" height="11.6" rx="5" fill="#34C759"/>')
-    c.add(f'<text x="50" y="63.3" font-family="{FREDOKA}" font-size="13" '
-          f'font-weight="600" letter-spacing="0.4" text-anchor="middle" '
-          f'fill="#FFFFFF">Can</text>')
-
-    # 6 · face — onSurface, deliberately NOT the contour green, so it reads as
-    #     a face rather than as more outline
-    c.add('<circle cx="41" cy="36" r="3" fill="#1B241C"/>')
-    c.add('<circle cx="59" cy="36" r="3" fill="#1B241C"/>')
-    c.add('<path d="M43 41.5 Q50 50 57 41.5" fill="none" stroke="#1B241C" '
-          'stroke-width="2.8"/>')
-
-    # 7 · curled fingers — what sells a blob as a hand
-    for d in ("M21.6 46.6 L26.6 46", "M21.8 49.6 L27 49",
-              "M84.8 27.8 L91 27", "M85.2 30.4 L90.8 29.6"):
-        c.add(f'<path d="{d}" fill="none" stroke="{CAN_INK}" stroke-width="1.5"/>')
-
-    # 8 · the bean, last so it sits in front of the fingers and reads as held.
-    #     The crease is an S with unequal bulges: a symmetric curve reads as an
-    #     eye, a straight one as a pill seam.
-    c.add('<g transform="translate(88.4 19.5) rotate(-15)">'
-          f'<ellipse cx="0" cy="0" rx="5.2" ry="6.9" fill="#7E4A2E" '
-          f'stroke="{CAN_INK}" stroke-width="2"/>'
-          '<path d="M0.7 -5.6 C2.4 -2.8 -2.2 2 0.3 5.6" fill="none" '
-          'stroke="#F2FAF2" stroke-width="1.7" stroke-linecap="round"/></g>')
+    # 'Can': the shipped wordmark's own solid paths, recentred (their bbox
+    # centre is ~63.5,50.3 in the icon's 128 viewBox) and scaled into the belly
+    # -- small enough to clear the body outline's stroke width on both sides
+    c.add('<g transform="translate(50 57) scale(0.5) translate(-63.54 -50.33)" '
+          'fill="#FFFFFF">' + "".join(wf._LOGO_WORD) + '</g>')
     c.add("</g>")
 
 
@@ -191,7 +151,7 @@ def can_drink_intro():
     """First run of the Can Drink page (swipe left from Home)."""
     c = wf.Canvas("Can Drink · intro — scheme E")
     wf.status_bar(c)
-    can_character(c, 56, 92, 248)
+    can_boy(c, 180, 210, 220)
     wf.text(c, 180, 424, "What's good", "headlineMedium", wf.C["onSurface"],
             "middle", family=HEADLINE, size=33)
     wf.text(c, 180, 460, "right now", "headlineMedium", wf.C["onSurface"],
