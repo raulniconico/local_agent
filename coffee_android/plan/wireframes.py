@@ -7,7 +7,7 @@ every number in the output is a buildable spec rather than a drawing.
 from __future__ import annotations
 import math, pathlib, html, re
 
-OUT = pathlib.Path(__file__).resolve().parent / "screenshots"
+OUT = pathlib.Path(__file__).resolve().parent / "screenshots" / "sheme_1"
 
 W, H = 360, 800
 STATUS_H, BAR_H, GESTURE_H = 24, 64, 24
@@ -67,6 +67,52 @@ R_XS, R_SM, R_MD, R_LG, R_XL = 4, 8, 12, 16, 28
 SHAPE = dict(card=R_LG, sheet=R_XL, chip=R_SM, thumb=R_MD, field=R_SM)
 FIELD_STYLE = "rule"      # "rule" = hairline score sheet | "capsule" = soft slot
 
+AVATAR = "Z"          # profile initial shown in the app bar
+
+# --- font embedding -------------------------------------------------------
+# Declaring a family only works where that font happens to be installed, so
+# the same SVG renders one way in a browser and another in an IDE. Anything
+# registered in EMBED is subset to the glyphs below and inlined as base64, so
+# the file is self-contained and looks identical everywhere.
+EMBED: dict[str, str] = {}          # family name -> font file on disk
+_EMBED_CACHE: dict[str, str] = {}
+_GLYPHS = ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+           " .,:;!?'\"()[]{}/\\|-_+=<>@#$%&*^~`"
+           "·—–°★☆✓✕‹›"
+           "▾▴…’“”−€£¥"
+           "©®™✦→←↑↓⤴")
+
+
+def _font_payload(path):
+    if path not in _EMBED_CACHE:
+        import io, base64
+        from fontTools.ttLib import TTFont
+        from fontTools.subset import Subsetter, Options
+        f = TTFont(path)
+        opts = Options()
+        opts.layout_features = ["*"]
+        opts.name_IDs = ["*"]
+        sub = Subsetter(options=opts)
+        sub.populate(text=_GLYPHS)
+        sub.subset(f)
+        f.flavor = "woff2"
+        buf = io.BytesIO()
+        f.save(buf)
+        _EMBED_CACHE[path] = base64.b64encode(buf.getvalue()).decode()
+    return _EMBED_CACHE[path]
+
+
+def _font_face_css(body):
+    used = {m.split(",")[0].strip().strip("'\"")
+            for b in body for m in re.findall(r'font-family="([^"]+)"', b)}
+    out = []
+    for fam, path in EMBED.items():
+        if fam in used and pathlib.Path(path).exists():
+            out.append(f"@font-face{{font-family:'{fam}';"
+                       f"src:url(data:font/woff2;base64,{_font_payload(path)})"
+                       f" format('woff2');font-weight:300 700;font-style:normal;}}")
+    return "".join(out)
+
 FLAVOR = ["Fruity", "Floral", "Tea-like", "Sweet", "Nutty/Cocoa", "Spices",
           "Roasted", "Cereal", "Green/Veg.", "Sour", "Fermented"]
 
@@ -84,9 +130,12 @@ class Canvas:
     def add(self, s): self.body.append(s)
 
     def render(self):
-        d = f"<defs>{''.join(self.defs)}</defs>" if self.defs else ""
-        return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" '
-                f'width="{W}" height="{H}" font-family="{FU}">\n'
+        root = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" '
+                f'width="{W}" height="{H}" font-family="{T["bodyMedium"][2]}">')
+        css = _font_face_css(self.body + [root])
+        inner = "".join(self.defs) + (f"<style>{css}</style>" if css else "")
+        d = f"<defs>{inner}</defs>" if inner else ""
+        return (f'{root}\n'
                 f'<title>{esc(self.title)}</title>\n{d}\n'
                 f'<rect width="{W}" height="{H}" fill="{self.bg}"/>\n'
                 + "\n".join(self.body) + "\n</svg>\n")
@@ -216,7 +265,7 @@ def _bar_action(c, x, cy, kind, ink):
     """48dp touch target, 24dp glyph."""
     if kind == "avatar":
         circle(c, x, cy, 15, C["secondaryContainer"])
-        text(c, x, cy + 5, "Z", "labelLarge", C["onSecondaryContainer"], "middle")
+        text(c, x, cy + 5, AVATAR, "labelLarge", C["onSecondaryContainer"], "middle")
     elif kind == "share":
         path(c, f"M{x} {cy+7} v-13 m0 -1 l-5 5 m5 -5 l5 5", stroke=ink, sw=2)
         path(c, f"M{x-8} {cy+1} v7 h16 v-7", stroke=ink, sw=2)
@@ -280,7 +329,8 @@ def field(c, x, y, w, label, value, placeholder=False):
 def textfield(c, x, y, w, label, value, h=56, required=False, focused=False):
     """M3 outlined text field, 56dp."""
     stroke = C["primaryText"] if focused else C["outline"]
-    rect(c, x, y, w, h, C["cardSurface"], R_SM, stroke=stroke, sw=2 if focused else 1)
+    rect(c, x, y, w, h, C["cardSurface"], SHAPE["field"], stroke=stroke,
+         sw=2 if focused else 1)
     rect(c, x + 12, y - 6, len(label) * 6.6 + 8, 12, C["cardSurface"])
     text(c, x + 16, y + 4, label + ("*" if required else ""), "labelMedium",
          C["primaryText"] if focused else C["onSurfaceVariant"])

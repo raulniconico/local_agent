@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 800" width="360" height="800" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif">
+<title>Share card export</title>
+<defs><clipPath id="cc1"><rect x="40" y="108" width="280" height="350" rx="16"/></clipPath><linearGradient id="ph2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D8CCBE"/><stop offset="1" stop-color="#A99684"/></linearGradient><radialGradient id="hl3" cx="0.34" cy="0.28" r="0.75"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.34"/><stop offset="1" stop-color="#3B2A1C" stop-opacity="0.26"/></radialGradient><linearGradient id="cg4" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#06140A" stop-opacity="0.30"/><stop offset="0.45" stop-color="#06140A" stop-opacity="0.78"/><stop offset="1" stop-color="#06140A" stop-opacity="0.94"/></linearGradient></defs>
+<rect width="360" height="800" fill="#F2FAF2"/>
+<text x="16" y="16" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51">8:24</text>
+<rect x="296" y="17" width="3" height="4" fill="#515D51" rx="1"/>
+<rect x="301" y="15" width="3" height="6" fill="#515D51" rx="1"/>
+<rect x="306" y="13" width="3" height="8" fill="#515D51" rx="1"/>
+<rect x="311" y="11" width="3" height="10" fill="#515D51" rx="1"/>
+<path d="M320 15 q5 -4 10 0 M323 18 q2.5 -2 5 0" fill="none" stroke="#515D51" stroke-width="1.4"/>
+<rect x="334" y="9" width="18" height="9" fill="none" rx="2" stroke="#515D51" stroke-width="1"/>
+<rect x="336" y="11" width="11" height="5" fill="#515D51" rx="1"/>
+<text x="16" y="64.0" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="22" font-weight="600" fill="#1B241C">Share</text>
+<path d="M313 49.0 l14 14 M327 49.0 l-14 14" fill="none" stroke="#1B241C" stroke-width="2"/>
+<line x1="0" y1="88" x2="360" y2="88" stroke="#C3D3C4" stroke-width="1"/>
+<g clip-path="url(#cc1)">
+<rect x="40" y="108" width="280" height="350" fill="url(#ph2)"/>
+<rect x="40" y="108" width="280" height="350" fill="url(#hl3)"/>
+<rect x="40" y="108" width="280" height="350" fill="none" stroke="#1B241C" stroke-width="1" opacity="0.08"/>
+<rect x="40" y="108" width="280" height="350" fill="url(#cg4)"/>
+<text x="60" y="152" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="24" font-weight="600" fill="#F2FAF2">Ethiopia Guji</text>
+<text x="60" y="178" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="24" font-weight="600" fill="#F2FAF2">Natural</text>
+<text x="60" y="200" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#C3D3C4">Guji, Ethiopia · Belleville</text>
+<polygon points="180.0,291.6 186.7,293.6 191.3,298.8 192.3,305.8 189.4,312.1 183.5,315.9 176.5,315.9 170.6,312.1 167.7,305.8 168.7,298.8 173.3,293.6" fill="none" stroke="#C3D3C4" stroke-width="0.75" opacity="0.35"/>
+<polygon points="180.0,279.2 193.4,283.1 202.6,293.7 204.5,307.5 198.7,320.2 187.0,327.8 173.0,327.8 161.3,320.2 155.5,307.5 157.4,293.7 166.6,283.1" fill="none" stroke="#C3D3C4" stroke-width="0.75" opacity="0.35"/>
+<polygon points="180.0,266.8 200.1,272.7 213.8,288.5 216.8,309.3 208.1,328.4 190.5,339.7 169.5,339.7 151.9,328.4 143.2,309.3 146.2,288.5 159.9,272.7" fill="none" stroke="#C3D3C4" stroke-width="0.75" opacity="0.35"/>
+<polygon points="180.0,254.4 206.8,262.3 225.1,283.4 229.1,311.1 217.5,336.5 194.0,351.6 166.0,351.6 142.5,336.5 130.9,311.1 134.9,283.4 153.2,262.3" fill="none" stroke="#C3D3C4" stroke-width="0.75" opacity="0.35"/>
+<polygon points="180.0,242.0 213.5,251.8 236.4,278.2 241.4,312.8 226.9,344.6 197.5,363.5 162.5,363.5 133.1,344.6 118.6,312.8 123.6,278.2 146.5,251.8" fill="none" stroke="#C3D3C4" stroke-width="0.75" opacity="0.35"/>
+<line x1="180.0" y1="304" x2="180.0" y2="242.0" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180.0" y1="304" x2="213.51973068224706" y2="251.84228096446677" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180.0" y1="304" x2="236.39718371198012" y2="278.24426919388304" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180.0" y1="304" x2="241.36892939661783" y2="312.8235199729437" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180.0" y1="304" x2="226.856473609964" y2="344.60136550460766" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180.0" y1="304" x2="197.46741852416864" y2="363.4885643640988" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180.0" y1="304" x2="162.53258147583134" y2="363.4885643640988" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180.0" y1="304" x2="133.143526390036" y2="344.60136550460766" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180.0" y1="304" x2="118.63107060338217" y2="312.8235199729437" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180.0" y1="304" x2="123.60281628801987" y2="278.24426919388304" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180.0" y1="304" x2="146.4802693177529" y2="251.8422809644668" stroke="#C3D3C4" stroke-width="0.75"/>
+<polygon points="180.0,247.0 206.1,263.3 207.1,291.6 230.3,311.2 196.9,318.6 184.2,318.3 174.8,321.8 170.6,312.1 172.6,305.1 147.3,289.1 157.2,268.5" fill="#89D890" fill-opacity="0.2" stroke="#89D890" stroke-width="2" stroke-linejoin="round"/>
+<circle cx="180.0" cy="247.0" r="2.4" fill="#89D890"/>
+<circle cx="206.1" cy="263.3" r="2.4" fill="#89D890"/>
+<circle cx="207.1" cy="291.6" r="2.4" fill="#89D890"/>
+<circle cx="230.3" cy="311.2" r="2.4" fill="#89D890"/>
+<circle cx="196.9" cy="318.6" r="2.4" fill="#89D890"/>
+<circle cx="184.2" cy="318.3" r="2.4" fill="#89D890"/>
+<circle cx="174.8" cy="321.8" r="2.4" fill="#89D890"/>
+<circle cx="170.6" cy="312.1" r="2.4" fill="#89D890"/>
+<circle cx="172.6" cy="305.1" r="2.4" fill="#89D890"/>
+<circle cx="147.3" cy="289.1" r="2.4" fill="#89D890"/>
+<circle cx="157.2" cy="268.5" r="2.4" fill="#89D890"/>
+<text x="180.0" y="229.5" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#C3D3C4" text-anchor="middle">Fruity</text>
+<text x="222.2" y="241.9" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#C3D3C4">Floral</text>
+<text x="251.0" y="275.1" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#C3D3C4">Tea</text>
+<text x="257.2" y="318.6" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#C3D3C4">Sweet</text>
+<text x="238.9" y="358.6" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#C3D3C4">Nutty</text>
+<text x="202.0" y="382.3" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#C3D3C4">Spices</text>
+<text x="158.0" y="382.3" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#C3D3C4" text-anchor="end">Roasted</text>
+<text x="121.1" y="358.6" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#C3D3C4" text-anchor="end">Cereal</text>
+<text x="102.8" y="318.6" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#C3D3C4" text-anchor="end">Green</text>
+<text x="109.0" y="275.1" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#C3D3C4" text-anchor="end">Sour</text>
+<text x="137.8" y="241.9" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#C3D3C4" text-anchor="end">Ferment</text>
+<line x1="60" y1="396" x2="300" y2="396" stroke="#C3D3C4" stroke-width="0.75"/>
+<text x="60" y="422" font-family="'IBM Plex Mono','DejaVu Sans Mono',monospace" font-size="26" font-weight="600" fill="#F2FAF2">4.5</text>
+<text x="116" y="422" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="14" font-weight="400" fill="#C3D3C4">/ 5 · well extracted</text>
+<g transform="translate(269.0 399.0) scale(0.23438) translate(0 7)">
+<circle cx="64" cy="64" r="64" fill="#34C759"/>
+<g fill="#FFFFFF"><path transform="translate(32.250 66.000) scale(0.04395 -0.04395)" d="M472 509Q472 490 467.5 469.0Q463 448 453.0 430.0Q443 412 427.0 400.0Q411 388 388 388Q353 388 336.0 400.5Q319 413 312.0 432.0Q305 451 304.5 472.5Q304 494 303.0 513.0Q302 532 296.5 544.5Q291 557 273 557Q253 557 238.0 542.5Q223 528 212.0 505.0Q201 482 193.5 453.0Q186 424 181.5 395.5Q177 367 175.0 341.5Q173 316 173 300Q173 279 174.5 250.0Q176 221 184.0 194.5Q192 168 208.0 149.5Q224 131 254 131Q274 131 293.0 136.0Q312 141 331.0 147.5Q350 154 369.5 159.0Q389 164 409 164Q432 164 447.0 145.5Q462 127 462 104Q462 72 442.0 44.5Q422 17 392.5 -4.0Q363 -25 328.5 -37.0Q294 -49 266 -49Q194 -49 144.0 -16.5Q94 16 63.0 67.5Q32 119 18.5 182.5Q5 246 5 309Q5 351 13.0 401.0Q21 451 37.0 501.5Q53 552 77.5 599.0Q102 646 135.0 682.0Q168 718 209.5 740.0Q251 762 301 762Q350 762 383.0 737.5Q416 713 436.0 675.5Q456 638 464.0 593.5Q472 549 472 509Z"/><path transform="translate(53.431 66.000) scale(0.04395 -0.04395)" d="M455 141Q455 123 453.5 94.0Q452 65 445.0 37.5Q438 10 423.0 -10.0Q408 -30 381 -30Q344 -30 324.0 -6.0Q304 18 305 54Q273 26 232.5 10.0Q192 -6 150 -6Q121 -6 95.0 8.0Q69 22 49.0 44.0Q29 66 17.0 93.5Q5 121 5 148Q5 196 34.5 232.0Q64 268 107.0 293.5Q150 319 198.5 334.0Q247 349 285 354Q285 359 285.5 363.0Q286 367 286 372Q286 403 269.0 422.0Q252 441 221 441Q196 441 178.0 432.5Q160 424 144.0 413.5Q128 403 112.0 394.5Q96 386 76 386Q54 386 38.5 400.0Q23 414 23 436Q23 469 42.5 496.0Q62 523 91.5 541.5Q121 560 155.5 570.5Q190 581 219 581Q246 581 273.0 574.5Q300 568 324.0 554.5Q348 541 367.5 521.5Q387 502 399 476Q417 439 428.0 397.5Q439 356 445.0 312.5Q451 269 453.0 225.5Q455 182 455 141ZM295 173 292 241Q290 241 288.0 241.5Q286 242 284 242Q271 242 251.5 235.5Q232 229 214.0 217.5Q196 206 183.5 192.0Q171 178 171 163Q171 149 181.0 144.0Q191 139 204 139Q226 139 251.0 150.5Q276 162 295 173Z"/><path transform="translate(74.745 66.000) scale(0.04395 -0.04395)" d="M314 -28Q297 -28 287.0 -12.5Q277 3 272.0 23.0Q267 43 265.5 63.5Q264 84 264 95Q264 125 267.5 155.0Q271 185 275.5 215.0Q280 245 283.5 275.0Q287 305 287 335Q287 347 286.0 361.0Q285 375 281.5 387.5Q278 400 270.0 408.0Q262 416 249 416Q240 416 229.0 401.5Q218 387 208.5 368.5Q199 350 192.5 331.5Q186 313 186 304Q186 282 186.5 259.5Q187 237 187 214V156Q186 138 184.0 119.0Q182 100 178 82Q175 64 169.0 47.5Q163 31 153.5 18.5Q144 6 131.0 -2.0Q118 -10 100 -10Q80 -10 67.0 3.0Q54 16 46.0 36.5Q38 57 34.5 82.5Q31 108 29.5 132.5Q28 157 28.5 177.5Q29 198 29 210V257Q29 295 27.5 332.0Q26 369 26 406Q26 426 26.5 457.0Q27 488 34.0 517.5Q41 547 57.0 568.0Q73 589 104 589Q118 589 129.0 580.0Q140 571 148.5 558.0Q157 545 162.5 530.0Q168 515 171 504Q181 518 194.5 531.0Q208 544 225.0 554.0Q242 564 263.0 570.0Q284 576 311 576Q362 576 390.5 551.5Q419 527 432.5 490.5Q446 454 449.0 412.0Q452 370 452 336Q452 319 449.0 285.5Q446 252 439.5 211.5Q433 171 422.0 128.5Q411 86 396.0 51.0Q381 16 360.5 -6.0Q340 -28 314 -28Z"/></g>
+</g>
+<text x="300" y="438" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#C3D3C4" text-anchor="end">Coffee Can</text>
+</g>
+<text x="180" y="486" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="middle">1080 × 1350 · rendered on device</text>
+<rect x="60" y="516" width="240" height="40" fill="none" rx="20" stroke="#6D7B6D" stroke-width="1"/>
+<rect x="60" y="516" width="120" height="40" fill="#C3EDC5" rx="20"/>
+<rect x="150" y="516" width="30" height="40" fill="#C3EDC5"/>
+<line x1="180" y1="516" x2="180" y2="556" stroke="#6D7B6D" stroke-width="1"/>
+<text x="120" y="541" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="14" font-weight="600" fill="#002602" text-anchor="middle">This bean</text>
+<text x="240" y="541" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="14" font-weight="600" fill="#1B241C" text-anchor="middle">This brew</text>
+<rect x="16" y="620.0" width="158" height="40" fill="#E3F6E3" rx="8"/>
+<text x="95.0" y="645.0" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="14" font-weight="600" fill="#233524" text-anchor="middle">Save to photos</text>
+<rect x="186" y="620.0" width="158" height="40" fill="#196D2E" rx="20.0"/>
+<text x="265.0" y="645.0" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="14" font-weight="600" fill="#FFFFFF" text-anchor="middle">Share</text>
+<text x="180" y="700" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="middle">The roaster is credited by name only.</text>
+<text x="180" y="720" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="middle">Your data stays the subject — we sign it small.</text>
+<rect x="126.0" y="790" width="108" height="4" fill="#6D7B6D" rx="2" opacity="0.5"/>
+</svg>

@@ -106,20 +106,67 @@ PURE_GREEN = dict(
 )
 PURE_GREEN_SEQ = ["#EBF2EC", "#AADBAF", "#65B972", "#299141", "#155E27"]
 
-SCHEMES = [("scheme-a-light-green", ORCHARD, None),
-           ("scheme-b-green-white", BRIGHT, None),
-           ("scheme-c-pure-green", PURE_GREEN, PURE_GREEN_SEQ)]
+
+# --------------------------------------------------------------------------
+# D · "Fredoka" — scheme C's pure-green palette, set in the typeface the
+# shipped logo is actually drawn in. A rounded display face against 4dp radii
+# and 1dp hairline rules reads as a mismatch, so the shape language moves with
+# it: cards 16->24, thumbnails 12->16, and the score-sheet rule becomes a soft
+# tinted capsule. Layout, content and copy are unchanged.
+# IBM Plex Mono is retained for the pour table and numeric readouts only —
+# Fredoka has no tabular figures, and those columns must align.
+# --------------------------------------------------------------------------
+FREDOKA = "Fredoka,'Baloo 2','Liberation Sans',sans-serif"
+FREDOKA_STYLE = dict(
+    display=FREDOKA, ui=FREDOKA,
+    weights={800: 600, 600: 600, 500: 500, 400: 400},
+    shape=dict(card=24, sheet=32, chip=999, thumb=16, field=16),
+    field_style="capsule",
+)
+
+SCHEMES = [("scheme-a-light-green", ORCHARD, None, None),
+           ("scheme-b-green-white", BRIGHT, None, None),
+           ("scheme-c-pure-green", PURE_GREEN, PURE_GREEN_SEQ, None),
+           ("scheme-d-fredoka", PURE_GREEN, PURE_GREEN_SEQ, FREDOKA_STYLE)]
 _BASE_TOKENS = dict(wf.C)
 _BASE_SEQ = list(wf.SEQ)
+_BASE_T = dict(wf.T)
+_BASE_SHAPE = dict(wf.SHAPE)
+_BASE_PHOTO_D = wf.photo.__defaults__
+_BASE_TILE_D = wf.origin_tile.__defaults__
+
+
+def _apply_style(style):
+    """Type and shape are part of a scheme, not just colour."""
+    wf.T.clear(); wf.T.update(_BASE_T)
+    wf.SHAPE.clear(); wf.SHAPE.update(_BASE_SHAPE)
+    wf.FIELD_STYLE = "rule"
+    wf.photo.__defaults__ = _BASE_PHOTO_D
+    wf.origin_tile.__defaults__ = _BASE_TILE_D
+    if not style:
+        return
+    wmap = style.get("weights", {})
+    for role, (size, weight, fam) in list(_BASE_T.items()):
+        newfam = style["display"] if fam == wf.FD else (
+            style["ui"] if fam == wf.FU else fam)      # FM (mono) is left alone
+        wf.T[role] = (size, wmap.get(weight, weight), newfam)
+    wf.SHAPE.update(style.get("shape", {}))
+    wf.FIELD_STYLE = style.get("field_style", "rule")
+    r = style.get("shape", {}).get("thumb")
+    if r:
+        wf.photo.__defaults__ = (r, None)
+        wf.origin_tile.__defaults__ = (r,)
 
 if __name__ == "__main__":
-    for folder, tokens, seq in SCHEMES:
+    for folder, tokens, seq, style in SCHEMES:
         out = BASE / folder
         out.mkdir(parents=True, exist_ok=True)
         wf.C.clear(); wf.C.update(_BASE_TOKENS); wf.C.update(tokens)
         wf.SEQ[:] = seq if seq else _BASE_SEQ
+        _apply_style(style)
         wf.OUT = out
         for name, fn in wf.SCREENS:
             (out / name).write_text(fn().render())
         print(f"{folder}: {len(wf.SCREENS)} frames")
     wf.C.clear(); wf.C.update(_BASE_TOKENS); wf.SEQ[:] = _BASE_SEQ
+    _apply_style(None)

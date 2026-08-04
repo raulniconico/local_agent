@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 800" width="360" height="800" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif">
+<title>Bean Detail — flavor, documents, sessions</title>
+
+<rect width="360" height="800" fill="#F2FAF2"/>
+<text x="16" y="16" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51">8:24</text>
+<rect x="296" y="17" width="3" height="4" fill="#515D51" rx="1"/>
+<rect x="301" y="15" width="3" height="6" fill="#515D51" rx="1"/>
+<rect x="306" y="13" width="3" height="8" fill="#515D51" rx="1"/>
+<rect x="311" y="11" width="3" height="10" fill="#515D51" rx="1"/>
+<path d="M320 15 q5 -4 10 0 M323 18 q2.5 -2 5 0" fill="none" stroke="#515D51" stroke-width="1.4"/>
+<rect x="334" y="9" width="18" height="9" fill="none" rx="2" stroke="#515D51" stroke-width="1"/>
+<rect x="336" y="11" width="11" height="5" fill="#515D51" rx="1"/>
+<path d="M32 49.0 l-7 7 l7 7" fill="none" stroke="#1B241C" stroke-width="2"/>
+<text x="56" y="64.0" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="16" font-weight="600" fill="#1B241C">Ethiopia Guji Natural</text>
+<path d="M320 63.0 v-13 m0 -1 l-5 5 m5 -5 l5 5" fill="none" stroke="#1B241C" stroke-width="2"/>
+<path d="M312 57.0 v7 h16 v-7" fill="none" stroke="#1B241C" stroke-width="2"/>
+<line x1="0" y1="88" x2="360" y2="88" stroke="#C3D3C4" stroke-width="1"/>
+<text x="20" y="116" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="14" font-weight="600" fill="#1B241C">Flavor</text>
+<text x="340" y="116" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="14" font-weight="600" fill="#196D2E" text-anchor="end">Set manually</text>
+<rect x="16" y="130" width="328" height="326" fill="#FFFFFF" rx="24"/>
+<line x1="118.0" y1="148" x2="118.0" y2="428" stroke="#C3D3C4" stroke-width="1"/>
+<line x1="160.8" y1="148" x2="160.8" y2="428" stroke="#C3D3C4" stroke-width="1"/>
+<line x1="203.6" y1="148" x2="203.6" y2="428" stroke="#C3D3C4" stroke-width="1"/>
+<line x1="246.4" y1="148" x2="246.4" y2="428" stroke="#C3D3C4" stroke-width="1"/>
+<line x1="289.2" y1="148" x2="289.2" y2="428" stroke="#C3D3C4" stroke-width="1"/>
+<line x1="332.0" y1="148" x2="332.0" y2="428" stroke="#C3D3C4" stroke-width="1"/>
+<text x="108" y="158" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="end">Fruity</text>
+<rect x="118" y="150" width="214" height="10" fill="#E0EFE1" rx="4"/>
+<rect x="118" y="150" width="196.88" height="10" fill="#2B9343" rx="4"/>
+<rect x="118" y="150" width="4" height="10" fill="#2B9343"/>
+<text x="320.88" y="159" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51">4.6</text>
+<text x="108" y="184" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="end">Floral</text>
+<rect x="118" y="176" width="214" height="10" fill="#E0EFE1" rx="4"/>
+<rect x="118" y="176" width="166.92000000000002" height="10" fill="#2B9343" rx="4"/>
+<rect x="118" y="176" width="4" height="10" fill="#2B9343"/>
+<text x="108" y="210" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="end">Tea-like</text>
+<rect x="118" y="202" width="214" height="10" fill="#E0EFE1" rx="4"/>
+<rect x="118" y="202" width="102.72" height="10" fill="#2B9343" rx="4"/>
+<rect x="118" y="202" width="4" height="10" fill="#2B9343"/>
+<text x="108" y="236" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="end">Sweet</text>
+<rect x="118" y="228" width="214" height="10" fill="#E0EFE1" rx="4"/>
+<rect x="118" y="228" width="175.48" height="10" fill="#2B9343" rx="4"/>
+<rect x="118" y="228" width="4" height="10" fill="#2B9343"/>
+<text x="299.48" y="237" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51">4.1</text>
+<text x="108" y="262" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="end">Nutty/Cocoa</text>
+<rect x="118" y="254" width="214" height="10" fill="#E0EFE1" rx="4"/>
+<rect x="118" y="254" width="77.03999999999999" height="10" fill="#2B9343" rx="4"/>
+<rect x="118" y="254" width="4" height="10" fill="#2B9343"/>
+<text x="108" y="288" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="end">Spices</text>
+<rect x="118" y="280" width="214" height="10" fill="#E0EFE1" rx="4"/>
+<rect x="118" y="280" width="51.36" height="10" fill="#2B9343" rx="4"/>
+<rect x="118" y="280" width="4" height="10" fill="#2B9343"/>
+<text x="108" y="314" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="end">Roasted</text>
+<rect x="118" y="306" width="214" height="10" fill="#E0EFE1" rx="4"/>
+<rect x="118" y="306" width="64.2" height="10" fill="#2B9343" rx="4"/>
+<rect x="118" y="306" width="4" height="10" fill="#2B9343"/>
+<text x="108" y="340" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="end">Cereal</text>
+<rect x="118" y="332" width="214" height="10" fill="#E0EFE1" rx="4"/>
+<rect x="118" y="332" width="42.800000000000004" height="10" fill="#2B9343" rx="4"/>
+<rect x="118" y="332" width="4" height="10" fill="#2B9343"/>
+<text x="108" y="366" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="end">Green/Veg.</text>
+<rect x="118" y="358" width="214" height="10" fill="#E0EFE1" rx="4"/>
+<rect x="118" y="358" width="25.68" height="10" fill="#2B9343" rx="4"/>
+<rect x="118" y="358" width="4" height="10" fill="#2B9343"/>
+<text x="108" y="392" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="end">Sour</text>
+<rect x="118" y="384" width="214" height="10" fill="#E0EFE1" rx="4"/>
+<rect x="118" y="384" width="124.11999999999999" height="10" fill="#2B9343" rx="4"/>
+<rect x="118" y="384" width="4" height="10" fill="#2B9343"/>
+<text x="108" y="418" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="end">Fermented</text>
+<rect x="118" y="410" width="214" height="10" fill="#E0EFE1" rx="4"/>
+<rect x="118" y="410" width="145.51999999999998" height="10" fill="#2B9343" rx="4"/>
+<rect x="118" y="410" width="4" height="10" fill="#2B9343"/>
+<text x="118" y="440" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="middle">0</text>
+<text x="332" y="440" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="middle">5</text>
+<text x="20" y="474" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51">Averaged from 4 sessions · fixed axis order, 0–5 scale</text>
+<text x="20" y="512" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="14" font-weight="600" fill="#1B241C">Documents</text>
+<g transform="rotate(-1.5 58 572)">
+<rect x="22" y="526" width="76" height="96" fill="#06140A" rx="2" opacity="0.1"/>
+<rect x="20" y="524" width="76" height="96" fill="#FFFFFF" rx="2" stroke="#C3D3C4" stroke-width="1"/>
+<line x1="29" y1="544" x2="87" y2="544" stroke="#C3D3C4" stroke-width="2"/>
+<line x1="29" y1="557" x2="71" y2="557" stroke="#C3D3C4" stroke-width="2"/>
+<line x1="29" y1="570" x2="87" y2="570" stroke="#C3D3C4" stroke-width="2"/>
+<line x1="29" y1="583" x2="71" y2="583" stroke="#C3D3C4" stroke-width="2"/>
+<line x1="29" y1="596" x2="87" y2="596" stroke="#C3D3C4" stroke-width="2"/>
+</g>
+<g transform="rotate(1.2 142 572)">
+<rect x="106" y="526" width="76" height="96" fill="#06140A" rx="2" opacity="0.1"/>
+<rect x="104" y="524" width="76" height="96" fill="#FFFFFF" rx="2" stroke="#C3D3C4" stroke-width="1"/>
+<line x1="113" y1="544" x2="171" y2="544" stroke="#C3D3C4" stroke-width="2"/>
+<line x1="113" y1="557" x2="155" y2="557" stroke="#C3D3C4" stroke-width="2"/>
+<line x1="113" y1="570" x2="171" y2="570" stroke="#C3D3C4" stroke-width="2"/>
+<line x1="113" y1="583" x2="155" y2="583" stroke="#C3D3C4" stroke-width="2"/>
+<line x1="113" y1="596" x2="171" y2="596" stroke="#C3D3C4" stroke-width="2"/>
+</g>
+<g transform="rotate(-0.8 226 572)">
+<rect x="190" y="526" width="76" height="96" fill="#06140A" rx="2" opacity="0.1"/>
+<rect x="188" y="524" width="76" height="96" fill="#FFFFFF" rx="2" stroke="#C3D3C4" stroke-width="1"/>
+<line x1="197" y1="544" x2="255" y2="544" stroke="#C3D3C4" stroke-width="2"/>
+<line x1="197" y1="557" x2="239" y2="557" stroke="#C3D3C4" stroke-width="2"/>
+<line x1="197" y1="570" x2="255" y2="570" stroke="#C3D3C4" stroke-width="2"/>
+<line x1="197" y1="583" x2="239" y2="583" stroke="#C3D3C4" stroke-width="2"/>
+<line x1="197" y1="596" x2="255" y2="596" stroke="#C3D3C4" stroke-width="2"/>
+</g>
+<rect x="276" y="524" width="68" height="96" fill="#E3F6E3" rx="8"/>
+<path d="M304 562 h12 M310 556 v12" fill="none" stroke="#233524" stroke-width="2"/>
+<text x="310" y="588" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#233524" text-anchor="middle">Scan label</text>
+<text x="20" y="652" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="14" font-weight="600" fill="#1B241C">Sessions</text>
+<text x="340" y="652" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="14" font-weight="600" fill="#196D2E" text-anchor="end">Ask AI</text>
+<text x="20" y="684" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="16" font-weight="600" fill="#1B241C">30 Jul</text>
+<text x="20" y="704" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="13" font-weight="400" fill="#515D51">V60 · 15.0 g · 4.5 · well extracted</text>
+<line x1="20" y1="712" x2="340" y2="712" stroke="#C3D3C4" stroke-width="1"/>
+<text x="20" y="732" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="16" font-weight="600" fill="#1B241C">25 Jul</text>
+<text x="20" y="752" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="13" font-weight="400" fill="#515D51">Kalita · 16.0 g · 4.0 · slightly under</text>
+<line x1="20" y1="760" x2="340" y2="760" stroke="#C3D3C4" stroke-width="1"/>
+<circle cx="312" cy="712" r="28" fill="#196D2E"/>
+<path d="M300 712 h24 M312 700 v24" fill="none" stroke="#FFFFFF" stroke-width="2.6"/>
+<rect x="126.0" y="790" width="108" height="4" fill="#6D7B6D" rx="2" opacity="0.5"/>
+</svg>
