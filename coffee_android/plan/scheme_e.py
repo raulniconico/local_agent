@@ -72,6 +72,60 @@ def welcome(fade: float = 1.0):
     return c
 
 
+# -------------------------------------------------------------- 00 home ----
+def home(beans=None):
+    """Home once at least one bean profile exists: the empty state's single
+    CTA (home_empty) is replaced by a grid of bean blocks -- the same card
+    language as -1_can_drink's product blocks (photo, title, meta, a status
+    pill), just carrying bean fields instead of roaster/price/stock.
+
+    `beans` is a sequence of (name, roast_meta, brew_count); defaults to a
+    small sample so the page renders on its own.
+    """
+    beans = beans or [
+        ("Ethiopia Guji Natural", "Natural · Roasted 28 Jul", 4),
+        ("Colombia Huila Washed", "Washed · Roasted 20 Jul", 2),
+        ("Kenya Nyeri AB", "Washed · Roasted 02 Aug", 0),
+        ("Guatemala Huehue", "Washed · Roasted 15 Jul", 1),
+    ]
+    c = wf.Canvas("Home — scheme E")
+    wf.status_bar(c)
+    wf.top_bar(c, "Coffee Can", brand=True, actions=("avatar",))
+    wf.section(c, 112, "Your beans", "Search")
+
+    card_h, photo_h, row_gap = 164, 84, 12
+    for i, (name, meta, sessions) in enumerate(beans):
+        cx = wf.GUTTER + (i % 2) * 168
+        cy = 128 + (i // 2) * (card_h + row_gap)
+        wf.card(c, cy, card_h, x=cx, w=152)
+        wf.photo(c, cx, cy, 152, photo_h, r=wf.R_LG)
+        wf.rect(c, cx, cy + photo_h - 16, 152, 16, wf.C["cardSurface"])
+        wf.text(c, cx + 12, cy + 100, name, "titleMedium", size=13)
+        wf.text(c, cx + 12, cy + 116, meta, "bodyMedium", wf.C["onSurfaceVariant"], size=11)
+        if sessions:
+            wf.rect(c, cx + 12, cy + 140, 66, 16, wf.C["primaryContainer"], wf.R_XS)
+            label = "1 brew" if sessions == 1 else f"{sessions} brews"
+            wf.text(c, cx + 45, cy + 152, label, "labelSmall",
+                    wf.C["onPrimaryContainer"], "middle")
+        else:
+            wf.rect(c, cx + 12, cy + 140, 92, 16, wf.C["surfaceContainer"], wf.R_XS)
+            wf.text(c, cx + 58, cy + 152, "No brews yet", "labelSmall",
+                    wf.C["onSurfaceVariant"], "middle")
+
+    rows = -(-len(beans) // 2)
+    grid_bottom = 128 + rows * card_h + (rows - 1) * row_gap
+    wf.section(c, grid_bottom + 32, "Brewing activity")
+    wf.card(c, grid_bottom + 46, 140)
+    wf.heatmap(c, 28, grid_bottom + 78, 304)
+
+    # FAB, clear of the bar tips -- adds another 0.5 bean profile
+    fab_cy = grid_bottom + 46 + 140 + 44
+    wf.circle(c, 312, fab_cy, 28, wf.C["primary"], stroke=wf.C.get("primaryOutline"))
+    wf.path(c, f"M300 {fab_cy} h24 M312 {fab_cy - 12} v24", stroke=wf.C["onPrimary"], sw=2.6)
+    wf.gesture_bar(c)
+    return c
+
+
 # ------------------------------------------------------------ 01b home ----
 def home_empty(headline_font=None, shake=0.0):
     """First run, no beans yet. Layout unchanged from the draft; the avatar
@@ -308,6 +362,7 @@ def can_drink(seed=11):
 
 
 PAGES = [("00w_welcome.svg", welcome),
+         ("00_home.svg", home),
          ("00_home_empty.svg", home_empty),
          ("0.5_bean_profile.svg", bean_profile_empty),
          ("-1w_can_drink_intro.svg", can_drink_intro),
