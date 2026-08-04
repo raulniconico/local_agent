@@ -138,6 +138,63 @@ def home(beans=None):
     return c
 
 
+# ---------------------------------------------------------- 00 home (v1) ---
+def home_list(beans=None):
+    """Alternate take on the populated Home: full-width profile cards in a
+    single column, instead of home()'s 2-up block grid.
+
+    The grid borrows -1_can_drink's language, which fits that page well --
+    browsing many roasters' products is a discovery task, and a photo-led
+    grid is the right pattern for discovery. Home isn't that: it's a
+    handful of bags someone already owns, not a catalogue to browse. A
+    list trades density (fewer beans per screen) for room per bean -- a
+    bigger origin tile, a clearer single tap target, a chevron instead of a
+    same-sized twin -- which is the right trade once the collection itself
+    is small. bean_row() (wireframes.py's pre-scheme-e sketch of this same
+    idea) made the same call; this restores it in scheme E's own type/tokens
+    rather than reusing home()'s grid just for consistency's sake.
+    """
+    beans = beans or [
+        ("Ethiopia Guji Natural", "Natural · Roasted 28 Jul", 4, "ET"),
+        ("Colombia Huila Washed", "Washed · Roasted 20 Jul", 2, "CO"),
+        ("Kenya Nyeri AB", "Washed · Roasted 02 Aug", 0, "KE"),
+        ("Guatemala Huehue", "Washed · Roasted 15 Jul", 1, "GT"),
+    ]
+    c = wf.Canvas("Home · list variant — scheme E")
+    wf.status_bar(c)
+    wf.top_bar(c, "Coffee Can", brand=True, actions=("avatar",))
+    wf.section(c, 112, "Your beans", "Search")
+
+    card_w, card_h, tile, row_gap = W - 2 * wf.GUTTER, 86, 72, 10
+    start_y = 124
+    for i, (name, meta, sessions, code) in enumerate(beans):
+        cx, cy = wf.GUTTER, start_y + i * (card_h + row_gap)
+        wf.card(c, cy, card_h, x=cx, w=card_w)
+        wf.origin_tile(c, cx + 12, cy + 7, tile, tile, code, r=wf.R_MD)
+        tx = cx + 12 + tile + 14
+        wf.text(c, tx, cy + 30, name, "titleMedium", size=14)
+        wf.text(c, tx, cy + 47, meta, "bodyMedium", wf.C["onSurfaceVariant"], size=11)
+        if sessions:
+            label = "1 brew" if sessions == 1 else f"{sessions} brews"
+            wf.rect(c, tx, cy + 54, len(label) * 6.2 + 20, 16, wf.C["primaryContainer"], wf.R_XS)
+            wf.text(c, tx + 10, cy + 66, label, "labelSmall", wf.C["onPrimaryContainer"])
+        else:
+            wf.rect(c, tx, cy + 54, 92, 16, wf.C["surfaceContainer"], wf.R_XS)
+            wf.text(c, tx + 10, cy + 66, "No brews yet", "labelSmall", wf.C["onSurfaceVariant"])
+        wf.path(c, f"M{cx+card_w-24} {cy+card_h/2-5} l5 5 l-5 5", stroke=wf.C["outline"], sw=1.6)
+
+    list_bottom = start_y + len(beans) * card_h + (len(beans) - 1) * row_gap
+    wf.section(c, list_bottom + 28, "Brewing activity")
+    wf.card(c, list_bottom + 42, 140)
+    wf.heatmap(c, 28, list_bottom + 74, 304)
+
+    fab_cy = list_bottom + 42 + 140 + 40
+    wf.circle(c, 312, fab_cy, 28, wf.C["primary"], stroke=wf.C.get("primaryOutline"))
+    wf.path(c, f"M300 {fab_cy} h24 M312 {fab_cy - 12} v24", stroke=wf.C["onPrimary"], sw=2.6)
+    wf.gesture_bar(c)
+    return c
+
+
 # ------------------------------------------------------------ 01b home ----
 def home_empty(headline_font=None, shake=0.0):
     """First run, no beans yet. Layout unchanged from the draft; the avatar
@@ -375,6 +432,7 @@ def can_drink(seed=11):
 
 PAGES = [("00w_welcome.svg", welcome),
          ("00_home.svg", home),
+         ("00_home_1.svg", home_list),
          ("00_home_empty.svg", home_empty),
          ("0.5_bean_profile.svg", bean_profile_empty),
          ("-1w_can_drink_intro.svg", can_drink_intro),
