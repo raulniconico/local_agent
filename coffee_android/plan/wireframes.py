@@ -525,20 +525,33 @@ def stars(c, x, y, score, size=24, gap=8):
          "labelLarge", C["outline"] if unset else C["onSurface"])
 
 
-def radar11(c, cx, cy, r, values, stroke, ink, fill_op=0.16, labels=True):
-    """Kept for the share-card export only: 1080px output, shape-as-signature,
-    comparison is not the job."""
+def radar11(c, cx, cy, r, values, stroke, ink, fill_op=0.16, labels=True,
+            grid=None):
+    """Shape-as-signature: the outline of all eleven axes at once, read as one
+    figure. Comparison against a scale is not the job — flavor_bars() is what
+    to reach for when a reader needs to rank axes or read values off.
+
+    Two callers, both wanting exactly that: the share-card export (1080px, on
+    a dark photo) and scheme E's Home "My flavor" summary (a small chart on a
+    white card).
+
+    `grid` colours the rings and spokes when the net wants to sit back from
+    the labels — on a white card the labels need vizInk's contrast and a net
+    drawn in it would read as the loudest thing on the card. It defaults to
+    `ink`, the share card's own single-colour treatment.
+    """
+    grid = grid or ink
     n = len(values)
     ang = lambda i: math.radians(-90 + i * 360 / n)
     for ring in range(1, 6):
         rr = r * ring / 5
         pts = " ".join(f"{cx+rr*math.cos(ang(i)):.1f},{cy+rr*math.sin(ang(i)):.1f}"
                        for i in range(n))
-        c.add(f'<polygon points="{pts}" fill="none" stroke="{ink}" '
+        c.add(f'<polygon points="{pts}" fill="none" stroke="{grid}" '
               f'stroke-width="0.75" opacity="0.35"/>')
     for i in range(n):
         line(c, cx, cy, cx + r * math.cos(ang(i)), cy + r * math.sin(ang(i)),
-             ink, 0.75)
+             grid, 0.75)
     pts = []
     for i, v in enumerate(values):
         rr = r * v / 5
