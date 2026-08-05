@@ -1,6 +1,6 @@
-"""Dialog for the bean page's "Ask AI" button: pick a dripper, ask Qwen
-for a brewing recipe suggestion for this bean, review it, then Create
-Session -- which hands the parsed recipe (dripper, summary, dose, grind
+"""Dialog for the bean page's "Ask AI" button: pick a dripper and optionally
+a dose, ask Qwen for a brewing recipe suggestion for this bean, review it,
+then Create Session -- which hands the parsed recipe (dripper, summary, dose, grind
 size, pour stages) back to the caller (BeanDialog._ask_ai_brew) to persist
 as a real session with real brew_stages rows, then opens the normal
 BrewDialog for further editing. See qwen_brew_suggest.py for the actual API call
@@ -9,6 +9,8 @@ and the JSON shape it returns."""
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QDialog,
+    QDoubleSpinBox,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QMessageBox,
@@ -31,14 +33,17 @@ class _SuggestionWorker(QThread):
     succeeded = Signal(dict)  # not `finished`: QThread already defines that
     failed = Signal(str, str)  # (message box title, message)
 
-    def __init__(self, bean_info: dict, dripper: str):
+    def __init__(self, bean_info: dict, dripper: str, dose_g: float | None):
         super().__init__()
         self._bean_info = bean_info
         self._dripper = dripper
+        self._dose_g = dose_g
 
     def run(self):
         try:
-            result = qwen_brew_suggest.suggest_brew(self._bean_info, self._dripper)
+            result = qwen_brew_suggest.suggest_brew(
+                self._bean_info, self._dripper, self._dose_g
+            )
         except qwen_brew_suggest.QwenBrewUnavailableError as exc:
             self.failed.emit("AI suggestion unavailable", str(exc))
         except Exception as exc:  # noqa: BLE001 -- network/SDK errors vary
@@ -64,6 +69,19 @@ class AiBrewSuggestionDialog(QDialog):
 
         self.dripper_combo = DripperCombo()
 
+        # Same range/step/suffix as BrewDialog's dose field, so the number
+        # means the same thing in both places. 0 is the special case: it
+        # reads "auto" and leaves the dose to Qwen, which is what this
+        # dialog did before the field existed -- so the default keeps the
+        # old behaviour rather than pushing a made-up 15 g on anyone.
+        self.dose_spin = QDoubleSpinBox()
+        self.dose_spin.setRange(0, 100)
+        self.dose_spin.setSuffix(" g")
+        self.dose_spin.setSingleStep(0.5)
+        self.dose_spin.setValue(0)
+        self.dose_spin.setSpecialValueText("auto")
+        self.dose_spin.setToolTip("Leave on 'auto' to let the AI choose the dose")
+
         self.ask_btn = QPushButton("Get Suggestion")
         self.ask_btn.setProperty("variant", "primary")
         self.ask_btn.clicked.connect(self._ask)
@@ -86,10 +104,19 @@ class AiBrewSuggestionDialog(QDialog):
         cancel_btn = QPushButton("Cancel")
         cancel_btn.clicked.connect(self.reject)
 
-        top_row = QHBoxLayout()
-        top_row.addWidget(QLabel("Dripper"))
-        top_row.addWidget(self.dripper_combo, 1)
-        top_row.addWidget(self.ask_btn)
+        # A grid rather than two QHBoxLayouts: the two labels have to share a
+        # column to line up, and the ask button spans both rows because it
+        # acts on both fields, not just the dripper it would otherwise sit
+        # beside. The spin box is left-aligned at its natural width -- a dose
+        # stretched to the combo's width reads as a field expecting a long
+        # value, which two digits are not.
+        top_grid = QGridLayout()
+        top_grid.addWidget(QLabel("Dripper"), 0, 0)
+        top_grid.addWidget(self.dripper_combo, 0, 1)
+        top_grid.addWidget(QLabel("Dose"), 1, 0)
+        top_grid.addWidget(self.dose_spin, 1, 1, Qt.AlignmentFlag.AlignLeft)
+        top_grid.addWidget(self.ask_btn, 0, 2, 2, 1)
+        top_grid.setColumnStretch(1, 1)
 
         buttons = QHBoxLayout()
         buttons.addStretch()
@@ -99,7 +126,7 @@ class AiBrewSuggestionDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(14)
-        layout.addLayout(top_row)
+        layout.addLayout(top_grid)
         layout.addWidget(self.loader)
         layout.addWidget(self.status_label)
         layout.addWidget(self.suggestion_edit, 1)
@@ -145,10 +172,10 @@ class AiBrewSuggestionDialog(QDialog):
         self.create_btn.setEnabled(False)
         self._result = None
         self.suggestion_edit.setPlainText("")
-        self.status_label.setText("Asking Qwen...")
+        self.status_label.setText("Torrefying...")
         self.loader.show()
 
-        worker = _SuggestionWorker(self._bean_info(), dripper)
+        worker = _SuggestionWorker(self._bean_info(), dripper, self.dose_spin.value() or None)
         self._worker = worker
         worker.succeeded.connect(self._on_succeeded)
         worker.failed.connect(self._on_failed)

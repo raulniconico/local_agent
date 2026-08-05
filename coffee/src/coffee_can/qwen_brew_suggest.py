@@ -108,13 +108,21 @@ def _normalize(data: dict) -> dict:
     }
 
 
-def suggest_brew(bean_info: dict, dripper: str) -> dict:
+def suggest_brew(bean_info: dict, dripper: str, dose_g: float | None = None) -> dict:
     """bean_info is a {label: value} dict of the bean's basic details (blank
     values are skipped). Returns {"summary": str, "dose_g": float|None,
     "grind_size": str, "stages": [{"temperature_c", "water_g",
     "time_seconds", "circling"}, ...]} -- any field Qwen didn't provide
     or that didn't parse as a number comes back as None/"" rather than
-    raising, since JSON mode doesn't guarantee the shape."""
+    raising, since JSON mode doesn't guarantee the shape.
+
+    `dose_g` is how much coffee the caller intends to weigh out. Left None,
+    Qwen picks a dose as it always has. Given, it becomes a constraint on
+    the recipe -- the water in every stage is scaled to it -- and the
+    returned "dose_g" is forced back to it afterwards, because the user is
+    going to put that much in the grinder whatever the model says. Letting a
+    model that drifted to 16 g write 16 g into the session would record a
+    brew that never happened."""
     if not is_configured():
         raise QwenBrewUnavailableError(
             "QWEN_API_KEY isn't set. Add it to your shell environment or a .env file."
@@ -127,9 +135,16 @@ def suggest_brew(bean_info: dict, dripper: str) -> dict:
 
     lines = [f"{label}: {value}" for label, value in bean_info.items() if value]
     bean_summary = "\n".join(lines) if lines else "(no details recorded for this bean)"
+    dose_line = (
+        f"The dose is fixed at {dose_g:g} g of coffee -- use exactly that for "
+        "\"dose_g\" and scale the water in every stage to it.\n\n"
+        if dose_g
+        else ""
+    )
     prompt = (
         "You are a specialty coffee hand-brew expert. Given this coffee bean:\n\n"
         f"{bean_summary}\n\nand this dripper: {dripper}\n\n"
+        f"{dose_line}"
         "Suggest a brewing recipe and reply with a single JSON object only, "
         "no other text, in exactly this shape (temperature_c/water_g/"
         "time_seconds are numbers, not strings):\n\n"
@@ -166,4 +181,7 @@ def suggest_brew(bean_info: dict, dripper: str) -> dict:
     except json.JSONDecodeError as exc:
         raise QwenBrewUnavailableError(f"Qwen didn't return valid JSON: {exc}") from exc
 
-    return _normalize(data)
+    result = _normalize(data)
+    if dose_g:
+        result["dose_g"] = float(dose_g)
+    return result

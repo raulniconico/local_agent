@@ -215,7 +215,7 @@ class VoiceBrewDialog(QDialog):
         path.unlink(missing_ok=True)
 
         self.mic_btn.setEnabled(False)
-        self.status_label.setText("Asking Qwen...")
+        self.status_label.setText("Torrefying...")
         self.loader.show()
 
         worker = _TranscribeWorker(audio_bytes, "wav", self._bean_info())
