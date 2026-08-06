@@ -552,7 +552,16 @@ def camera_permission():
 # Design is untouched on both -- same card, same tilted stack, same tonal
 # add-tile in the same slot. Only the chart inside the first and the words
 # in both.
-def bean_detail():
+# The one line of copy the empty radar carries, on 0.6 and 0.6b alike. It
+# sits under the section heading rather than inside the card because 0.6's
+# card has no room -- at r=62 the top axis label already touches the card's
+# top edge -- and because 0.6/0.6b are the same page at two scroll offsets:
+# a sentence that moved from above the card to inside it as you scrolled
+# would be two different pages, not one.
+_RADAR_EMPTY_NOTE = "Log a brew and this fills itself in — or Set manually."
+
+
+def bean_detail(empty=False):
     """0.6: the saved bean profile, first scroll page — photo hero over the
     score-sheet fields, with the radar starting to show above the fold.
 
@@ -560,6 +569,9 @@ def bean_detail():
     scrolling page, and a card cut by the fold says "keep going" where a
     card that ends neatly above it says "this is all there is". 0.6b picks
     that same card up in full.
+
+    `empty=True` is 0.6_empty (see bean_detail_empty); everything above the
+    Radar heading is shared verbatim, which is the point of the flag.
     """
     c = wf.Canvas("Bean profile — scheme E (0.6)")
     wf.photo(c, 0, 0, W, 300, r=0)
@@ -597,10 +609,44 @@ def bean_detail():
         wf.field(c, 195, ry, 145, l2, v2)
 
     wf.section(c, 616, "Radar", "Set manually")
-    wf.card(c, 630, 190)
-    wf.radar11(c, 180, 715, 62, wf.BEAN_FLAVOR, wf.C["vizSeries"], wf.C["vizInk"],
-               fill_op=0.18, grid=wf.C["vizGrid"])
+    if empty:
+        wf.text(c, 20, 634, _RADAR_EMPTY_NOTE, "labelSmall", wf.C["onSurfaceVariant"])
+        # The note costs 16dp, and the net gives it back out of its own
+        # radius: 62 -> 53, the largest that still lands the bottom axis
+        # labels where the populated page's land (~y796), so the fold cuts
+        # both states of this page in the same place. An empty net has no
+        # polygon to read off it, so radius is the cheapest thing on this
+        # card to spend.
+        wf.card(c, 646, 190)
+        wf.radar11(c, 180, 723, 53)
+    else:
+        wf.card(c, 630, 190)
+        wf.radar11(c, 180, 715, 62, wf.BEAN_FLAVOR, wf.C["vizSeries"], wf.C["vizInk"],
+                   fill_op=0.18, grid=wf.C["vizGrid"])
     return c
+
+
+def bean_detail_empty():
+    """0.6 for a bean with nothing brewed yet: the profile is complete —
+    name, origin, variety, roaster, process, roast date, photo — and the only
+    thing missing is the log. Reached the same way 0.6 is, by tapping a bean
+    on Home; a bean saved from 0.5 lands here and stays here until its first
+    session.
+
+    Against 0.6, exactly two things change and everything above the Radar
+    heading is untouched. The net goes grey and loses its polygon
+    (radar11(values=None) — see its docstring for why an empty net beats a
+    row of zeros), and a line under the heading says what the grey means and
+    how to end it.
+
+    The fold still cuts the radar card, deliberately, and cuts it harder in
+    this state than in the populated one. A card that ended neatly above
+    y=800 here would say "nothing logged, and nothing below either" — false,
+    since 0.6b still holds this bean's images and the invitation to brew.
+    Cut, it says "keep going", and what you find by going is the mascot
+    asking for a cup.
+    """
+    return bean_detail(empty=True)
 
 
 def bean_detail_lower():
@@ -637,6 +683,74 @@ def bean_detail_lower():
         wf.text(c, 20, ry + 20, d, "titleMedium")
         wf.text(c, 20, ry + 40, sub, "bodyMedium", wf.C["onSurfaceVariant"], size=13)
         wf.line(c, 20, ry + 48, 340, ry + 48)
+    wf.circle(c, 312, 712, 28, wf.C["primary"], stroke=wf.C.get("primaryOutline"))
+    wf.path(c, "M300 712 h24 M312 700 v24", stroke=wf.C["onPrimary"], sw=2.6)
+    wf.gesture_bar(c)
+    return c
+
+
+def bean_detail_lower_empty():
+    """0.6b for the same unbrewed bean as 0.6_empty: the radar with no series
+    in it, the bean's images — which exist, this state is about missing
+    *brews*, not a missing profile — and a Sessions block with nothing to
+    list. Reached by scrolling 0.6_empty.
+
+    Block order is 0.6b's, unchanged: Radar, Images, Sessions. Order is what
+    makes this the same page as its populated twin; only the heights flex.
+    And they have to flex, because two 48dp session rows become an
+    illustration block roughly twice that, on a page whose budget is fixed at
+    800dp. The 90dp comes out of the radar card (326 -> 232, radius 92 -> 68).
+    That is not a grudging trim: a card that big with no polygon in it is
+    mostly white, which is the "blank card" failure this state has to avoid,
+    and the axis contract that makes the chart worth keeping — eleven named
+    axes, fixed order, five rings — survives the smaller radius intact.
+
+    The caption under the card is rewritten. "Averaged from 4 sessions" is a
+    lie here, and restating "no sessions" would be the third time the page
+    said it, so it keeps only the half that is still true and still useful:
+    the axis order and the 0–5 scale, which is what lets a reader compare
+    this bean's shape against the next one's.
+
+    Sessions is the page's emotional beat, so it gets the space the radar
+    gave up: can-boy brewing a V60 at 132dp — over the 120dp the figure needs
+    to read, since the block could afford it — under "No brews yet", the same
+    phrasing 00_home_empty and Home's own bean chips already use. The copy
+    names the plus button rather than restating the heading, and the FAB
+    stays exactly where 0.6b parks it (312, 712): it is the one thing on this
+    page that changes the state, and moving it between states would cost the
+    muscle memory that makes it obvious. Nothing else is placed inside its
+    corner, so the mascot and the copy clear it without a fight.
+    """
+    c = wf.Canvas("Bean profile · lower — scheme E (0.6b, no sessions)")
+    wf.status_bar(c)
+    wf.top_bar(c, "Ethiopia Guji Natural", back=True, actions=("share",))
+
+    wf.section(c, 116, "Radar", "Set manually")
+    wf.text(c, 20, 134, _RADAR_EMPTY_NOTE, "labelSmall", wf.C["onSurfaceVariant"])
+    wf.card(c, 148, 232)
+    wf.radar11(c, 180, 264, 68)
+    wf.text(c, 20, 398, "Fixed axis order, 0–5 scale", "labelSmall",
+            wf.C["onSurfaceVariant"])
+
+    wf.section(c, 430, "Images")
+    for x, rot in ((20, -1.5), (104, 1.2), (188, -0.8)):
+        c.add(f'<g transform="rotate({rot} {x+38} {490})">')
+        wf.rect(c, x + 2, 444, 76, 96, wf.C["scrim"], 2, opacity=0.10)
+        wf.rect(c, x, 442, 76, 96, wf.C["cardSurface"], 2, stroke=wf.C["outlineVariant"])
+        for k in range(5):
+            wf.line(c, x + 9, 462 + k * 13, x + 67 - (k % 2) * 16, 462 + k * 13,
+                    wf.C["outlineVariant"], 2)
+        c.add("</g>")
+    wf.rect(c, 276, 442, 68, 96, wf.C["secondaryContainer"], wf.R_SM)
+    wf.path(c, "M304 480 h12 M310 474 v12", stroke=wf.C["onSecondaryContainer"], sw=2)
+    wf.text(c, 310, 506, "Add img", "labelSmall", wf.C["onSecondaryContainer"], "middle")
+
+    wf.section(c, 570, "Sessions", "Ask AI")
+    can_boy_v60(c, 180, 648, 132)
+    wf.text(c, 180, 744, "No brews yet", "titleLarge", wf.C["onSurface"], "middle",
+            family=HEADLINE)
+    wf.text(c, 180, 768, "Go brew a cup, then tap + to log it.", "bodyMedium",
+            wf.C["onSurfaceVariant"], "middle")
     wf.circle(c, 312, 712, 28, wf.C["primary"], stroke=wf.C.get("primaryOutline"))
     wf.path(c, "M300 712 h24 M312 700 v24", stroke=wf.C["onPrimary"], sw=2.6)
     wf.gesture_bar(c)
@@ -871,6 +985,202 @@ def can_boy_sad(c, cx, cy, size):
     c.add('</g>')
 
 
+def can_boy_v60(c, cx, cy, size, tilt=0.0):
+    """Can-boy brewing pour-over -- the empty Sessions block on a bean page
+    with nothing logged yet ("no brews yet, go brew one").
+
+    `tilt` adds degrees to the kettle's resting 30deg pour angle, pivoting it
+    about the grip so the hand stays put and only the pot rolls; the stream's
+    origin is recomputed from the rotated spout tip, so it never detaches. It
+    rests at 0 and the still frame is the deliverable -- nothing drives it yet.
+
+    THE RAISED ARM IS can_boy()'s BEAN ARM, VERBATIM: "M70 38 Q81 29 79 16" is
+    the same curve, and the kettle's grip sits exactly on (79, 16), the point
+    where can_boy() puts the bean. Swap the prop, keep the pose. That is not a
+    stylistic nicety -- an earlier pass drew a flatter arm to keep the forearm
+    off the pot, and because limbs are drawn UNDER the can, the body outline's
+    5.2 stroke swallowed it: clearance at mid-arm measured 0.2 units against
+    the bean arm's 3.5, so what rendered was a kettle floating in the green
+    with nothing joining it to can-boy. can_boy_sad()'s docstring warns about
+    exactly this. The arm connecting mascot to prop is the whole illustration;
+    if the kettle has to move to keep that arm, the kettle moves.
+
+    Everything else of can-boy is verbatim too -- hip arm, both legs, can body,
+    lid ellipse, pull tab, belly wordmark -- except that he slides 15 units
+    LEFT inside the composition. can_boy_camera() does the same for one camera;
+    a whole brew bar needs it more, and it clears the right third of the disc
+    for the prop column at x~77..105.
+
+    What pays for three props is the shrink group's ANCHOR: (56.4, 57.9), the
+    centre of the artwork's own minimum enclosing circle, not (50, 50). Aiming
+    the disc at the content rather than at the coordinate origin is worth so
+    much radius that the shrink still lands at 0.81, within a point of
+    can_boy()'s 0.82, so the mascot reads the same size as in his other poses.
+    Do not "simplify" that anchor back to (50, 50) -- at this scale it throws
+    the server off the disc.
+
+    Measured, not eyeballed, by rasterizing and testing every white pixel: the
+    ink's enclosing circle is concentric with the disc to within 0.03 units and
+    clears the edge by 8.2%. Four different things sit on that circle at once
+    -- the spout's hook (97.4, 18.9), the server's bottom-right corner (103.5,
+    89.4), the hip hand (-0.1, 54.5) and the can's lid (14.7, 20.4) -- so there
+    is no slack left anywhere: moving any one of them outward costs scale off
+    the whole figure.
+
+    The kettle is the piece that fought back, and the constraint is a LEVER:
+    the hand grips the handle, so grip-to-spout-tip is a rigid arm, and the tip
+    has to land over the cone. Lengthen the spout or deepen the handle and the
+    tip swings right, dragging the cone and the server right with it until the
+    disc runs out. Three passes failed on this. A bail handle shortens the
+    lever but hangs the pot directly under the hand, where the arm crosses it,
+    and its arc continued the line of the arm so the two read as one hook. A
+    big bellied body with an ellipse lid turns, at any real pour angle, into a
+    diagonal oval that reads as an opening rather than a lid. And a spout whose
+    limbs are both vertical is a hairpin -- it reads as a wire handle on the
+    wrong side of the pot.
+
+    What works: a flat-topped body (the flat top is what survives being rotated
+    30deg, which an ellipse does not), a small trapezoid lid cap instead of a
+    lid ellipse, a shallow side handle, and a neck that leaves the body LOW and
+    climbs on a long diagonal before hooking over. That puts the tip at
+    (93.2, 25.4), on the cone's centreline, with the hand still on the bean
+    arm's own endpoint.
+
+    The cone is hario-v60.svg's own construction -- rim ellipse, two ribs, the
+    bottom ellipse, the spiral rib -- dropped in through the icon's own
+    coordinate frame at 12.5/26, so this cone and the ones in the Sessions rows
+    are literally the same drawing. Stroke widths inside that group are
+    pre-divided by the same factor so they come out at this figure's prop
+    weights (3.0 silhouette, 2.0 detail) instead of a 5.5 slab.
+
+    The server's handle faces LEFT, toward can-boy, not right. A right-facing
+    handle is the more common product photo, but the server's bottom-right
+    corner is already one of the four points pinning the enclosing circle, so
+    an arc out that side would have cost the whole figure scale; facing left it
+    fills the otherwise dead pocket under the pour instead.
+
+    No steam. The pour stream already occupies the only air between spout and
+    rim, and short strokes stacked in there read as spatter, not heat.
+    """
+    g = size / 100.0
+    c.add(f'<g transform="translate({cx - size/2:.2f} {cy - size/2:.2f}) scale({g:.4f})">')
+    c.add(f'<circle cx="50" cy="50" r="50" fill="{wf.BRAND_MARK}"/>')
+
+    # where the hand closes on the kettle handle, in figure space, and the
+    # handle's own outer mid in kettle-local space -- the pot is rotated about
+    # the pair, so `tilt` rolls the kettle inside a fixed grip
+    GX, GY = 64.0, 16.0
+    HX, HY = -12.5, 1.0
+    ANG = 30.0 + tilt
+    # spout tip in kettle-local space, and the cone's mouth
+    TX, TY = 17.5, -5.5
+    CONE_X, CONE_TOP, CONE_R = 93.0, 47.0, 12.5
+
+    c.add('<g transform="translate(50 50) scale(0.81) translate(-56.4 -57.9)">')
+    c.add('<g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">')
+
+    # ---- can-boy, slid 15 left; everything inside is can_boy()'s own frame --
+    c.add('<g transform="translate(-15 0)">')
+    c.add('<g stroke-width="4.2">')
+    c.add('<path d="M30 40 Q19 44 17 55"/>')   # right arm, hand on hip
+    c.add('<path d="M41 75 L37 90"/>')          # left leg
+    c.add('<path d="M59 75 L63 90"/>')          # right leg
+    # pouring arm: can_boy()'s own bean arm, unchanged (see docstring)
+    c.add('<path d="M70 38 Q81 29 79 16"/>')
+    c.add('</g>')
+    c.add('<g stroke-width="5.2">')
+    c.add('<path d="M33 27 C 29 41, 29 60, 33 74 C 40 78, 60 78, 67 74 '
+          'C 71 60, 71 41, 67 27"/>')
+    c.add('<ellipse cx="50" cy="24" rx="19" ry="6.5"/>')
+    c.add('</g>')
+    c.add('<g transform="translate(58 12) rotate(-12)" stroke-width="3">')
+    c.add('<ellipse cx="0" cy="0" rx="5.4" ry="3.6"/>')
+    c.add('<path d="M0 3.6 L-0.8 7.6"/>')
+    c.add('</g>')
+    c.add('</g>')
+
+    # ---- gooseneck kettle -------------------------------------------------
+    # Squat body + a lid ellipse deliberately shaped like the can's own lid,
+    # so the prop is built out of the mark's vocabulary. The neck is a single
+    # unclosed stroke: at this size a two-sided tube fills in solid, and one
+    # swan curve is the whole reason the pot reads as "pour-over kettle"
+    # rather than "teapot".
+    c.add(f'<g transform="translate({GX} {GY}) rotate({ANG:.2f}) '
+          f'translate({-HX} {-HY})">')
+    c.add('<g stroke-width="3.2">')
+    # closed, bellied body with a FLAT top -- the flat top is the whole reason
+    # the pot reads at 30deg; an ellipse lid in a rotated frame turns into a
+    # diagonal oval that reads as an opening, not a lid.
+    c.add('<path d="M-9 -6 L9 -6 C 10.8 0.5, 8 9.5, 0 9.5 '
+          'C -8 9.5, -10.8 0.5, -9 -6 Z"/>')
+    # gooseneck. It leaves the body LOW and climbs on a long diagonal before
+    # the hook: a neck whose two limbs are both vertical is a hairpin and
+    # reads as a wire handle, which is what the first two passes drew.
+    c.add('<path d="M8.3 4 C 13.5 2.5, 15.5 -3, 15 -9 '
+          'C 14.8 -12.8, 18.8 -13, 18.2 -9 L17.5 -5.5"/>')
+    c.add('</g>')
+    c.add('<g stroke-width="2.6">')
+    c.add('<path d="M-4 -6 L-3.4 -9.4 L3.4 -9.4 L4 -6"/>')              # lid
+    # side handle, facing can-boy. Short and shallow on purpose: the loop is
+    # a lever between the hand and the spout tip, and every unit of depth
+    # here pushes the tip further right than the cone can follow.
+    c.add('<path d="M-9.4 -3 Q-12.5 -3.5 -12.5 1 Q-12.5 5.5 -9.4 6"/>')
+    c.add('</g>')
+    c.add('</g>')
+
+    # ---- the pour ---------------------------------------------------------
+    # Where the spout tip actually ended up after the rotation, so the stream
+    # starts on the lip at any `tilt` instead of near it. It bows the way a
+    # falling stream does -- angled off the spout, vertical by the time it
+    # lands -- and finishes at y=44.5, just past the rim ellipse's own back
+    # edge at 44.1, so it reads as going INTO the cone rather than stopping
+    # short above it.
+    a = math.radians(ANG)
+    tx = GX + (TX - HX) * math.cos(a) - (TY - HY) * math.sin(a)
+    ty = GY + (TX - HX) * math.sin(a) + (TY - HY) * math.cos(a)
+    ey = CONE_TOP - 2.5
+    c.add(f'<path d="M{tx:.2f} {ty:.2f} Q{CONE_X + (tx - CONE_X) * 0.25:.2f} '
+          f'{ty + (ey - ty) * 0.55:.2f} {CONE_X:.2f} {ey:.2f}" stroke-width="2.2"/>')
+
+    # ---- V60, hario-v60.svg's own paths in the icon's coordinate frame ----
+    s = CONE_R / 26.0    # the icon draws its rim at rx=26, cx=50, cy=30
+    c.add(f'<g transform="translate({CONE_X} {CONE_TOP}) scale({s:.4f}) '
+          f'translate(-50 -30)">')
+    c.add(f'<g stroke-width="{3.0 / s:.2f}">')
+    c.add('<ellipse cx="50" cy="30" rx="26" ry="6"/>')
+    c.add('<path d="M24 30 L45 82"/>')
+    c.add('<path d="M76 30 L55 82"/>')
+    c.add('</g>')
+    c.add(f'<ellipse cx="50" cy="82" rx="5" ry="2.6" stroke-width="{2.0 / s:.2f}"/>')
+    # the spiral, but only its top three sweeps: the icon runs it all the way
+    # to the drip hole, and at half the icon's size those last two turns land
+    # inside 5 units of cone and silt up into a grey smudge. Stopping it at
+    # the widest, most legible part keeps the one cue that says "V60".
+    c.add('<path d="M32 38 Q50 44 68 40 Q52 52 36 50 Q52 62 64 56" '
+          f'stroke-width="{2.0 / s:.2f}"/>')
+    c.add('</g>')
+
+    # ---- server ------------------------------------------------------------
+    # Mouth drawn wider than the body, so the cone reads as sitting IN it and
+    # not balanced on a jar. Bottom corners rounded rather than square: this
+    # corner is one of the four points pinning the enclosing circle, so the
+    # radius the round corner saves comes straight off the whole figure.
+    c.add('<g stroke-width="2.8">')
+    c.add('<path d="M81 75 L105 75"/>')
+    c.add('<path d="M82.5 75 L82.5 84.5 Q82.5 91 89 91 L97 91 '
+          'Q103.5 91 103.5 84.5 L103.5 75"/>')
+    c.add('</g>')
+    c.add('<path d="M82.5 78.5 Q77 79 77.5 83.5 Q78 87 82.5 87" '
+          'stroke-width="2.4"/>')
+
+    c.add('</g>')      # stroke group
+    c.add('<g transform="translate(-15 0)">'
+          '<g transform="translate(50 57) scale(0.5) translate(-63.54 -50.33)" '
+          'fill="#FFFFFF">' + "".join(wf._LOGO_WORD) + '</g></g>')
+    c.add('</g>')      # composition
+    c.add('</g>')
+
+
 # ------------------------------------------------------------- -1w intro ----
 def can_drink_intro(bean_angle=0.0):
     """First run of the Can Drink page (swipe left from Home)."""
@@ -1038,6 +1348,8 @@ PAGES = [("00w_welcome.svg", welcome),
          ("0.51b_camera_permission.svg", camera_permission),
          ("0.6_bean_detail.svg", bean_detail),
          ("0.6b_bean_detail_lower.svg", bean_detail_lower),
+         ("0.6_empty.svg", bean_detail_empty),
+         ("0.6b_empty.svg", bean_detail_lower_empty),
          ("-1w_can_drink_intro.svg", can_drink_intro),
          ("-1_can_drink.svg", can_drink),
          ("+1_sessions.svg", sessions)]

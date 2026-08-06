@@ -46,44 +46,33 @@
 <text x="207" y="577" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="16" font-weight="400" fill="#1B241C">28 Jul 2026</text>
 <text x="20" y="616" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="14" font-weight="600" fill="#1B241C">Radar</text>
 <text x="340" y="616" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="14" font-weight="600" fill="#196D2E" text-anchor="end">Set manually</text>
-<rect x="16" y="630" width="328" height="190" fill="#FFFFFF" rx="24"/>
-<polygon points="180.0,702.6 186.7,704.6 191.3,709.8 192.3,716.8 189.4,723.1 183.5,726.9 176.5,726.9 170.6,723.1 167.7,716.8 168.7,709.8 173.3,704.6" fill="none" stroke="#C3D3C4" stroke-width="0.75" opacity="0.35"/>
-<polygon points="180.0,690.2 193.4,694.1 202.6,704.7 204.5,718.5 198.7,731.2 187.0,738.8 173.0,738.8 161.3,731.2 155.5,718.5 157.4,704.7 166.6,694.1" fill="none" stroke="#C3D3C4" stroke-width="0.75" opacity="0.35"/>
-<polygon points="180.0,677.8 200.1,683.7 213.8,699.5 216.8,720.3 208.1,739.4 190.5,750.7 169.5,750.7 151.9,739.4 143.2,720.3 146.2,699.5 159.9,683.7" fill="none" stroke="#C3D3C4" stroke-width="0.75" opacity="0.35"/>
-<polygon points="180.0,665.4 206.8,673.3 225.1,694.4 229.1,722.1 217.5,747.5 194.0,762.6 166.0,762.6 142.5,747.5 130.9,722.1 134.9,694.4 153.2,673.3" fill="none" stroke="#C3D3C4" stroke-width="0.75" opacity="0.35"/>
-<polygon points="180.0,653.0 213.5,662.8 236.4,689.2 241.4,723.8 226.9,755.6 197.5,774.5 162.5,774.5 133.1,755.6 118.6,723.8 123.6,689.2 146.5,662.8" fill="none" stroke="#C3D3C4" stroke-width="0.75" opacity="0.35"/>
-<line x1="180" y1="715" x2="180.0" y2="653.0" stroke="#C3D3C4" stroke-width="0.75"/>
-<line x1="180" y1="715" x2="213.51973068224706" y2="662.8422809644668" stroke="#C3D3C4" stroke-width="0.75"/>
-<line x1="180" y1="715" x2="236.39718371198012" y2="689.244269193883" stroke="#C3D3C4" stroke-width="0.75"/>
-<line x1="180" y1="715" x2="241.36892939661783" y2="723.8235199729437" stroke="#C3D3C4" stroke-width="0.75"/>
-<line x1="180" y1="715" x2="226.856473609964" y2="755.6013655046077" stroke="#C3D3C4" stroke-width="0.75"/>
-<line x1="180" y1="715" x2="197.46741852416864" y2="774.4885643640988" stroke="#C3D3C4" stroke-width="0.75"/>
-<line x1="180" y1="715" x2="162.53258147583134" y2="774.4885643640988" stroke="#C3D3C4" stroke-width="0.75"/>
-<line x1="180" y1="715" x2="133.143526390036" y2="755.6013655046077" stroke="#C3D3C4" stroke-width="0.75"/>
-<line x1="180" y1="715" x2="118.63107060338217" y2="723.8235199729437" stroke="#C3D3C4" stroke-width="0.75"/>
-<line x1="180" y1="715" x2="123.60281628801987" y2="689.244269193883" stroke="#C3D3C4" stroke-width="0.75"/>
-<line x1="180" y1="715" x2="146.4802693177529" y2="662.8422809644668" stroke="#C3D3C4" stroke-width="0.75"/>
-<polygon points="180.0,658.0 206.1,674.3 207.1,702.6 230.3,722.2 196.9,729.6 184.2,729.3 174.8,732.8 170.6,723.1 172.6,716.1 147.3,700.1 157.2,679.5" fill="#2B9343" fill-opacity="0.18" stroke="#2B9343" stroke-width="2" stroke-linejoin="round"/>
-<circle cx="180.0" cy="658.0" r="2.4" fill="#2B9343"/>
-<circle cx="206.1" cy="674.3" r="2.4" fill="#2B9343"/>
-<circle cx="207.1" cy="702.6" r="2.4" fill="#2B9343"/>
-<circle cx="230.3" cy="722.2" r="2.4" fill="#2B9343"/>
-<circle cx="196.9" cy="729.6" r="2.4" fill="#2B9343"/>
-<circle cx="184.2" cy="729.3" r="2.4" fill="#2B9343"/>
-<circle cx="174.8" cy="732.8" r="2.4" fill="#2B9343"/>
-<circle cx="170.6" cy="723.1" r="2.4" fill="#2B9343"/>
-<circle cx="172.6" cy="716.1" r="2.4" fill="#2B9343"/>
-<circle cx="147.3" cy="700.1" r="2.4" fill="#2B9343"/>
-<circle cx="157.2" cy="679.5" r="2.4" fill="#2B9343"/>
-<text x="180.0" y="640.5" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="middle">Fruity</text>
-<text x="222.2" y="652.9" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51">Floral</text>
-<text x="251.0" y="686.1" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51">Tea</text>
-<text x="257.2" y="729.6" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51">Sweet</text>
-<text x="238.9" y="769.6" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51">Nutty</text>
-<text x="202.0" y="793.3" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51">Spices</text>
-<text x="158.0" y="793.3" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="end">Roasted</text>
-<text x="121.1" y="769.6" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="end">Cereal</text>
-<text x="102.8" y="729.6" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="end">Green</text>
-<text x="109.0" y="686.1" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="end">Sour</text>
-<text x="137.8" y="652.9" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51" text-anchor="end">Ferment</text>
+<text x="20" y="634" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#515D51">Log a brew and this fills itself in — or Set manually.</text>
+<rect x="16" y="646" width="328" height="190" fill="#FFFFFF" rx="24"/>
+<polygon points="180.0,712.4 185.7,714.1 189.6,718.6 190.5,724.5 188.0,729.9 183.0,733.2 177.0,733.2 172.0,729.9 169.5,724.5 170.4,718.6 174.3,714.1" fill="none" stroke="#C3D3C4" stroke-width="0.75" opacity="0.85"/>
+<polygon points="180.0,701.8 191.5,705.2 199.3,714.2 201.0,726.0 196.0,736.9 186.0,743.3 174.0,743.3 164.0,736.9 159.0,726.0 160.7,714.2 168.5,705.2" fill="none" stroke="#C3D3C4" stroke-width="0.75" opacity="0.85"/>
+<polygon points="180.0,691.2 197.2,696.2 208.9,709.8 211.5,727.5 204.0,743.8 189.0,753.5 171.0,753.5 156.0,743.8 148.5,727.5 151.1,709.8 162.8,696.2" fill="none" stroke="#C3D3C4" stroke-width="0.75" opacity="0.85"/>
+<polygon points="180.0,680.6 202.9,687.3 218.6,705.4 222.0,729.0 212.0,750.8 191.9,763.7 168.1,763.7 148.0,750.8 138.0,729.0 141.4,705.4 157.1,687.3" fill="none" stroke="#C3D3C4" stroke-width="0.75" opacity="0.85"/>
+<polygon points="180.0,670.0 208.7,678.4 228.2,701.0 232.5,730.5 220.1,757.7 194.9,773.9 165.1,773.9 139.9,757.7 127.5,730.5 131.8,701.0 151.3,678.4" fill="none" stroke="#C3D3C4" stroke-width="0.75" opacity="0.85"/>
+<line x1="180" y1="723" x2="180.0" y2="670.0" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180" y1="723" x2="208.65396332514666" y2="678.4135627599474" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180" y1="723" x2="228.21049575378947" y2="700.9830043109" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180" y1="723" x2="232.46053641968945" y2="730.5426864284841" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180" y1="723" x2="220.0547274407757" y2="757.7076188991001" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180" y1="723" x2="194.93182551259576" y2="773.8531276015683" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180" y1="723" x2="165.0681744874042" y2="773.8531276015683" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180" y1="723" x2="139.94527255922432" y2="757.7076188991001" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180" y1="723" x2="127.53946358031057" y2="730.5426864284841" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180" y1="723" x2="131.78950424621053" y2="700.9830043109" stroke="#C3D3C4" stroke-width="0.75"/>
+<line x1="180" y1="723" x2="151.34603667485328" y2="678.4135627599475" stroke="#C3D3C4" stroke-width="0.75"/>
+<text x="180.0" y="657.5" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#6D7B6D" text-anchor="middle">Fruity</text>
+<text x="217.3" y="668.5" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#6D7B6D">Floral</text>
+<text x="242.8" y="697.8" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#6D7B6D">Tea</text>
+<text x="248.3" y="736.3" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#6D7B6D">Sweet</text>
+<text x="232.1" y="771.7" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#6D7B6D">Nutty</text>
+<text x="199.4" y="792.7" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#6D7B6D">Spices</text>
+<text x="160.6" y="792.7" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#6D7B6D" text-anchor="end">Roasted</text>
+<text x="127.9" y="771.7" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#6D7B6D" text-anchor="end">Cereal</text>
+<text x="111.7" y="736.3" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#6D7B6D" text-anchor="end">Green</text>
+<text x="117.2" y="697.8" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#6D7B6D" text-anchor="end">Sour</text>
+<text x="142.7" y="668.5" font-family="Fredoka,'Baloo 2','Liberation Sans',sans-serif" font-size="11" font-weight="500" fill="#6D7B6D" text-anchor="end">Ferment</text>
 </svg>

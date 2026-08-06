@@ -525,8 +525,8 @@ def stars(c, x, y, score, size=24, gap=8):
          "labelLarge", C["outline"] if unset else C["onSurface"])
 
 
-def radar11(c, cx, cy, r, values, stroke, ink, fill_op=0.16, labels=True,
-            grid=None):
+def radar11(c, cx, cy, r, values=None, stroke=None, ink=None, fill_op=0.16,
+            labels=True, grid=None):
     """Shape-as-signature: the outline of all eleven axes at once, read as one
     figure. Comparison against a scale is not the job — flavor_bars() is what
     to reach for when a reader needs to rank axes or read values off.
@@ -539,29 +539,50 @@ def radar11(c, cx, cy, r, values, stroke, ink, fill_op=0.16, labels=True,
     the labels — on a white card the labels need vizInk's contrast and a net
     drawn in it would read as the loudest thing on the card. It defaults to
     `ink`, the share card's own single-colour treatment.
+
+    `values=None` is the empty state — a bean with nothing scored yet. It
+    draws the net and all eleven labels and no series at all: no polygon, no
+    vertex dots, and deliberately nothing at the centre. Passing a row of
+    zeros instead would collapse the polygon to a dot on the origin, which
+    does not read as "no data" — it reads as "every axis scored 0", a claim
+    the app has no business making about a coffee nobody has tasted. So the
+    absent series is drawn as absence, and the chart is left recognisably the
+    same chart: same eleven axes, same order, same five rings, waiting.
+
+    In that mode the net comes up from 0.35 to 0.85 opacity — with no polygon
+    over it the net *is* the card's content, and at ring weight tuned to sit
+    under a series it would leave the card reading blank. The labels drop
+    from vizInk to `outline`, the deck's muted/placeholder ink (the same one
+    0.5's "or enter it by hand" and button(kind=disabled) use), so the chart
+    reads as switched off rather than as broken. Both are defaults, not
+    hard-coded: a caller on another surface (the dark share card) can still
+    pass its own `ink`/`grid`.
     """
-    grid = grid or ink
-    n = len(values)
+    empty = values is None
+    ink = ink or (C["outline"] if empty else C["vizInk"])
+    grid = grid or (C["vizGrid"] if empty else ink)
+    n = 11 if empty else len(values)
     ang = lambda i: math.radians(-90 + i * 360 / n)
     for ring in range(1, 6):
         rr = r * ring / 5
         pts = " ".join(f"{cx+rr*math.cos(ang(i)):.1f},{cy+rr*math.sin(ang(i)):.1f}"
                        for i in range(n))
         c.add(f'<polygon points="{pts}" fill="none" stroke="{grid}" '
-              f'stroke-width="0.75" opacity="0.35"/>')
+              f'stroke-width="0.75" opacity="{0.85 if empty else 0.35}"/>')
     for i in range(n):
         line(c, cx, cy, cx + r * math.cos(ang(i)), cy + r * math.sin(ang(i)),
              grid, 0.75)
-    pts = []
-    for i, v in enumerate(values):
-        rr = r * v / 5
-        pts.append(f"{cx+rr*math.cos(ang(i)):.1f},{cy+rr*math.sin(ang(i)):.1f}")
-    c.add(f'<polygon points="{" ".join(pts)}" fill="{stroke}" '
-          f'fill-opacity="{fill_op}" stroke="{stroke}" stroke-width="2" '
-          f'stroke-linejoin="round"/>')
-    for p in pts:
-        x, yy = p.split(",")
-        circle(c, x, yy, 2.4, stroke)
+    if not empty:
+        pts = []
+        for i, v in enumerate(values):
+            rr = r * v / 5
+            pts.append(f"{cx+rr*math.cos(ang(i)):.1f},{cy+rr*math.sin(ang(i)):.1f}")
+        c.add(f'<polygon points="{" ".join(pts)}" fill="{stroke}" '
+              f'fill-opacity="{fill_op}" stroke="{stroke}" stroke-width="2" '
+              f'stroke-linejoin="round"/>')
+        for p in pts:
+            x, yy = p.split(",")
+            circle(c, x, yy, 2.4, stroke)
     if not labels:
         return
     short = ["Fruity", "Floral", "Tea", "Sweet", "Nutty", "Spices", "Roasted",
