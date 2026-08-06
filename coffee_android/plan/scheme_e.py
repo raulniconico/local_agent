@@ -11,6 +11,8 @@ Numbering follows the swipe axis, centred on Home:
 
     00w   welcome / splash — off-axis, shown once at cold launch
     0.5   add-a-bean form — off-axis, reached by tapping Add bean from Home
+    0.51  the label-scanning camera, reached from 0.5's scan prompt;
+          0.51b is what it becomes when camera permission is denied
     0.6   the saved bean profile — off-axis, tapping a bean on Home;
           0.6b is the same page scrolled past the fold
     -2    <- swipe left     -1    <- swipe left
@@ -347,9 +349,44 @@ def home_empty(headline_font=None, shake=0.0):
 
 
 # --------------------------------------------------------- 0.5 add-a-bean ---
-def bean_profile_empty():
-    """The blank "add a bean" form: what 02/02b (bean_detail /
-    bean_detail_lower in wireframes.py) look like before any data exists.
+# The hero grew to fit can_boy_camera(), and everything under it moves down by
+# the difference. Kept as constants because the shift has to be applied to
+# every y below the hero and a stray literal would silently break the column.
+_HERO_H = 180
+_SHIFT = _HERO_H - 140
+
+
+def _win(p, a, b, shape=1.0):
+    """A half-sine window over [a, b], zero outside it AND zero at both ends
+    -- so anything driven by it starts and finishes at rest inside the cycle,
+    which is what keeps the loop seamless without hand-tuning the last frame."""
+    if not (a <= p <= b):
+        return 0.0
+    return math.sin(math.pi * (p - a) / (b - a)) ** shape
+
+
+def _shutter_pose(p):
+    """Phase (0..1) -> can_boy_camera()'s five knobs. The beat is aim, press,
+    flash, recoil, settle -- the recoil window deliberately outlasts the
+    flash, so the body is still rocking back after the burst has gone, the
+    way a real flinch trails its trigger."""
+    aim = 2.2 * math.sin(2 * math.pi * p)             # continuous idle sway
+    press = 1.5 * _win(p, 0.30, 0.52, 0.7)            # camera dips into the shot
+    return {
+        "arm_angle": -3.0 + aim + 2.0 * press,
+        "cam_tilt": -6.0 + 1.5 * aim,
+        "press": press,
+        "flash": _win(p, 0.44, 0.68, 0.55),
+        "lean": -2.6 * _win(p, 0.46, 0.86, 0.8),
+    }
+
+
+def bean_profile_empty(p=0.53):
+    """The blank "add a bean" form: what 0.6/0.6b look like before any data
+    exists.
+
+    `p` is the shutter animation's phase; the default freezes it mid-burst,
+    which is the frame that says "camera" loudest in a still deck.
     Reached by tapping Add bean from Home (00_home_empty's CTA, or the top
     bar's add action once beans exist).
 
@@ -362,41 +399,119 @@ def bean_profile_empty():
     02's photo hero has nothing to show yet either (no bag has been scanned),
     so that space becomes the scan prompt rather than staying empty.
     """
+    pose = _shutter_pose(p)
     c = wf.Canvas("Bean profile — empty (0.5)")
     wf.status_bar(c)
     wf.top_bar(c, "New bean", back=True)
 
-    wf.rect(c, wf.GUTTER, 104, W - 2 * wf.GUTTER, 140, wf.C["secondaryContainer"], wf.R_LG)
-    icon_cy = 104 + 54
-    c.add(f'<g transform="translate(0 {icon_cy - 263:.1f})">')
-    wf.rect(c, 156, 246, 48, 34, "none", wf.R_SM, stroke=wf.C["onSecondaryContainer"], sw=2)
-    wf.circle(c, 180, 263, 9, "none", stroke=wf.C["onSecondaryContainer"], sw=2)
-    c.add("</g>")
-    wf.text(c, 180, 104 + 100, "Scan label", "titleMedium",
+    wf.rect(c, wf.GUTTER, 104, W - 2 * wf.GUTTER, _HERO_H,
+            wf.C["secondaryContainer"], wf.R_LG)
+    # The hero used to draw a bare camera outline -- a rect and a lens circle
+    # floating on their own. That exact camera is now in can-boy's hands, so
+    # the prompt shows the app's own character doing the thing it is asking
+    # you to do. It costs 40dp of hero height (140 -> 180) plus _SHIFT on
+    # everything below; a disc much smaller than this and the camera stops
+    # reading as a camera, which would defeat the point.
+    can_boy_camera(c, 180, 168, 108, **pose)
+    # "Click me to scan", not "Scan label": the mascot is now the tap target
+    # and the label should say so. It also stops the hero reading as a
+    # caption under an illustration.
+    wf.text(c, 180, 244, "Click me to scan", "titleMedium",
             wf.C["onSecondaryContainer"], "middle")
-    wf.text(c, 180, 104 + 122, "Point your camera at the bag to fill this in",
+    wf.text(c, 180, 266, "Point your camera at the bag to fill this in",
             "labelSmall", wf.C["onSecondaryContainer"], "middle")
 
-    wf.text(c, 180, 268, "or enter it by hand", "labelMedium", wf.C["outline"], "middle")
+    wf.text(c, 180, 268 + _SHIFT, "or enter it by hand", "labelMedium",
+            wf.C["outline"], "middle")
 
-    wf.textfield(c, wf.GUTTER, 286, W - 2 * wf.GUTTER, "Bean name", "")
+    wf.textfield(c, wf.GUTTER, 286 + _SHIFT, W - 2 * wf.GUTTER, "Bean name", "")
     rows = (("Variety", "", "Altitude", ""),
             ("Roaster", "", "Producer", ""),
             ("Process", "", "Roast date", ""))
     for i, (l1, v1, l2, v2) in enumerate(rows):
-        ry = 374 + i * 52
+        ry = 374 + _SHIFT + i * 52
         wf.field(c, 20, ry, 145, l1, v1, placeholder=True)
         wf.field(c, 195, ry, 145, l2, v2, placeholder=True)
 
     # "Radar", not "Flavor" -- 0.6/0.6b name this same block after the chart
     # in it, and the empty state has to agree with the state it becomes.
-    wf.section(c, 546, "Radar", "Set manually")
-    wf.card(c, 560, 90)
-    wf.text(c, 180, 598, "Log a brew to start building this bean's",
+    wf.section(c, 546 + _SHIFT, "Radar", "Set manually")
+    wf.card(c, 560 + _SHIFT, 90)
+    wf.text(c, 180, 598 + _SHIFT, "Log a brew to start building this bean's",
             "bodyMedium", wf.C["onSurfaceVariant"], "middle")
-    wf.text(c, 180, 618, "flavor profile", "bodyMedium", wf.C["onSurfaceVariant"], "middle")
+    wf.text(c, 180, 618 + _SHIFT, "flavor profile", "bodyMedium",
+            wf.C["onSurfaceVariant"], "middle")
 
-    wf.button(c, wf.GUTTER, 674, W - 2 * wf.GUTTER, "Save bean")
+    wf.button(c, wf.GUTTER, 674 + _SHIFT, W - 2 * wf.GUTTER, "Save bean")
+    wf.gesture_bar(c)
+    return c
+
+
+# ----------------------------------------------------------- 0.51 camera ---
+# 08 / 08b (wireframes.camera / camera_permission) brought into scheme E and
+# numbered off 0.5, because that is what reaches them: tapping "Click me to
+# scan" on 0.5 opens 0.51, and 0.51b is what you get instead when the camera
+# permission has been denied.
+def camera():
+    """0.51: the capture viewfinder. Carried over from the wireframe as-is --
+    a camera screen is the system's visual language, not the app's, and
+    scheme E's palette has no business on a live viewfinder."""
+    c = wf.Canvas("Camera capture — scheme E (0.51)", bg=wf.C["dSurface"])
+    wf.rect(c, 0, 0, W, H, wf.C["camGround"])
+    wf.status_bar(c, dark=True)
+    wf.rect(c, 0, 0, W, 96, wf.C["scrim"], opacity=0.45)
+    wf.rect(c, 0, 620, W, 180, wf.C["scrim"], opacity=0.45)
+    wf.path(c, "M29 61 l14 14 M43 61 l-14 14", stroke="#FFFFFF", sw=2)
+    wf.text(c, 180, 74, "Scan bean label", "titleMedium", "#FFFFFF", "middle")
+    for (ax, ay, dx, dy) in ((44, 210, 1, 1), (316, 210, -1, 1),
+                             (44, 560, 1, -1), (316, 560, -1, -1)):
+        wf.path(c, f"M{ax} {ay+28*dy} v{-28*dy} h{28*dx}", stroke=wf.C["dPrimary"], sw=3)
+    wf.text(c, 180, 600, "Fill the frame with the label", "bodyMedium", "#FFFFFF",
+            "middle")
+    wf.circle(c, 180, 700, 34, "none", stroke="#FFFFFF", sw=3)
+    wf.circle(c, 180, 700, 27, "#FFFFFF")
+    wf.rect(c, 48, 676, 48, 48, "#FFFFFF", wf.R_SM, opacity=0.16)
+    wf.photo(c, 52, 680, 40, 40, r=wf.R_XS)
+    wf.text(c, 72, 742, "Photos", "labelSmall", "#FFFFFF", "middle")
+    wf.circle(c, 288, 700, 24, "#FFFFFF", opacity=0.16)
+    wf.flash(c, 288, 700)
+    wf.text(c, 288, 742, "Flash", "labelSmall", "#FFFFFF", "middle")
+    wf.gesture_bar(c, dark=True)
+    return c
+
+
+def camera_permission():
+    """0.51b: permission denied.
+
+    The wireframe drew a struck-through camera glyph here -- a Material
+    "feature off" icon, the same rect-and-lens pair 0.5's hero used to
+    have. Scheme E has can-boy for exactly this moment: he is already the
+    one holding the camera on 0.5, so he is the one it was taken away from.
+    A slumped mascot with a broken heart says "you turned me off" in a way
+    a struck-through glyph cannot, and it keeps the two screens telling one
+    story rather than sharing a stock icon.
+
+    The copy is unchanged. The illustration carries the feeling; the words
+    still have to carry the fix, and "turn it back on in Settings" is the
+    fix.
+    """
+    c = wf.Canvas("Camera · permission denied — scheme E (0.51b)")
+    wf.status_bar(c)
+    wf.top_bar(c, "Scan bean label", back=True)
+    can_boy_sad(c, 180, 248, 164)
+    wf.text(c, 180, 372, "Camera is off", "headlineMedium", wf.C["onSurface"],
+            "middle", family=HEADLINE, size=30)
+    for i, ln in enumerate(("Scanning a label needs the camera. You",
+                            "turned it off — you can turn it back on in",
+                            "Settings.")):
+        wf.text(c, 180, 408 + i * 22, ln, "bodyLarge", wf.C["onSurfaceVariant"],
+                "middle")
+    wf.button(c, 80, 490, 200, "Open Settings")
+    wf.button(c, 60, 550, 240, "Pick a photo instead", "tonal")
+    wf.text(c, 180, 628, "Picking a photo needs no permission at all.", "labelSmall",
+            wf.C["onSurfaceVariant"], "middle")
+    wf.text(c, 180, 650, "You can also type everything by hand.", "labelSmall",
+            wf.C["onSurfaceVariant"], "middle")
     wf.gesture_bar(c)
     return c
 
@@ -593,6 +708,169 @@ def can_boy(c, cx, cy, size, bean_angle=0.0):
     c.add("</g>")
 
 
+# ------------------------------------------------------ can-boy, variants ---
+# Two more poses of the same mark. Both copy can_boy() rather than wrapping
+# it, because each has to change a limb the original draws inline -- the
+# camera pose replaces the raised bean arm, the sitting pose replaces both
+# arms and both legs. Everything that carries the identity is verbatim in
+# both: the can path, the lid ellipse, the pull tab, the round caps/joins,
+# every stroke weight, and the belly wordmark (wf._LOGO_WORD, never redrawn).
+def can_boy_camera(c, cx, cy, size, arm_angle=0.0, cam_tilt=0.0, flash=0.0,
+                   lean=0.0, press=0.0):
+    """Can-boy taking a photo, for 0.5's scan prompt.
+
+    `arm_angle` pivots the camera arm at the shoulder, `cam_tilt` rolls the
+    camera in the hand, `press` dips it on the shutter press, `flash` (0..1)
+    drives the burst, `lean` rocks the whole figure about its feet. All five
+    rest at 0; bean_profile_frames() drives them.
+    """
+    g = size / 100.0
+    c.add(f'<g transform="translate({cx - size/2:.2f} {cy - size/2:.2f}) scale({g:.4f})">')
+    c.add(f'<circle cx="50" cy="50" r="50" fill="{wf.BRAND_MARK}"/>')
+
+    # 0.78 rather than can_boy's 0.82, and the figure slides 8 units left: a
+    # camera is a far wider prop than a bean, and held at the bean's height
+    # and scale both its corner and the flash crossed the disc edge (measured
+    # frame by frame, not eyeballed). Sliding the can left of centre puts the
+    # empty half of the disc where the prop and the burst need it, and lets
+    # the camera be big enough to actually read as a camera.
+    c.add('<g transform="translate(50 50) scale(0.78) translate(-58 -50)">')
+    # recoil pivots about the feet, so the shoes stay planted and only the
+    # body rocks -- a figure that translated bodily would look like it was
+    # sliding, not flinching
+    c.add(f'<g transform="rotate({lean:.2f} 50 88)">')
+    c.add('<g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">')
+
+    c.add('<g stroke-width="4.2">')
+    c.add('<path d="M30 40 Q19 44 17 55"/>')   # right arm, hand on hip
+    c.add('<path d="M41 75 L37 90"/>')          # left leg
+    c.add('<path d="M59 75 L63 90"/>')          # right leg
+    c.add('</g>')
+
+    # camera arm: shorter and lower than can_boy's bean arm (which reaches to
+    # (9,-22)). Held at the bean's height the camera sat up against the lid
+    # and the pull tab; at shoulder height it has clear green around it.
+    c.add(f'<g transform="translate(70 38) rotate({arm_angle:.2f})">')
+    c.add('<path d="M0 0 Q10 -6 8 -12" fill="none" stroke="#FFFFFF" stroke-width="4.2"/>')
+    # The camera sits up-right OF the hand rather than centred on it, so the
+    # arm's round cap cups its lower-left corner and reads as fingers on the
+    # body. Centred, the hand vanished under it and the prop looked stuck to
+    # the end of a stick. Body 20x13 with a 4.2 lens: a first pass at 16x11
+    # with a 3.4 lens read as an anonymous little box -- at this size the lens
+    # has to be a big fraction of the body or "camera" doesn't land.
+    c.add(f'<g transform="translate(16 {-18 + press:.2f}) rotate({cam_tilt:.2f})" '
+          f'stroke-width="2.6">')
+    c.add('<rect x="-10" y="-6.5" width="20" height="13" rx="3"/>')
+    c.add('<path d="M-6.5 -6.5 L-5.2 -10 L-0.6 -10 L0.7 -6.5"/>')  # viewfinder hump
+    c.add('<circle cx="3" cy="0" r="4.2"/>')                        # lens
+    c.add('<path d="M-6.4 -2.2 h2.2" stroke-width="2.2"/>')         # flash window
+    c.add('</g>')
+    c.add('</g>')
+
+    c.add('<g stroke-width="5.2">')
+    c.add('<path d="M33 27 C 29 41, 29 60, 33 74 C 40 78, 60 78, 67 74 '
+          'C 71 60, 71 41, 67 27"/>')
+    c.add('<ellipse cx="50" cy="24" rx="19" ry="6.5"/>')
+    c.add('</g>')
+    c.add('<g transform="translate(58 12) rotate(-12)" stroke-width="3">')
+    c.add('<ellipse cx="0" cy="0" rx="5.4" ry="3.6"/>')
+    c.add('<path d="M0 3.6 L-0.8 7.6"/>')
+    c.add('</g>')
+
+    # The burst: five ticks fanning off the lens, away from him. Drawn last so
+    # they sit over the arm, and clamped short -- longer and the outermost
+    # tick crosses the disc even at this arm height.
+    if flash > 0.001:
+        lx, ly = 70 + 16 + 3, 38 - 18 + press     # lens, in figure space
+        inner = 6.4 + 1.8 * flash
+        outer = inner + 2.6 + 5.0 * flash
+        c.add(f'<g stroke-width="2.2" opacity="{min(1.0, flash):.3f}">')
+        for deg in (-52, -26, 0, 26, 52):
+            a = math.radians(deg)
+            c.add(f'<path d="M{lx + inner * math.cos(a):.2f} {ly + inner * math.sin(a):.2f} '
+                  f'L{lx + outer * math.cos(a):.2f} {ly + outer * math.sin(a):.2f}"/>')
+        c.add('</g>')
+
+    c.add('</g>')      # stroke group
+    c.add('<g transform="translate(50 57) scale(0.5) translate(-63.54 -50.33)" '
+          'fill="#FFFFFF">' + "".join(wf._LOGO_WORD) + '</g>')
+    c.add('</g>')      # lean
+    c.add('</g>')      # shrink
+    c.add('</g>')
+
+
+def can_boy_sad(c, cx, cy, size):
+    """Can-boy sitting down with a broken heart over his head -- 0.51b's
+    camera-denied illustration.
+
+    Sitting is carried by the legs alone: splayed forward from the hip to
+    feet resting on an implied floor, against the standing pose's two
+    straight drops. A front-facing figure has no other way to say "sitting"
+    -- there is no profile to bend at the waist -- and the low, wide
+    silhouette is what makes it read as deflated rather than just idle.
+    Both arms hang instead of one on the hip; a hand on the hip is a
+    confident pose and fights the rest of it.
+
+    The heart sits off-centre to his left. Centred, it collided with the
+    pull tab, which is not a piece of the mark worth moving for a prop.
+    """
+    g = size / 100.0
+    c.add(f'<g transform="translate({cx - size/2:.2f} {cy - size/2:.2f}) scale({g:.4f})">')
+    c.add(f'<circle cx="50" cy="50" r="50" fill="{wf.BRAND_MARK}"/>')
+
+    # 0.74 and pushed down 5: sitting drops the body's mass into the lower
+    # half of the disc, and the heart needs headroom above the lid that the
+    # standing pose spends on legs.
+    c.add('<g transform="translate(50 55) scale(0.74) translate(-50 -50)">')
+    c.add('<g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">')
+
+    # Arms tucked close to the body and stopping well short of the legs. A
+    # first pass hung them in a wide sweep that paralleled the splayed legs,
+    # and four limbs of the same length fanning off one body read as a
+    # spider, not a slump. Legs long and near-horizontal, arms short and
+    # near-vertical: the contrast is what keeps them separate at size.
+    c.add('<g stroke-width="4.2">')
+    # The limbs are drawn *under* the can, so an arm tucked against the body
+    # is simply painted over by the 5.2-wide body outline and vanishes. Like
+    # can_boy's own hip arm (which reaches out to x=17), these have to clear
+    # the silhouette to exist at all.
+    c.add('<path d="M31 44 Q21 53 20 66"/>')          # left arm, limp
+    c.add('<path d="M69 44 Q79 53 80 66"/>')          # right arm, limp
+    c.add('<path d="M42 76 Q32 90 19 90"/>')          # left leg, out front
+    c.add('<path d="M58 76 Q68 90 81 90"/>')          # right leg, out front
+    c.add('</g>')
+
+    c.add('<g stroke-width="5.2">')
+    c.add('<path d="M33 27 C 29 41, 29 60, 33 74 C 40 78, 60 78, 67 74 '
+          'C 71 60, 71 41, 67 27"/>')
+    c.add('<ellipse cx="50" cy="24" rx="19" ry="6.5"/>')
+    c.add('</g>')
+    c.add('<g transform="translate(58 12) rotate(-12)" stroke-width="3">')
+    c.add('<ellipse cx="0" cy="0" rx="5.4" ry="3.6"/>')
+    c.add('<path d="M0 3.6 L-0.8 7.6"/>')
+    c.add('</g>')
+
+    # The broken heart: two half outlines tilted apart about the point where
+    # they used to meet, each closed by its own zigzag along the break. The
+    # zigzag is the whole trick -- two smooth half-lobes tilted apart read as
+    # a pair of leaves, and at this size a fracture drawn as a thin gap
+    # between them disappears entirely.
+    c.add('<g transform="translate(38 -1) scale(1.3)" stroke-width="2.2">')
+    c.add('<g transform="translate(-1.3 0) rotate(-15 0 6)">'
+          '<path d="M0 -3.2 C0 -5.2 -1.8 -7.6 -4.5 -6.5 C-8 -5 -7 0 0 6 '
+          'L-1.6 3.2 L1 1 L-1.2 -1.2 Z"/></g>')
+    c.add('<g transform="translate(1.3 0) rotate(15 0 6)">'
+          '<path d="M0 -3.2 C0 -5.2 1.8 -7.6 4.5 -6.5 C8 -5 7 0 0 6 '
+          'L1.6 3.2 L-1 1 L1.2 -1.2 Z"/></g>')
+    c.add('</g>')
+
+    c.add('</g>')      # stroke group
+    c.add('<g transform="translate(50 57) scale(0.5) translate(-63.54 -50.33)" '
+          'fill="#FFFFFF">' + "".join(wf._LOGO_WORD) + '</g>')
+    c.add('</g>')      # shrink
+    c.add('</g>')
+
+
 # ------------------------------------------------------------- -1w intro ----
 def can_drink_intro(bean_angle=0.0):
     """First run of the Can Drink page (swipe left from Home)."""
@@ -756,6 +1034,8 @@ PAGES = [("00w_welcome.svg", welcome),
          ("00_home.svg", home),
          ("00_home_empty.svg", home_empty),
          ("0.5_bean_profile.svg", bean_profile_empty),
+         ("0.51_camera.svg", camera),
+         ("0.51b_camera_permission.svg", camera_permission),
          ("0.6_bean_detail.svg", bean_detail),
          ("0.6b_bean_detail_lower.svg", bean_detail_lower),
          ("-1w_can_drink_intro.svg", can_drink_intro),
@@ -799,8 +1079,18 @@ def can_drink_intro_frames():
             for i in range(n)]
 
 
+def bean_profile_frames():
+    """The shutter beat on 0.5's hero: aim, press, flash, recoil, settle.
+
+    Every knob is a continuous function of phase with f(1)=f(0), so the loop
+    closes on its own -- see _win()."""
+    n, ms = 24, 70
+    return [(bean_profile_empty(i / n), ms) for i in range(n)]
+
+
 MOTION = {"00w_welcome": welcome_frames, "00_home_empty": home_empty_frames,
-          "-1w_can_drink_intro": can_drink_intro_frames}
+          "-1w_can_drink_intro": can_drink_intro_frames,
+          "0.5_bean_profile": bean_profile_frames}
 
 
 def build_gif(name: str, frames_fn):
