@@ -1434,6 +1434,149 @@ def profile_empty():
     return c
 
 
+def google_g(c, cx, cy, size):
+    """Google's four-colour "G", drawn as a ring in four arcs plus the bar.
+
+    Approximated, not the official asset: a wireframe cannot ship Google's
+    artwork, and this is a stand-in for the real mark at the size and position
+    it occupies. specs/legal-accounts.md is explicit that the shipping build
+    must use the unmodified full-colour asset -- scaled only with aspect ratio
+    preserved, never monochrome, never redrawn. So do not treat this figure as
+    a spec for anything but layout.
+    """
+    r, sw = size * 0.36, size * 0.24
+    # The gap runs 0..25deg, where the crossbar exits. Closing it any further
+    # turns the mark into a pinwheel -- measured in the raster, not guessed.
+    arcs = (("#4285F4", 315, 360), ("#EA4335", 225, 315),
+            ("#FBBC05", 160, 225), ("#34A853", 25, 160))
+    for col, a1, a2 in arcs:
+        p1, p2 = math.radians(a1), math.radians(a2)
+        la = 1 if (a2 - a1) > 180 else 0
+        c.add(f'<path d="M{cx + r * math.cos(p1):.2f} {cy + r * math.sin(p1):.2f} '
+              f'A{r:.2f} {r:.2f} 0 {la} 1 '
+              f'{cx + r * math.cos(p2):.2f} {cy + r * math.sin(p2):.2f}" '
+              f'fill="none" stroke="{col}" stroke-width="{sw:.2f}"/>')
+    # the crossbar, blue, running out through the ring's gap at 3 o'clock
+    c.add(f'<path d="M{cx - r * 0.05:.2f} {cy:.2f} L{cx + r + sw / 2:.2f} {cy:.2f}" '
+          f'fill="none" stroke="#4285F4" stroke-width="{sw * 0.85:.2f}"/>')
+
+
+# --------------------------------------------------------- +2.1 create account
+# Reached from +2_profile_empty's "Create an account", the same way 0.51 is
+# reached from 0.5's scan prompt.
+#
+# Every element on this page is here because specs/legal-accounts.md's UI
+# section puts it here, and a few things are conspicuously absent for the same
+# reason. The short version, with the rule each one answers:
+#
+#   Google button first, email second, both the same width and height, no
+#   primary/secondary styling between them   -- they are equivalent options,
+#   and neither store permits one to be buried behind "more options".
+#
+#   The Google button keeps Google's own colours and its own typeface, not
+#   scheme E's. It is the one control on any page in this deck that the design
+#   system does not get to touch: the exact fill/stroke/ink values are a
+#   condition of Google's app verification, not a style preference. It looks
+#   foreign on this page on purpose.
+#
+#   Two separate data statements, not one. "We only collect your name and
+#   email" is the natural thing to write here and it is false the moment sync
+#   exists -- beans, brews and photos upload too, and a sign-up screen that
+#   contradicts the store data declarations is a problem in both consoles.
+#
+#   Terms and Privacy links, tappable from this screen.
+#
+#   An age affirmation at 13+, drawn UNTICKED. Pre-ticked consent is not
+#   consent. No date of birth is collected -- the checkbox is the whole ask.
+#
+# Absent on purpose, and it would be a defect to add them: any AI-processing
+# consent (that is a separate screen at first AI use, and must never be
+# bundled into sign-up), a phone number, a birthday, a display name, an
+# avatar, and any marketing opt-in as a condition of creating the account.
+#
+# This is the ANDROID variant: two methods. The iOS variant is a different
+# screen -- Apple's Guideline 4.8 puts Sign in with Apple on it as a third
+# button, first in the stack -- and is not drawn here, because this deck is
+# coffee_android and has no iOS pages at all. It still has to exist before
+# iOS submission.
+def create_account():
+    """+2.1: the create-account form, reached from +2_profile_empty.
+
+    The page leads with the two sign-up methods rather than the form, because
+    the form is the slower of the two and putting it first reads as "fill this
+    in, or, if you like, don't". Google's button and the email form are the
+    same width for the same reason -- neither is the recommended path.
+
+    Nothing on this page is required to use the app. That is the point of the
+    "You can keep using Coffee Can without an account" line at the foot: the
+    account buys sync and nothing else, and both stores take a dim view of a
+    sign-up wall in front of functionality that works offline. 00_home and
+    every bean page render with no account at all, which is what makes that
+    line true rather than reassuring.
+    """
+    c = wf.Canvas("Create account — scheme E (+2.1)")
+    wf.status_bar(c)
+    wf.top_bar(c, "Create account", back=True)
+
+    # --- Google, drawn to Google's spec, not scheme E's -------------------
+    # Light theme: #FFFFFF fill, #747775 stroke, #1F1F1F ink. The app's green
+    # tokens do not apply here and the corner radius follows this deck only
+    # because Google permits scaling, not because it may be restyled.
+    wf.rect(c, wf.GUTTER, 116, W - 2 * wf.GUTTER, 48, "#FFFFFF", 24,
+            stroke="#747775")
+    google_g(c, 62, 140, 22)
+    wf.text(c, 190, 145, "Sign up with Google", "labelLarge", "#1F1F1F", "middle",
+            family="'Liberation Sans',sans-serif", size=15)
+
+    # 184, not 186: the Email field's floating label notch starts at 206, and
+    # at 186 the rules ran into the top of it
+    wf.line(c, 20, 184, 158, 184)
+    wf.text(c, 180, 189, "or", "labelMedium", wf.C["onSurfaceVariant"], "middle")
+    wf.line(c, 202, 184, 340, 184)
+
+    # --- the app's own email account --------------------------------------
+    wf.textfield(c, wf.GUTTER, 212, W - 2 * wf.GUTTER, "Email", "raul@example.com")
+    # a space, not "", so textfield() doesn't fall back to its em-dash empty
+    # marker -- the dots below stand in for the masked value
+    wf.textfield(c, wf.GUTTER, 284, W - 2 * wf.GUTTER, "Password", " ")
+    for i in range(8):
+        wf.circle(c, 36 + i * 11, 315, 2.6, wf.C["onSurface"])
+    wf.text(c, 20, 356, "At least 8 characters", "labelSmall",
+            wf.C["onSurfaceVariant"])
+
+    # --- age affirmation, unticked ----------------------------------------
+    wf.rect(c, 20, 374, 20, 20, "none", wf.R_XS, stroke=wf.C["outline"], sw=1.6)
+    wf.text(c, 52, 389, "I'm 13 or older", "bodyMedium", wf.C["onSurface"])
+
+    # --- terms + privacy, both reachable from this screen ------------------
+    wf.text(c, 20, 420, "By creating an account you agree to the", "bodyMedium",
+            wf.C["onSurfaceVariant"], size=13)
+    wf.text(c, 20, 440, "Terms of service", "bodyMedium", wf.C["primaryText"], size=13)
+    wf.text(c, 124, 440, "and", "bodyMedium", wf.C["onSurfaceVariant"], size=13)
+    wf.text(c, 152, 440, "Privacy policy.", "bodyMedium", wf.C["primaryText"], size=13)
+
+    # --- what the account holds, and what syncing sends --------------------
+    wf.rect(c, wf.GUTTER, 464, W - 2 * wf.GUTTER, 78, wf.C["surfaceContainer"], wf.R_MD)
+    for i, ln in enumerate(("Your account stores your email address.",
+                            "Syncing uploads your beans, brews and photos",
+                            "so they appear on your other devices.")):
+        wf.text(c, 28, 488 + i * 19, ln, "bodyMedium", wf.C["onSurfaceVariant"],
+                size=13)
+
+    wf.button(c, wf.GUTTER, 562, W - 2 * wf.GUTTER, "Create account")
+
+    wf.text(c, 180, 646, "Already have an account?", "bodyMedium",
+            wf.C["onSurfaceVariant"], "middle")
+    wf.text(c, 180, 670, "Log in", "labelLarge", wf.C["primaryText"], "middle")
+
+    wf.text(c, 180, 736, "You can keep using Coffee Can", "labelSmall",
+            wf.C["outline"], "middle")
+    wf.text(c, 180, 754, "without an account.", "labelSmall", wf.C["outline"],
+            "middle")
+    wf.gesture_bar(c)
+    return c
+
+
 def profile():
     """+2 signed in: 09's avatar, Change photo, Name and Email, with the two
     additions the signed-out twin makes necessary.
@@ -1503,7 +1646,8 @@ PAGES = [("00w_welcome.svg", welcome),
          ("-1_can_drink.svg", can_drink),
          ("+1_sessions.svg", sessions),
          ("+2_profile.svg", profile),
-         ("+2_profile_empty.svg", profile_empty)]
+         ("+2_profile_empty.svg", profile_empty),
+         ("+2.1_create_account.svg", create_account)]
 
 # ----------------------------------------------------------------- motion ---
 def _ease_out_cubic(t: float) -> float:

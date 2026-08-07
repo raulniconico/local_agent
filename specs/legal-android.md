@@ -47,6 +47,17 @@ treated as load-bearing, not incidental:
    Deletion policy entirely and simplifies the Data Safety form — but it is
    fragile: the first version that adds an optional account or cloud backup
    re-triggers that policy in full (§3.5).
+
+   > **Superseded as the plan of record (2026-08-07).** This remains true of
+   > the account-less build — including the closed-testing-ready milestone in
+   > `coffee_android/plan/README.md`, which is still the build that starts the
+   > 12-tester clock — but it is **no longer the product direction**. Accounts
+   > (Sign in with Google, Sign in with Apple, email + password) and
+   > cross-device sync are now planned, and the app is additionally shipping
+   > on the Apple App Store. §3.5 rule 16 has fired. **`specs/legal-accounts.md`
+   > is the binding document for everything account-, authentication- and
+   > sync-related on both stores**; read it alongside this one. Facts 2 and 3
+   > below are unaffected and still hold.
 2. **AI features are proxied, never direct.** Photos and structured bean/
    session data are sent over HTTPS to `coffee_server` (the sibling FastAPI
    gateway, already built), which forwards to Anthropic Claude and/or Qwen.
@@ -199,6 +210,26 @@ recruiting ~12 real external testers who will actually install and keep the
 app for two weeks is a genuine, non-technical prerequisite that belongs in
 the project timeline, not an afterthought at submission time.
 
+Two refinements from the 2026-08-07 cross-platform review, both re-verified
+live at that date (the tester count and duration are unchanged):
+
+- **The production-access application is itself reviewed**, typically within 7
+  days, *on top of* the 14. Budget for it.
+- **The 14-day clock does not require the account system**, so accounts are
+  largely off this critical path: the design plan's closed-testing-ready
+  milestone has zero `coffee_server` dependency and no accounts, and can start
+  the clock while backend work proceeds in parallel. What that does mean is
+  that **this is no longer the project's single most schedule-relevant item.**
+  With the app also shipping on the App Store — where there is *no* testing
+  gate at all — the iOS build can reach a human reviewer well before Android
+  reaches production, so **the shared backend's required-by date is set by iOS,
+  not by this clock**, and the first human scrutiny of the account system will
+  be Apple's. See `specs/legal-accounts.md` §2.7 and §4. One caveat carried
+  there: if the closed test is ever run against a build that *does* include
+  accounts, the 12 testers are real data subjects and the privacy policy,
+  hosting DPA, deletion path and export path must be live before the test
+  opens.
+
 **App Signing.** Play App Signing is the default, effectively-mandatory path
 for a new AAB-based submission; an upload keystore is still generated and
 held by the developer (keep it out of git, alongside any secrets, matching
@@ -237,15 +268,28 @@ declarations (all not applicable, still must be affirmatively answered).
 None of these are skippable by leaving them blank; Play Console won't allow
 a release without them completed.
 
-**Account/data deletion.** Not triggered — the policy's trigger is
-account-creation from within the app, which v1 has none of. The Data
-Safety form's separate "can users request data deletion" question can be
-answered honestly based on local-only storage (uninstall/clear-storage is a
-complete, immediate deletion — stronger than the policy's own 90-day
-automatic-deletion allowance) — but only once it's confirmed `coffee_server`
-doesn't persist OCR/suggestion request payloads server-side; if it does,
-that retention needs disclosing too (ties directly to §2.1's "collected vs.
-shared" documentation task).
+**Account/data deletion.** Not triggered *for the account-less build* — the
+policy's trigger is account-creation from within the app, which that build has
+none of. The Data Safety form's separate "can users request data deletion"
+question can be answered honestly based on local-only storage
+(uninstall/clear-storage is a complete, immediate deletion) — but only once
+it's confirmed `coffee_server` doesn't persist OCR/suggestion request payloads
+server-side; if it does, that retention needs disclosing too (ties directly to
+§2.1's "collected vs. shared" documentation task).
+
+**Correction (2026-08-07): the 90-day figure is not a deletion grace period.**
+An earlier draft of this section described Play as having a "90-day
+automatic-deletion allowance," implying a developer may take up to 90 days to
+honour a deletion request. That is a misreading, and it would mislead an
+implementer. The 90 days appears in the **Data safety form** as an *alternative
+qualifying condition* for answering "yes" to the data-deletion-request
+question: a developer qualifies either by **providing a deletion-request
+mechanism**, *or* by **automatically deleting or anonymizing collected data
+within 90 days of collection**. It grants no grace period for acting on an
+actual request, and Play's account-deletion policy page states **no maximum
+retention period at all**. Note also that the second route is unavailable to
+any design that retains data for the life of an account — see
+`specs/legal-accounts.md` §2.5.
 
 ### 2.4 GDPR/CCPA and the July 2026 Play policy clarification
 
@@ -350,6 +394,23 @@ once and will move again.
     this spec or Play's own policy pages can resolve alone.
 
 ### 3.5 What changes the moment accounts or cloud sync are added
+
+> **Rule 16 has fired (2026-08-07).** Accounts and cross-device sync are now
+> the plan of record, and the app is additionally shipping on the Apple App
+> Store. The scoping this rule demanded was carried out as a two-specialist
+> review with cross-review, and its output is **`specs/legal-accounts.md` —
+> the binding document for all account, authentication and sync compliance on
+> both stores.** Read it before implementing anything in this area; it
+> supersedes nothing here but adds 60 rules this section only gestured at, and
+> it upgrades rule 13 (TLS) from "confirm" to a hard blocker now that the
+> payload is credentials rather than a coffee photo.
+>
+> Both rules below are **retained unchanged as the trigger conditions they
+> are** — rule 16 because it must keep firing for anyone reading this spec
+> without the other, and rule 17 because it has *not* fired: cross-user
+> visibility is still absent, and same-user cross-device sync was confirmed
+> against both stores' live definitions to stay clear of the line
+> (`specs/legal-accounts.md` §2.10).
 
 16. **The instant any future version adds an optional account or cloud
     backup, the full Account Deletion policy activates**: build the in-app
