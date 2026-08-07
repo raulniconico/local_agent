@@ -19,6 +19,12 @@ Numbering follows the swipe axis, centred on Home:
     00    HOME
     +1    swipe right ->    +2    swipe right ->
 
++2 is the profile page, and it is the one screen that has a signed-out state:
++2_profile_empty is what you get before anyone has logged in, +2_profile once
+they have. Home carries no avatar in either case — it used to sit in the top
+bar, but an avatar is a signed-in artifact and 00_home_empty is by definition
+a phone nobody has logged into yet, so profile lives on the swipe axis only.
+
 A page's state is a suffix on the same number (00_home, 00_home_empty), since
 states are the same destination, not a different one.
 """
@@ -259,7 +265,7 @@ def home(beans=None):
     ]
     c = wf.Canvas("Home — scheme E")
     wf.status_bar(c)
-    wf.top_bar(c, "Coffee Can", brand=True, actions=("avatar",))
+    wf.top_bar(c, "Coffee Can", brand=True)
     wf.section(c, 112, "Your beans", "Search")
 
     card_w, card_h, tile, row_gap = W - 2 * wf.GUTTER, 72, 64, 6
@@ -327,7 +333,7 @@ def home_empty(headline_font=None, shake=0.0):
     hf = headline_font or HEADLINE
     c = wf.Canvas("Home · empty state — scheme E")
     wf.status_bar(c)
-    wf.top_bar(c, "Coffee Can", brand=True, actions=("avatar",))
+    wf.top_bar(c, "Coffee Can", brand=True)
     wf.logo(c, 180, 286, 100)
     wf.text(c, 180, 400, "No beans yet", "headlineMedium", wf.C["onSurface"],
             "middle", family=hf, size=34)
@@ -1340,6 +1346,149 @@ def sessions():
     return c
 
 
+# ----------------------------------------------------------------- +2 profile
+# 09 (wireframes.profile) brought onto the swipe axis at +2, and split into the
+# two states it always implied but never drew: signed out and signed in.
+#
+# Splitting it is what took the avatar out of Home's top bar. That avatar was
+# the only way in to this page, and an avatar is by definition a signed-in
+# artifact -- 00_home_empty is a phone nobody has logged into yet, so it was
+# drawing a face for a user who does not exist. Reaching profile by swiping
+# right twice costs nothing and works in both states.
+#
+# NOTE, and it is not a design note: specs/legal-android.md rule 16 says that
+# the moment this app grows an account, Play's Account Deletion policy
+# activates and the in-app deletion path plus a public web deletion URL have
+# to ship *with* the account feature, not after it. So the signed-in state
+# carries a "Delete account" row. It is the reason its list is titled
+# "Account & legal" where the signed-out one is still "About & legal": with no
+# account there is nothing to delete, and the version row keeps that slot.
+def _about_card(c, y, rows):
+    """The legal list both profile states carry, unchanged from 09 except that
+    the row set is now a parameter -- the two states need different last rows.
+
+    `rows` is a sequence of (label, sub, kind); `kind` is "chevron" (navigates,
+    optional second line), "value" (`sub` printed right-aligned, no chevron) or
+    "danger" (chevron, error ink).
+    """
+    h = len(rows) * 58
+    wf.card(c, y, h)
+    for i, (lab, sub, kind) in enumerate(rows):
+        ry = y + i * 58
+        two = sub is not None and kind != "value"
+        ink = wf.C["error"] if kind == "danger" else wf.C["onSurface"]
+        wf.text(c, 32, ry + (28 if two else 34), lab, "bodyLarge", ink)
+        if two:
+            wf.text(c, 32, ry + 46, sub, "bodyMedium", wf.C["onSurfaceVariant"])
+        if kind == "value":
+            wf.text(c, 328, ry + 34, sub, "bodyMedium", wf.C["onSurfaceVariant"], "end")
+        else:
+            wf.path(c, f"M322 {ry+27} l6 6 l-6 6",
+                    stroke=ink if kind == "danger" else wf.C["outline"], sw=1.6)
+        if i < len(rows) - 1:
+            wf.line(c, 32, ry + 58, 332, ry + 58)
+    return y + h
+
+
+def profile_empty():
+    """+2 signed out: no avatar, no name, no email, because none of the three
+    exist yet.
+
+    09 opens with an avatar over a Change photo button over two filled fields.
+    All four are *your* data, so with nobody logged in there is nothing to draw
+    and no honest placeholder to draw instead -- a grey ring where a face goes
+    is the same lie as a radar polygon at zero. They collapse into one block:
+    the mark, what the app does with your data today, and the way in.
+
+    The mark, not can-boy. can_boy_sad() carries 0.51b because a denied camera
+    permission is a small disappointment aimed at the user; not being logged in
+    is not a disappointment, it is the default, and a mascot pulling a face
+    about it would be asking for something the copy should just offer.
+
+    The copy leads with what is true right now -- the log is on this phone and
+    works fine without an account -- because the alternative reads as a wall
+    asking you to sign up before you can see your own coffee. Logging in is the
+    addition, so it is the second sentence.
+    """
+    c = wf.Canvas("Profile · signed out — scheme E (+2)")
+    wf.status_bar(c)
+    wf.top_bar(c, "Profile", back=True)
+
+    wf.logo(c, 180, 176, 88)
+    wf.text(c, 180, 256, "Not signed in", "headlineMedium", wf.C["onSurface"],
+            "middle", family=HEADLINE, size=30)
+    for i, ln in enumerate(("Your beans and sessions live on this",
+                            "phone and work without an account. Log",
+                            "in to sync them across your devices.")):
+        wf.text(c, 180, 288 + i * 22, ln, "bodyLarge", wf.C["onSurfaceVariant"],
+                "middle")
+    wf.button(c, 68, 362, 224, "Log in")
+    wf.button(c, 68, 410, 224, "Create an account", "text")
+
+    wf.section(c, 496, "About & legal")
+    _about_card(c, 510, (("Privacy Policy", None, "chevron"),
+                         ("How we use AI", "Re-read the disclosure", "chevron"),
+                         ("Open-source licences", None, "chevron"),
+                         ("Version", "1.0.0 (14)", "value")))
+    wf.gesture_bar(c)
+    return c
+
+
+def profile():
+    """+2 signed in: 09's avatar, Change photo, Name and Email, with the two
+    additions the signed-out twin makes necessary.
+
+    "Log out" sits in the top bar's right action slot as words rather than a
+    glyph -- there is no icon for logging out that half the world doesn't read
+    as "log in", and top_bar()'s glyph vocabulary (avatar, share, close, sort)
+    has nothing close. It stays primaryText rather than error ink: logging out
+    is reversible and does not touch data, and spending the error colour here
+    would leave nothing louder for Delete account, which is neither.
+
+    Delete account is in the list, not the top bar, and the version row moves
+    down to the footer to make room for it -- see the section note above for
+    why it is not optional. Its supporting line names what goes, because
+    "Delete account" alone does not say whether the brews on this phone go
+    with it.
+
+    The name is Raul, not 09's Zixing, only so it agrees with the avatar letter
+    scheme E already sets (wf.AVATAR = "R"). If the sample name changes, change
+    the letter with it -- a face reading R above a field reading Zixing is the
+    kind of detail a reviewer trips on and then distrusts the rest of the page.
+    """
+    c = wf.Canvas("Profile · signed in — scheme E (+2)")
+    wf.status_bar(c)
+    wf.top_bar(c, "Profile", back=True)
+    wf.text(c, W - 20, 61, "Log out", "labelLarge", wf.C["primaryText"], "end")
+
+    wf.circle(c, 180, 168, 44, wf.C["secondaryContainer"])
+    wf.text(c, 180, 182, wf.AVATAR, "displaySmall", wf.C["onSecondaryContainer"],
+            "middle", family=HEADLINE)
+    # 09's edit badge, verbatim -- it opens the photo picker. 09 built it by
+    # drawing a tick and then string-replacing the path with a pencil; drawn
+    # once here instead, same geometry.
+    wf.circle(c, 210, 198, 18, wf.C["primary"], stroke=wf.C.get("primaryOutline"))
+    wf.path(c, "M204 202 l7 -7 M204 202 v3 h3", stroke=wf.C["onPrimary"], sw=2)
+    wf.button(c, 118, 224, 124, "Change photo", "text")
+
+    wf.textfield(c, wf.GUTTER, 292, W - 2 * wf.GUTTER, "Name", "Raul")
+    wf.textfield(c, wf.GUTTER, 364, W - 2 * wf.GUTTER, "Email", "raul@example.com")
+    # 09 parks this at the very bottom of the page, where it reads as a footer
+    # about the whole screen. It is only true of the two fields above it, so it
+    # sits under them instead.
+    wf.text(c, 20, 440, "Saved automatically", "labelSmall", wf.C["outline"])
+
+    wf.section(c, 468, "Account & legal")
+    _about_card(c, 482, (("Privacy Policy", None, "chevron"),
+                         ("How we use AI", "Re-read the disclosure", "chevron"),
+                         ("Open-source licences", None, "chevron"),
+                         ("Delete account", "Removes the account and its synced data",
+                          "danger")))
+    wf.text(c, 20, 748, "Version 1.0.0 (14)", "labelSmall", wf.C["outline"])
+    wf.gesture_bar(c)
+    return c
+
+
 PAGES = [("00w_welcome.svg", welcome),
          ("00_home.svg", home),
          ("00_home_empty.svg", home_empty),
@@ -1352,7 +1501,9 @@ PAGES = [("00w_welcome.svg", welcome),
          ("0.6b_empty.svg", bean_detail_lower_empty),
          ("-1w_can_drink_intro.svg", can_drink_intro),
          ("-1_can_drink.svg", can_drink),
-         ("+1_sessions.svg", sessions)]
+         ("+1_sessions.svg", sessions),
+         ("+2_profile.svg", profile),
+         ("+2_profile_empty.svg", profile_empty)]
 
 # ----------------------------------------------------------------- motion ---
 def _ease_out_cubic(t: float) -> float:
