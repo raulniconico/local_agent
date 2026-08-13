@@ -274,6 +274,9 @@ def _bar_action(c, x, cy, kind, ink):
     elif kind == "sort":
         for i, ww in enumerate((14, 10, 6)):
             line(c, x - 7, cy - 5 + i * 5, x - 7 + ww, cy - 5 + i * 5, ink, 2)
+    elif kind == "search":
+        circle(c, x - 2, cy - 2, 7, "none", stroke=ink, sw=2)
+        path(c, f"M{x+3} {cy+3} l5 5", stroke=ink, sw=2)
 
 
 def section(c, y, label, action=None):
@@ -553,7 +556,7 @@ def radar11(c, cx, cy, r, values=None, stroke=None, ink=None, fill_op=0.16,
     over it the net *is* the card's content, and at ring weight tuned to sit
     under a series it would leave the card reading blank. The labels drop
     from vizInk to `outline`, the deck's muted/placeholder ink (the same one
-    0.5's "or enter it by hand" and button(kind=disabled) use), so the chart
+    0.1's "or enter it by hand" and button(kind=disabled) use), so the chart
     reads as switched off rather than as broken. Both are defaults, not
     hard-coded: a caller on another surface (the dark share card) can still
     pass its own `ink`/`grid`.

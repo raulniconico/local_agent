@@ -10,14 +10,17 @@ Pages live in screenshots/scheme-e/.
 Numbering follows the swipe axis, centred on Home:
 
     00w   welcome / splash — off-axis, shown once at cold launch
-    0.5   add-a-bean form — off-axis, reached by tapping Add bean from Home
-    0.51  the label-scanning camera, reached from 0.5's scan prompt;
-          0.51b is what it becomes when camera permission is denied
-    0.6   the saved bean profile — off-axis, tapping a bean on Home;
-          0.6b is the same page scrolled past the fold
+    0.1   add-a-bean form — off-axis, reached by tapping Add bean from Home
+    0.11  the label-scanning camera, reached from 0.1's scan prompt;
+          0.11b is what it becomes when camera permission is denied
+    0.2   the saved bean profile — off-axis, tapping a bean on Home;
+          0.2b is the same page scrolled past the fold
     -2    <- swipe left     -1    <- swipe left
     00    HOME
     +1    swipe right ->    +2    swipe right ->
+    +1.1  the "which bean?" sheet +1's FAB opens; its three options land on
+          +1.1a (pick a saved bean), +1.1b (= 0.1, add one) and +1.1c
+          (vibe brewing — a blank bean, straight into the session form)
 
 +2 is the profile page, and it is the one screen that has a signed-out state:
 +2_profile_empty is what you get before anyone has logged in, +2_profile once
@@ -115,6 +118,32 @@ def welcome(fade: float = 1.0):
 
 
 # --------------------------------------------------------------- bag tile --
+def bag_glyph(c, cx, cy, s):
+    """The roaster-bag figure itself, centred on (cx, cy) at scale `s`.
+
+    Split out of bag_tile() so the one place that draws a bag *without* a
+    gradient tile behind it -- +1.1's "Add a new bean" row, where the bag
+    stands on a plain BRAND disc like can_boy and the dripper icons do --
+    is the same drawing rather than a second, drifting copy of it. Spec'd
+    in a ~52x76 box, so `s` is roughly the rendered height over 76.
+    """
+    c.add(f'<g transform="translate({cx:.1f} {cy:.1f}) scale({s:.3f})" '
+          f'fill="none" stroke="#FFFFFF" stroke-linecap="round" '
+          f'stroke-linejoin="round">')
+    # body: slightly wider at the base, like a gusseted stand-up pouch
+    c.add('<path d="M-24 -30 Q-24 -36 -18 -36 L18 -36 Q24 -36 24 -30 '
+          'L26 26 Q26 34 18 34 L-18 34 Q-26 34 -26 26 Z" stroke-width="4.4"/>')
+    # folded top seal, with pleat creases
+    c.add('<path d="M-19 -36 Q-19 -42 -13 -42 L13 -42 Q19 -42 19 -36" '
+          'stroke-width="4.4"/>')
+    for lx in (-10, 0, 10):
+        c.add(f'<path d="M{lx} -41 L{lx+3} -37" stroke-width="2.4"/>')
+    # one-way degassing valve -- a ring only, no filled centre dot, so the
+    # figure stays true to can_boy's "line only, nothing solid" rule
+    c.add('<circle cx="10" cy="-20" r="6" stroke-width="3"/>')
+    c.add('</g>')
+
+
 def bag_tile(c, x, y, w, h, code, r=None):
     """origin_tile()'s gradient (wireframes.py), topped with a small drawn
     coffee bag instead of a two-letter code watermark. Letters read as an
@@ -178,21 +207,7 @@ def bag_tile(c, x, y, w, h, code, r=None):
     s = m / 100 * 1.3   # fills the tile edge to edge at both tile shapes
     cx0, cy0 = x + w / 2, y + h / 2
     c.add(f'<g clip-path="url(#{cid})">')
-    c.add(f'<g transform="translate({cx0:.1f} {cy0:.1f}) scale({s:.3f})" '
-          f'fill="none" stroke="#FFFFFF" stroke-linecap="round" '
-          f'stroke-linejoin="round">')
-    # body: slightly wider at the base, like a gusseted stand-up pouch
-    c.add('<path d="M-24 -30 Q-24 -36 -18 -36 L18 -36 Q24 -36 24 -30 '
-          'L26 26 Q26 34 18 34 L-18 34 Q-26 34 -26 26 Z" stroke-width="4.4"/>')
-    # folded top seal, with pleat creases
-    c.add('<path d="M-19 -36 Q-19 -42 -13 -42 L13 -42 Q19 -42 19 -36" '
-          'stroke-width="4.4"/>')
-    for lx in (-10, 0, 10):
-        c.add(f'<path d="M{lx} -41 L{lx+3} -37" stroke-width="2.4"/>')
-    # one-way degassing valve -- a ring only, no filled centre dot, so the
-    # figure stays true to can_boy's "line only, nothing solid" rule
-    c.add('<circle cx="10" cy="-20" r="6" stroke-width="3"/>')
-    c.add('</g>')
+    bag_glyph(c, cx0, cy0, s)
     c.add('</g>')
 
     # origin code, stamped in the belly -- can_boy's own idiom (the shipped
@@ -354,7 +369,7 @@ def home_empty(headline_font=None, shake=0.0):
     return c
 
 
-# --------------------------------------------------------- 0.5 add-a-bean ---
+# --------------------------------------------------------- 0.1 add-a-bean ---
 # The hero grew to fit can_boy_camera(), and everything under it moves down by
 # the difference. Kept as constants because the shift has to be applied to
 # every y below the hero and a stray literal would silently break the column.
@@ -388,7 +403,7 @@ def _shutter_pose(p):
 
 
 def bean_profile_empty(p=0.53):
-    """The blank "add a bean" form: what 0.6/0.6b look like before any data
+    """The blank "add a bean" form: what 0.2/0.2b look like before any data
     exists.
 
     `p` is the shutter animation's phase; the default freezes it mid-burst,
@@ -406,7 +421,7 @@ def bean_profile_empty(p=0.53):
     so that space becomes the scan prompt rather than staying empty.
     """
     pose = _shutter_pose(p)
-    c = wf.Canvas("Bean profile — empty (0.5)")
+    c = wf.Canvas("Bean profile — empty (0.1)")
     wf.status_bar(c)
     wf.top_bar(c, "New bean", back=True)
 
@@ -439,7 +454,7 @@ def bean_profile_empty(p=0.53):
         wf.field(c, 20, ry, 145, l1, v1, placeholder=True)
         wf.field(c, 195, ry, 145, l2, v2, placeholder=True)
 
-    # "Radar", not "Flavor" -- 0.6/0.6b name this same block after the chart
+    # "Radar", not "Flavor" -- 0.2/0.2b name this same block after the chart
     # in it, and the empty state has to agree with the state it becomes.
     wf.section(c, 546 + _SHIFT, "Radar", "Set manually")
     wf.card(c, 560 + _SHIFT, 90)
@@ -453,16 +468,16 @@ def bean_profile_empty(p=0.53):
     return c
 
 
-# ----------------------------------------------------------- 0.51 camera ---
+# ----------------------------------------------------------- 0.11 camera ---
 # 08 / 08b (wireframes.camera / camera_permission) brought into scheme E and
-# numbered off 0.5, because that is what reaches them: tapping "Click me to
-# scan" on 0.5 opens 0.51, and 0.51b is what you get instead when the camera
+# numbered off 0.1, because that is what reaches them: tapping "Click me to
+# scan" on 0.1 opens 0.11, and 0.11b is what you get instead when the camera
 # permission has been denied.
 def camera():
-    """0.51: the capture viewfinder. Carried over from the wireframe as-is --
+    """0.11: the capture viewfinder. Carried over from the wireframe as-is --
     a camera screen is the system's visual language, not the app's, and
     scheme E's palette has no business on a live viewfinder."""
-    c = wf.Canvas("Camera capture — scheme E (0.51)", bg=wf.C["dSurface"])
+    c = wf.Canvas("Camera capture — scheme E (0.11)", bg=wf.C["dSurface"])
     wf.rect(c, 0, 0, W, H, wf.C["camGround"])
     wf.status_bar(c, dark=True)
     wf.rect(c, 0, 0, W, 96, wf.C["scrim"], opacity=0.45)
@@ -487,12 +502,12 @@ def camera():
 
 
 def camera_permission():
-    """0.51b: permission denied.
+    """0.11b: permission denied.
 
     The wireframe drew a struck-through camera glyph here -- a Material
-    "feature off" icon, the same rect-and-lens pair 0.5's hero used to
+    "feature off" icon, the same rect-and-lens pair 0.1's hero used to
     have. Scheme E has can-boy for exactly this moment: he is already the
-    one holding the camera on 0.5, so he is the one it was taken away from.
+    one holding the camera on 0.1, so he is the one it was taken away from.
     A slumped mascot with a broken heart says "you turned me off" in a way
     a struck-through glyph cannot, and it keeps the two screens telling one
     story rather than sharing a stock icon.
@@ -501,7 +516,7 @@ def camera_permission():
     still have to carry the fix, and "turn it back on in Settings" is the
     fix.
     """
-    c = wf.Canvas("Camera · permission denied — scheme E (0.51b)")
+    c = wf.Canvas("Camera · permission denied — scheme E (0.11b)")
     wf.status_bar(c)
     wf.top_bar(c, "Scan bean label", back=True)
     can_boy_sad(c, 180, 248, 164)
@@ -522,12 +537,13 @@ def camera_permission():
     return c
 
 
-# ------------------------------------------------------- 0.6 bean profile ---
+# ------------------------------------------------------- 0.2 bean profile ---
 # 02 / 02b (wireframes.bean_detail / bean_detail_lower) brought into scheme E,
-# which is where 0.5 above always pointed: 0.5 is this page before any data
-# exists, 0.6 is the same destination once it has some. Numbered off-axis
-# beside 0.5 rather than kept as "02" because scheme E numbers by the swipe
-# axis, and this page is reached by tapping a bean on Home, not by swiping.
+# which is where 0.1 above always pointed: 0.1 is this page before any data
+# exists, 0.2 is the same destination once it has some. Numbered off-axis
+# beside 0.1 rather than kept as the wireframes' "02" because scheme E numbers
+# by the swipe axis, and this page is reached by tapping a bean on Home, not
+# by swiping.
 #
 # The layout, hero treatment and score-sheet fields are unchanged from the
 # wireframe -- the two blocks that changed are:
@@ -542,7 +558,7 @@ def camera_permission():
 #
 #   Documents -> Images That block was drawn as a shelf of scanned label
 #                       *documents* with a "Scan label" tile, i.e. an OCR
-#                       source -- but scanning-to-fill-the-form is 0.5's job
+#                       source -- but scanning-to-fill-the-form is 0.1's job
 #                       (its hero prompt), and doing it twice made the label
 #                       photo look like a document you file rather than a
 #                       picture you keep. It is now the bean's image
@@ -552,34 +568,34 @@ def camera_permission():
 #                       paths.MAX_IMAGES_PER_BEAN (5) per bean, ordered by
 #                       `position`. So "Add img" attaches a photo (camera or
 #                       picker) to this bean; it does not read anything off
-#                       it. The hero at the top of 0.6 is image #1 of the
+#                       it. The hero at the top of 0.2 is image #1 of the
 #                       same set.
 #
 # Design is untouched on both -- same card, same tilted stack, same tonal
 # add-tile in the same slot. Only the chart inside the first and the words
 # in both.
-# The one line of copy the empty radar carries, on 0.6 and 0.6b alike. It
-# sits under the section heading rather than inside the card because 0.6's
+# The one line of copy the empty radar carries, on 0.2 and 0.2b alike. It
+# sits under the section heading rather than inside the card because 0.2's
 # card has no room -- at r=62 the top axis label already touches the card's
-# top edge -- and because 0.6/0.6b are the same page at two scroll offsets:
+# top edge -- and because 0.2/0.2b are the same page at two scroll offsets:
 # a sentence that moved from above the card to inside it as you scrolled
 # would be two different pages, not one.
 _RADAR_EMPTY_NOTE = "Log a brew and this fills itself in — or Set manually."
 
 
 def bean_detail(empty=False):
-    """0.6: the saved bean profile, first scroll page — photo hero over the
+    """0.2: the saved bean profile, first scroll page — photo hero over the
     score-sheet fields, with the radar starting to show above the fold.
 
     The radar card deliberately runs past y=800: this is the top of a
     scrolling page, and a card cut by the fold says "keep going" where a
-    card that ends neatly above it says "this is all there is". 0.6b picks
+    card that ends neatly above it says "this is all there is". 0.2b picks
     that same card up in full.
 
-    `empty=True` is 0.6_empty (see bean_detail_empty); everything above the
+    `empty=True` is 0.2_empty (see bean_detail_empty); everything above the
     Radar heading is shared verbatim, which is the point of the flag.
     """
-    c = wf.Canvas("Bean profile — scheme E (0.6)")
+    c = wf.Canvas("Bean profile — scheme E (0.2)")
     wf.photo(c, 0, 0, W, 300, r=0)
     gid = c.uid("fade")
     c.defs.append(f'<linearGradient id="{gid}" x1="0" y1="0" x2="0" y2="1">'
@@ -633,13 +649,13 @@ def bean_detail(empty=False):
 
 
 def bean_detail_empty():
-    """0.6 for a bean with nothing brewed yet: the profile is complete —
+    """0.2 for a bean with nothing brewed yet: the profile is complete —
     name, origin, variety, roaster, process, roast date, photo — and the only
-    thing missing is the log. Reached the same way 0.6 is, by tapping a bean
-    on Home; a bean saved from 0.5 lands here and stays here until its first
+    thing missing is the log. Reached the same way 0.2 is, by tapping a bean
+    on Home; a bean saved from 0.1 lands here and stays here until its first
     session.
 
-    Against 0.6, exactly two things change and everything above the Radar
+    Against 0.2, exactly two things change and everything above the Radar
     heading is untouched. The net goes grey and loses its polygon
     (radar11(values=None) — see its docstring for why an empty net beats a
     row of zeros), and a line under the heading says what the grey means and
@@ -648,7 +664,7 @@ def bean_detail_empty():
     The fold still cuts the radar card, deliberately, and cuts it harder in
     this state than in the populated one. A card that ended neatly above
     y=800 here would say "nothing logged, and nothing below either" — false,
-    since 0.6b still holds this bean's images and the invitation to brew.
+    since 0.2b still holds this bean's images and the invitation to brew.
     Cut, it says "keep going", and what you find by going is the mascot
     asking for a cup.
     """
@@ -656,9 +672,9 @@ def bean_detail_empty():
 
 
 def bean_detail_lower():
-    """0.6b: the same page scrolled — the radar at full size, the bean's
+    """0.2b: the same page scrolled — the radar at full size, the bean's
     images, and its sessions."""
-    c = wf.Canvas("Bean profile · lower — scheme E (0.6b)")
+    c = wf.Canvas("Bean profile · lower — scheme E (0.2b)")
     wf.status_bar(c)
     wf.top_bar(c, "Ethiopia Guji Natural", back=True, actions=("share",))
 
@@ -696,12 +712,12 @@ def bean_detail_lower():
 
 
 def bean_detail_lower_empty():
-    """0.6b for the same unbrewed bean as 0.6_empty: the radar with no series
+    """0.2b for the same unbrewed bean as 0.2_empty: the radar with no series
     in it, the bean's images — which exist, this state is about missing
     *brews*, not a missing profile — and a Sessions block with nothing to
-    list. Reached by scrolling 0.6_empty.
+    list. Reached by scrolling 0.2_empty.
 
-    Block order is 0.6b's, unchanged: Radar, Images, Sessions. Order is what
+    Block order is 0.2b's, unchanged: Radar, Images, Sessions. Order is what
     makes this the same page as its populated twin; only the heights flex.
     And they have to flex, because two 48dp session rows become an
     illustration block roughly twice that, on a page whose budget is fixed at
@@ -722,12 +738,12 @@ def bean_detail_lower_empty():
     to read, since the block could afford it — under "No brews yet", the same
     phrasing 00_home_empty and Home's own bean chips already use. The copy
     names the plus button rather than restating the heading, and the FAB
-    stays exactly where 0.6b parks it (312, 712): it is the one thing on this
+    stays exactly where 0.2b parks it (312, 712): it is the one thing on this
     page that changes the state, and moving it between states would cost the
     muscle memory that makes it obvious. Nothing else is placed inside its
     corner, so the mascot and the copy clear it without a fight.
     """
-    c = wf.Canvas("Bean profile · lower — scheme E (0.6b, no sessions)")
+    c = wf.Canvas("Bean profile · lower — scheme E (0.2b, no sessions)")
     wf.status_bar(c)
     wf.top_bar(c, "Ethiopia Guji Natural", back=True, actions=("share",))
 
@@ -837,7 +853,7 @@ def can_boy(c, cx, cy, size, bean_angle=0.0):
 # every stroke weight, and the belly wordmark (wf._LOGO_WORD, never redrawn).
 def can_boy_camera(c, cx, cy, size, arm_angle=0.0, cam_tilt=0.0, flash=0.0,
                    lean=0.0, press=0.0):
-    """Can-boy taking a photo, for 0.5's scan prompt.
+    """Can-boy taking a photo, for 0.1's scan prompt.
 
     `arm_angle` pivots the camera arm at the shoulder, `cam_tilt` rolls the
     camera in the hand, `press` dips it on the shutter press, `flash` (0..1)
@@ -920,7 +936,7 @@ def can_boy_camera(c, cx, cy, size, arm_angle=0.0, cam_tilt=0.0, flash=0.0,
 
 
 def can_boy_sad(c, cx, cy, size):
-    """Can-boy sitting down with a broken heart over his head -- 0.51b's
+    """Can-boy sitting down with a broken heart over his head -- 0.11b's
     camera-denied illustration.
 
     Sitting is carried by the legs alone: splayed forward from the hip to
@@ -1118,7 +1134,7 @@ def can_boy_v60(c, cx, cy, size, tilt=0.0):
     # the pot reads at 30deg; an ellipse lid in a rotated frame turns into a
     # diagonal oval that reads as an opening, not a lid.
     c.add('<path d="M-9 -6 L9 -6 C 10.8 0.5, 8 9.5, 0 9.5 '
-          'C -8 9.5, -10.8 0.5, -9 -6 Z"/>')
+          'C -8 9.5, -10.8 0.1, -9 -6 Z"/>')
     # gooseneck. It leaves the body LOW and climbs on a long diagonal before
     # the hook: a neck whose two limbs are both vertical is a hairpin and
     # reads as a wire handle, which is what the first two passes drew.
@@ -1346,6 +1362,273 @@ def sessions():
     return c
 
 
+def sessions_empty():
+    """+1 with nothing logged anywhere yet -- the whole-app counterpart to
+    0.2b_empty's Sessions block, which is the same beat for one bean.
+
+    Because it is the same beat, it reuses the same mascot pose,
+    can_boy_v60() -- can-boy brewing a pour-over -- and the same headline,
+    "No brews yet", that 0.2b_empty and Home's own bean chips use. A reader
+    who has met one of those states should recognise this one on sight
+    rather than have to read it. The figure runs at 184dp against 0.2b's
+    132: there it shares the page with a radar card and an image strip, here
+    it is the page, and the pose is drawn to be the hero at that size (see
+    can_boy_v60's own docstring on how hard the enclosing circle was fought
+    for).
+
+    Two things the populated page carries are dropped rather than emptied,
+    on 0.2b_empty's rule that a state may lose a control but must not lie
+    with one. The "Newest first · 7 sessions" subtitle would have to read
+    "0 sessions", which repeats the headline; and the top bar's sort action
+    is a dead control over an empty list. Neither disappears silently: the
+    sort order is the one fact from that subtitle still worth keeping, so
+    the body copy states it ("lands here, newest first") -- which also tells
+    a first-time reader what this page is for, something the populated page
+    never has to explain because seven rows do it.
+
+    The FAB sits at the scheme's usual (312, 712) rather than at sessions()'
+    fab_cy. There is no muscle memory to protect the way 0.2b_empty protects
+    its corner: the populated page's FAB is parked just under the last row,
+    so its y is a function of how many sessions exist and has no fixed home
+    to match. 712 is where every other page in scheme E puts it.
+    """
+    c = wf.Canvas("Sessions · empty state — scheme E")
+    wf.status_bar(c)
+    wf.top_bar(c, "Sessions", back=True)
+
+    can_boy_v60(c, 180, 356, 184)
+    wf.text(c, 180, 490, "No brews yet", "headlineMedium", wf.C["onSurface"],
+            "middle", family=HEADLINE, size=34)
+    for i, ln in enumerate(("Every brew you log lands here,",
+                            "newest first. Tap + to add one.")):
+        wf.text(c, 180, 526 + i * 24, ln, "bodyLarge", wf.C["onSurfaceVariant"],
+                "middle")
+
+    wf.circle(c, 312, 712, 28, wf.C["primary"], stroke=wf.C.get("primaryOutline"))
+    wf.path(c, "M300 712 h24 M312 700 v24", stroke=wf.C["onPrimary"], sw=2.6)
+    wf.gesture_bar(c)
+    return c
+
+
+# ------------------------------------------------------------- +1.1 log brew --
+# What +1's FAB opens. Signed "+1.1", not bare "1.1", on +2.1's precedent: a
+# page that hangs off a swipe-axis page inherits that page's number and sign,
+# because the sign is what says where on the axis you were standing when you
+# reached it. Bare "1.1" would read as a third off-axis family alongside 0.1
+# and 0.2, which is exactly what this is not -- it is unreachable except from
+# +1.
+#
+# The FAB has to ask something before it can do anything, and this is why: a
+# brew session belongs to a bean, so "log a brew" from a *global* log has no
+# subject the way it does on 0.2b, where the bean you are looking at is the
+# answer. The three options are the three honest answers to "which bean?", and
+# they are not three ways to do one thing -- they are one question with a
+# short, a medium and a long answer, ordered by how much the user has to type
+# before they get back to the coffee:
+#
+#   a  From Coffee Can   the bean exists   -> pick it            -> 0.2
+#   b  Add a new bean    it doesn't yet    -> fill the form      -> 0.1
+#   c  Vibe brewing      don't ask me now  -> log against a blank
+#
+# (c) is the one that earns the sheet. Without it the FAB's real answer for
+# someone brewing an unlabelled sample or a friend's beans is "go do data
+# entry first", which is how a log app stops being used. So it creates the
+# bean -- a real row, blank -- and drops straight into the session form, and
+# 0.2's own "Set manually"/name affordances are where the bean gets its
+# identity later, if ever. Nothing about the schema changes: a nameless bean
+# is a bean with an empty name, not a session with no bean.
+_LOG_BREW_OPTIONS = (
+    ("From Coffee Can", "Pick a bean you've already saved", "can"),
+    ("Add a new bean", "Scan the bag or type it in", "bag"),
+    ("Vibe brewing", "Brew now, name the bean later", "v60"),
+)
+
+
+def log_brew():
+    """+1.1: the modal sheet +1's FAB opens, over the log it was tapped from.
+
+    Drawn over sessions() rather than over its empty twin because the sheet
+    is identical in both and the populated list is the more informative
+    backdrop -- it shows that the page underneath keeps its place, which is
+    the whole reason this is a sheet and not a screen. The scrim sits at
+    0.45, lighter than wireframes' own 0.55/0.6 modal pages: those cover a
+    photo, this covers text rows that are meant to stay legible as context.
+
+    The three leading marks are the three figure systems this deck already
+    has, one each, which is what keeps them readable at 40dp without labels
+    doing all the work: the shipped logo for "From Coffee Can" (the option
+    named after the app gets the app's own mark, unmodified), bag_glyph()
+    for the bean form, and the V60 from dripper_icons/ for the brew -- the
+    same white-on-BRAND disc the +1 rows behind the sheet already use for
+    their method column. Deliberately NOT sparkle(): it is this deck's AI
+    glyph and nothing here calls a model.
+
+    Vibe brewing sits last despite being the fastest path. A three-item
+    sheet is read top to bottom and the top slot is the default; defaulting
+    someone into a nameless bean would make the log worse for everyone who
+    would happily have picked one. Last is where an escape hatch belongs.
+    """
+    c = sessions()
+    wf.scrim(c, 0.45)
+
+    top = 444
+    wf.sheet(c, top)
+    wf.text(c, 20, top + 54, "Log a brew", "headlineSmall", family=HEADLINE)
+    wf.text(c, 20, top + 78, "Which bean is in the cup?", "bodyMedium",
+            wf.C["onSurfaceVariant"])
+
+    row_h = 72
+    for i, (title, sub, mark) in enumerate(_LOG_BREW_OPTIONS):
+        ry = top + 96 + i * row_h
+        cy = ry + 36
+        if mark == "can":
+            wf.logo(c, 44, cy, 40, tagline=False)
+        else:
+            wf.circle(c, 44, cy, 20, BRAND)
+            if mark == "bag":
+                # 0.28, not bag_tile's own fill-the-frame scale: on a tile the
+                # bag is the picture, on a 40dp disc it is a glyph and has to
+                # sit inside the same optical margin the logo and the V60 keep
+                bag_glyph(c, 44, cy, 0.28)
+            else:
+                dripper_icon(c, 44, cy, 26, "V60")
+        wf.text(c, 80, cy - 4, title, "titleMedium", size=15)
+        wf.text(c, 80, cy + 16, sub, "bodyMedium", wf.C["onSurfaceVariant"], size=12)
+        wf.path(c, f"M330 {cy-5} l5 5 l-5 5", stroke=wf.C["outline"], sw=1.6)
+
+    wf.gesture_bar(c)
+    return c
+
+
+def pick_bean():
+    """+1.1a: the shelf as a picker — option (a)'s destination.
+
+    Not Home with a different title. Home answers "what do I own"; this
+    answers "which of these am I drinking right now", and the two want
+    different metadata on the card. Home's second line is the roast date
+    and its chip counts brews, because that is what tells you a bag is
+    getting stale and unloved. Here the second line is the last brew,
+    because when you are logging a cup the bean you reach for is
+    overwhelmingly the one you reached for last time -- so the list is
+    ordered by it, newest first, and says so under the title in +1's own
+    "Newest first · N" idiom. Kenya, never brewed, sorts last and reads
+    "No brews yet", the same phrasing every other empty state in the deck
+    uses.
+
+    Tapping a row goes to 0.2 (or 0.2_empty for Kenya), NOT straight into a
+    session form. That is a deliberate extra tap: the bean page is where
+    the FAB that logs a brew already lives, so the picker hands off to the
+    existing flow instead of forking a second one, and the user gets a
+    look at the bean -- roast date, past scores -- before committing the
+    session to it.
+
+    "Add a new bean" at the foot is option (b) again, and it is not
+    redundant: a picker with four rows and no way out is a dead end the
+    moment the bag in your hand isn't one of them, and backing out to the
+    sheet to find it is a step nobody should have to work out. Outlined,
+    not filled -- picking a bean is this page's primary action.
+    """
+    beans = [(name, meta, last, code) for name, meta, last, code in (
+        ("Ethiopia Guji Natural", "Natural · Roasted 28 Jul", "Last brew 30 Jul", "ET"),
+        ("Colombia Huila Washed", "Washed · Roasted 20 Jul", "Last brew 22 Jul", "CO"),
+        ("Guatemala Huehue", "Washed · Roasted 15 Jul", "Last brew 15 Jul", "GT"),
+        ("Kenya Nyeri AB", "Washed · Roasted 02 Aug", "No brews yet", "KE"))]
+
+    c = wf.Canvas("Pick a bean — scheme E (+1.1a)")
+    wf.status_bar(c)
+    wf.top_bar(c, "Pick a bean", back=True, actions=("search",))
+    wf.text(c, 20, 112, f"{len(beans)} beans · most recently brewed first",
+            "labelMedium", wf.C["onSurfaceVariant"])
+
+    card_w, card_h, tile, gap = W - 2 * wf.GUTTER, 80, 64, 8
+    for i, (name, meta, last, code) in enumerate(beans):
+        cy = 132 + i * (card_h + gap)
+        wf.card(c, cy, card_h, x=wf.GUTTER, w=card_w)
+        bag_tile(c, wf.GUTTER + 12, cy + 8, tile, tile, code, r=wf.R_MD)
+        tx = wf.GUTTER + 12 + tile + 14
+        wf.text(c, tx, cy + 30, name, "titleMedium", size=14)
+        wf.text(c, tx, cy + 48, meta, "bodyMedium", wf.C["onSurfaceVariant"], size=11)
+        wf.text(c, tx, cy + 65, last, "labelSmall",
+                wf.C["outline"] if last == "No brews yet" else wf.C["primaryText"])
+        wf.path(c, f"M{wf.GUTTER+card_w-24} {cy+card_h/2-5} l5 5 l-5 5",
+                stroke=wf.C["outline"], sw=1.6)
+
+    foot = 132 + len(beans) * (card_h + gap) + 16
+    wf.button(c, wf.GUTTER, foot, card_w, "Add a new bean", "outlined")
+    wf.gesture_bar(c)
+    return c
+
+
+def vibe_brewing():
+    """+1.1c: the session form, already attached to the blank bean option
+    (c) just created.
+
+    Scheme E's first brew-session page, ported from 04 (wireframes.
+    brew_session) block for block -- Brew details, Pours, Evaluation, in
+    that order -- so that when the populated session page gets drawn it is
+    this page with values in it, not a different layout. What changes here
+    is only what a brand-new session on a brand-new bean can honestly show:
+    every field is empty, the pour table has no rows, and the score is
+    stars() own unset state, which draws five outlines and the words "Not
+    rated" precisely so it can never be misread as a zero.
+
+    The bean it belongs to is drawn at the top rather than assumed, because
+    a blank bean is the one thing about this page a user could get wrong.
+    It is a real row on the shelf -- bag_tile() stamps it "?" instead of an
+    origin code, its gradient seeded the same way every other tile's is --
+    with "Name it" in the section's action slot. Naming is offered, never
+    demanded: demanding it here would be the data-entry wall that vibe
+    brewing exists to skip.
+
+    "Nothing here is required" under the details is the page's contract and
+    the reason the fields are bare rather than pre-filled from the last
+    session. Prefilling would be kinder to the common case and dishonest in
+    the log: a guessed dose that nobody corrected is worse than a blank
+    one, and this page's whole promise is that you can leave it blank.
+    """
+    c = wf.Canvas("New brew · unnamed bean — scheme E (+1.1c)")
+    wf.status_bar(c)
+    wf.top_bar(c, "New brew", back=True)
+
+    wf.section(c, 112, "Bean", "Name it")
+    wf.card(c, 124, 72)
+    bag_tile(c, wf.GUTTER + 12, 128, 64, 64, "?", r=wf.R_MD)
+    wf.text(c, 110, 154, "Unnamed bean", "titleMedium", size=14)
+    wf.text(c, 110, 172, "Blank profile · name it any time",
+            "bodyMedium", wf.C["onSurfaceVariant"], size=11)
+    wf.path(c, "M316 155 l5 5 l-5 5", stroke=wf.C["outline"], sw=1.6)
+
+    wf.section(c, 228, "Brew details")
+    for i, (l1, l2) in enumerate((("Dripper", "Grinder"),
+                                  ("Grind size", "Dose"),
+                                  ("Water temp", "Water"))):
+        ry = 244 + i * 60
+        wf.field(c, 20, ry, 145, l1, "", placeholder=True)
+        wf.field(c, 195, ry, 145, l2, "", placeholder=True)
+    wf.text(c, 20, 416, "Nothing here is required — fill in what you remember.",
+            "labelSmall", wf.C["onSurfaceVariant"])
+
+    wf.section(c, 452, "Pours", "Add pour")
+    wf.card(c, 466, 96)
+    for lx, lab, an in ((36, "#", "start"), (148, "Temp", "end"),
+                        (212, "Water", "end"), (268, "Time", "end")):
+        wf.text(c, lx, 492, lab, "labelMedium", wf.C["onSurfaceVariant"], an, letter=0.4)
+    wf.line(c, 28, 500, 332, 500)
+    wf.text(c, 180, 534, "No pours logged — add them as you go",
+            "bodyMedium", wf.C["outline"], "middle")
+
+    wf.section(c, 594, "Evaluation")
+    wf.card(c, 608, 132)
+    wf.text(c, 28, 634, "Score", "labelMedium", wf.C["onSurfaceVariant"], letter=0.4)
+    wf.stars(c, 28, 646, None, size=22, gap=7)
+    wf.line(c, 28, 692, 332, 692)
+    wf.text(c, 28, 718, "Extraction, note and 11 flavor axes below", "bodyMedium",
+            wf.C["onSurfaceVariant"])
+    wf.text(c, 20, 764, "Saved automatically", "labelSmall", wf.C["outline"])
+    wf.gesture_bar(c)
+    return c
+
+
 # ----------------------------------------------------------------- +2 profile
 # 09 (wireframes.profile) brought onto the swipe axis at +2, and split into the
 # two states it always implied but never drew: signed out and signed in.
@@ -1400,7 +1683,7 @@ def profile_empty():
     is the same lie as a radar polygon at zero. They collapse into one block:
     the mark, what the app does with your data today, and the way in.
 
-    The mark, not can-boy. can_boy_sad() carries 0.51b because a denied camera
+    The mark, not can-boy. can_boy_sad() carries 0.11b because a denied camera
     permission is a small disappointment aimed at the user; not being logged in
     is not a disappointment, it is the default, and a mascot pulling a face
     about it would be asking for something the copy should just offer.
@@ -1462,8 +1745,8 @@ def google_g(c, cx, cy, size):
 
 
 # --------------------------------------------------------- +2.1 create account
-# Reached from +2_profile_empty's "Create an account", the same way 0.51 is
-# reached from 0.5's scan prompt.
+# Reached from +2_profile_empty's "Create an account", the same way 0.11 is
+# reached from 0.1's scan prompt.
 #
 # Every element on this page is here because specs/legal-accounts.md's UI
 # section puts it here, and a few things are conspicuously absent for the same
@@ -1635,16 +1918,25 @@ def profile():
 PAGES = [("00w_welcome.svg", welcome),
          ("00_home.svg", home),
          ("00_home_empty.svg", home_empty),
-         ("0.5_bean_profile.svg", bean_profile_empty),
-         ("0.51_camera.svg", camera),
-         ("0.51b_camera_permission.svg", camera_permission),
-         ("0.6_bean_detail.svg", bean_detail),
-         ("0.6b_bean_detail_lower.svg", bean_detail_lower),
-         ("0.6_empty.svg", bean_detail_empty),
-         ("0.6b_empty.svg", bean_detail_lower_empty),
+         ("0.1_bean_profile.svg", bean_profile_empty),
+         ("0.11_camera.svg", camera),
+         ("0.11b_camera_permission.svg", camera_permission),
+         ("0.2_bean_detail.svg", bean_detail),
+         ("0.2b_bean_detail_lower.svg", bean_detail_lower),
+         ("0.2_empty.svg", bean_detail_empty),
+         ("0.2b_empty.svg", bean_detail_lower_empty),
          ("-1w_can_drink_intro.svg", can_drink_intro),
          ("-1_can_drink.svg", can_drink),
          ("+1_sessions.svg", sessions),
+         ("+1_sessions_empty.svg", sessions_empty),
+         ("+1.1_log_brew.svg", log_brew),
+         ("+1.1a_pick_bean.svg", pick_bean),
+         # +1.1b IS 0.1 -- the sheet's middle option goes to the add-a-bean
+         # form, unchanged, and the deck carries it under both names so every
+         # branch of +1.1 has a leaf. Same function, not a copy of it, so the
+         # two files can never drift apart.
+         ("+1.1b_add_bean.svg", bean_profile_empty),
+         ("+1.1c_vibe_brewing.svg", vibe_brewing),
          ("+2_profile.svg", profile),
          ("+2_profile_empty.svg", profile_empty),
          ("+2.1_create_account.svg", create_account)]
@@ -1687,7 +1979,7 @@ def can_drink_intro_frames():
 
 
 def bean_profile_frames():
-    """The shutter beat on 0.5's hero: aim, press, flash, recoil, settle.
+    """The shutter beat on 0.1's hero: aim, press, flash, recoil, settle.
 
     Every knob is a continuous function of phase with f(1)=f(0), so the loop
     closes on its own -- see _win()."""
@@ -1697,7 +1989,7 @@ def bean_profile_frames():
 
 MOTION = {"00w_welcome": welcome_frames, "00_home_empty": home_empty_frames,
           "-1w_can_drink_intro": can_drink_intro_frames,
-          "0.5_bean_profile": bean_profile_frames}
+          "0.1_bean_profile": bean_profile_frames}
 
 
 def build_gif(name: str, frames_fn):
