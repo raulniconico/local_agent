@@ -264,6 +264,17 @@ the error state at all).
 
 ## 8. Camera Capture
 
+> **Superseded, 2026-08-14 — not built, and deliberately not.** Capture now
+> hands off to the device's own camera app (`ACTION_IMAGE_CAPTURE`) and
+> selection to the system Photo Picker, so this app declares no camera
+> permission and there is no in-app viewfinder to design. **8b (permission
+> denied) has no reachable state at all** and is dropped rather than deferred.
+> The trade — losing the mascot viewfinder — and the manifest trap that makes
+> the permission removal mandatory are recorded in `README.md` under
+> "Decision, 2026-08-14". Revive this section only alongside a real CameraX
+> screen, and re-read `specs/legal-android.md` §3.1 first: that change reopens
+> rules 3 and 4 together.
+
 **Wireframe:** `screenshots/sheme_1/08_camera.svg`
 
 **Purpose:** photograph a bean label — ported from `camera_dialog.py`.

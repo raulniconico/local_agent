@@ -1673,6 +1673,36 @@ def _about_card(c, y, rows):
     return y + h
 
 
+def switch(c, x, cy, on):
+    """M3 switch, 52x32 track. Nothing else in this deck needed one until
+    +2.2b, where the consent controls have to be controls -- a chevron row
+    would be a link to a fourth screen, which is not what an in-app withdrawal
+    control is (specs/legal-accounts.md rule 97)."""
+    track_w, track_h = 52, 32
+    wf.rect(c, x, cy - track_h / 2, track_w, track_h,
+            wf.C["primary"] if on else wf.C["surfaceContainer"], track_h / 2,
+            stroke=None if on else wf.C["outline"])
+    r = 12 if on else 8
+    cx = x + track_w - 16 if on else x + 16
+    wf.circle(c, cx, cy, r, wf.C["onPrimary"] if on else wf.C["outline"])
+    if on:
+        wf.path(c, f"M{cx-5} {cy} l3.5 3.5 l6 -7", stroke=wf.C["primary"], sw=2)
+
+
+def bullets(c, y, rows, dot=True):
+    """Body copy as a short list. Each row is a tuple of lines; a small brand
+    dot marks each one so four consecutive facts don't read as one paragraph
+    -- which is the failure mode a policy summary has to avoid."""
+    ry = y
+    for lines in rows:
+        if dot:
+            wf.circle(c, 36, ry - 4, 3, BRAND)
+        for i, ln in enumerate(lines):
+            wf.text(c, 52, ry + i * 18, ln, "bodyMedium", wf.C["onSurface"], size=13)
+        ry += len(lines) * 18 + 14
+    return ry
+
+
 def profile_empty():
     """+2 signed out: no avatar, no name, no email, because none of the three
     exist yet.
@@ -1690,8 +1720,28 @@ def profile_empty():
 
     The copy leads with what is true right now -- the log is on this phone and
     works fine without an account -- because the alternative reads as a wall
-    asking you to sign up before you can see your own coffee. Logging in is the
+    asking you to sign up before you can see your own coffee. Signing in is the
     addition, so it is the second sentence.
+
+    It no longer offers sync (2026-08-13). Under the no-server-storage
+    architecture nothing is ever uploaded, so "sync them across your devices"
+    was a promise the product does not keep -- and an in-app statement that
+    contradicts the Data safety declarations is the misrepresentation route
+    both store specialists rate as the highest-probability enforcement risk
+    here. What signing in actually buys is the server: AI label reading, brew
+    suggestions and the coffee-news feed. The copy says that instead.
+
+    And it stops one word short of "never leave it", which is where the first
+    rewrite landed. With sync gone that sentence is *nearly* true, which is
+    exactly what makes it dangerous -- the AI path does send a photo and the
+    bean fields you typed. "Stay on this phone" is true of the log; "never
+    leave it" would be a false disclosure on the same screen that offers the
+    feature which sends them. (legal-accounts.md rule 69 as amended.)
+
+    One button, not two. Google is the only sign-in method, so "Log in" and
+    "Create an account" were never two destinations -- the first Google
+    sign-in *is* the account creation. Drawing them as a pair implied an
+    email/password alternative that does not exist.
     """
     c = wf.Canvas("Profile · signed out — scheme E (+2)")
     wf.status_bar(c)
@@ -1700,19 +1750,262 @@ def profile_empty():
     wf.logo(c, 180, 176, 88)
     wf.text(c, 180, 256, "Not signed in", "headlineMedium", wf.C["onSurface"],
             "middle", family=HEADLINE, size=30)
-    for i, ln in enumerate(("Your beans and sessions live on this",
-                            "phone and work without an account. Log",
-                            "in to sync them across your devices.")):
+    for i, ln in enumerate(("Your beans and sessions stay on this",
+                            "phone. Sign in for AI label reading",
+                            "and coffee news.")):
         wf.text(c, 180, 288 + i * 22, ln, "bodyLarge", wf.C["onSurfaceVariant"],
                 "middle")
-    wf.button(c, 68, 362, 224, "Log in")
-    wf.button(c, 68, 410, 224, "Create an account", "text")
+    # Google's own button spec, per legal-accounts.md §6.5 -- white fill,
+    # #747775 stroke, #1F1F1F ink, Google's typeface. The one control in this
+    # deck the design system does not get to restyle.
+    wf.rect(c, 68, 374, 224, 48, "#FFFFFF", 24, stroke="#747775")
+    google_g(c, 100, 398, 22)
+    wf.text(c, 196, 403, "Sign in with Google", "labelLarge", "#1F1F1F", "middle",
+            family="'Liberation Sans',sans-serif", size=15)
 
     wf.section(c, 496, "About & legal")
     _about_card(c, 510, (("Privacy Policy", None, "chevron"),
-                         ("How we use AI", "Re-read the disclosure", "chevron"),
-                         ("Open-source licences", None, "chevron"),
+                         ("How we use AI", "What we send, and how to turn it off",
+                          "chevron"),
                          ("Version", "1.0.0 (14)", "value")))
+    wf.gesture_bar(c)
+    return c
+
+
+# ------------------------------------------------- +2.2a / +2.2b legal screens
+# The two screens the Account & legal list points at. Both were specified by a
+# two-specialist review (data-protection counsel · Google Play policy) run on
+# 2026-08-13 and refereed into specs/legal-accounts.md §3.8; the rule numbers
+# cited below are that section's. Almost nothing on either screen is a design
+# choice, and the few things that are, are noted as such.
+#
+# THE ONE ARGUMENT THAT SHAPED +2.2a. Counsel first ruled that the full policy
+# text must be bundled into the app and rendered natively, on GDPR Art. 12(1)
+# ("easily accessible"), reasoning that an app which works offline cannot
+# discharge the duty with a link that fails to load. The Play specialist held
+# that Play requires a *link* and that a second copy of the policy is a drift
+# surface -- and that drift between the in-app text and the hosted text is a
+# Data safety *consistency* failure, whose remedy is removal rather than a
+# resubmission. Counsel withdrew on rebuttal, and the reason is worth keeping:
+# for an offline, signed-out user no personal data reaches the developer at
+# all, so Art. 13 is never engaged; every moment it *is* engaged -- signing in,
+# an AI call -- the device has network by construction. So: a short summary
+# generated from the data inventory, plus the canonical URL. Not a copy.
+#
+# WHAT IS DELIBERATELY ABSENT, and would be a defect to add (rule 100): any
+# claim that a photo "isn't stored", any claim that data is "never shared",
+# and any statement about which country the server sits in. Those depend on
+# facts nobody has established -- the AI providers' retention terms, whether
+# coffee_server logs payloads, and where AWS_REGION resolves. An absent
+# sentence is a compliance non-event; a wrong one is a store removal.
+#
+# AND THE SENTENCE THAT IS NOT HERE: "your data never leaves your device."
+# With sync gone that is *nearly* true, which is exactly what makes it the
+# likeliest false disclosure in the build -- the AI path sends a photo and the
+# fields the user typed. Rule 59.
+def privacy_policy():
+    """+2.2a: the privacy policy screen, reached from Profile → Account & legal.
+
+    Four facts above the fold, in the order a reader is least likely to
+    already know them (rule 63 — the first layer of a layered notice carries
+    the processing most likely to surprise, and specs/legal-android.md §2.1
+    already found that to be the AI transfer, not the storage). Local storage
+    first because it is the reassuring one and the rest is read against it;
+    the roaster-CDN line last because it is the only one about a third party
+    the user never chose.
+
+    That fourth bullet is the round's quietest finding. Hotlinking product
+    images rather than caching them is required by specs/legal.md rule 31 for
+    copyright reasons — and it means every listing the user opens sends their
+    IP address and User-Agent to a roaster's server. Play has no data type for
+    that and wants no declaration; GDPR Art. 13(1)(e) wants the sentence
+    (rule 75).
+
+    The local-data paragraph is written to be precise rather than reassuring
+    (rule 92). "We have no copy and no way to get one" is the true and
+    comfortable half; "a phone backup may still contain it" is the half that
+    makes the first one honest, and it is only true to say at all because
+    rule 62 turns Android Auto Backup off — `android:allowBackup` defaults to
+    **true**, which would silently upload the whole log to the user's Drive
+    and make this screen's headline claim false in a default build.
+
+    Export and Delete are rows here, not prose. A policy paragraph reading
+    "you can delete your account in Settings", displayed to a user who is
+    already in Settings, is the opposite of Art. 12(2)'s "facilitate" — so
+    each right terminates in a control that deep-links to the single existing
+    implementation, never a second one. Export is deliberately unglamorous
+    about its contents: with no server-side content there are four things to
+    export, and saying so is more honest than a button implying a data dump.
+
+    The web deletion route is subordinate body text under the Delete row, not
+    a peer row. Its only real audience is someone about to uninstall — anyone
+    who can open this screen can already use the better in-app route — and
+    Play imposes no UI obligation for it at all (it is a Console field). That
+    demotion resolves a disagreement: counsel had it as a mandatory row, the
+    Play specialist as design-not-policy, and counsel conceded.
+
+    No last-updated date (rule 90). The date belongs to the hosted document;
+    a baked one is the single field guaranteed to drift out of sync with it.
+
+    NOT SHIPPABLE YET, and the deck should not imply otherwise: rule 89 blocks
+    this screen until the rule 45 domain is live and the URL is declared in
+    Play Console. The URL drawn here is a placeholder for a domain that does
+    not exist. A legal row opening a dead link is a reviewer-visible defect on
+    the one surface Play named.
+
+    Drawn signed-in. Signed out, bullet 2 is replaced by "You're not signed
+    in, so we hold nothing about you" and the two rights rows say there is
+    nothing server-side to export or erase — same layout, same order.
+    """
+    c = wf.Canvas("Privacy — scheme E (+2.2a)")
+    wf.status_bar(c)
+    wf.top_bar(c, "Privacy", back=True)
+
+    wf.section(c, 112, "In short")
+    wf.card(c, 126, 212)
+    bullets(c, 156, (
+        ("Your beans, brews, notes and photos stay",
+         "on this phone. We have no copy."),
+        ("Signed in, we keep your Google account ID",
+         "so AI and news requests can be metered."),
+        ("AI features send your photo, or the notes",
+         "you typed, to Anthropic (US) or Qwen (CN)."),
+        ("Roaster photos load from each roaster's",
+         "own site, which shows them your device."),
+    ))
+    wf.text(c, 20, 356, "Uninstalling deletes what's on this phone. If your phone",
+            "labelSmall", wf.C["onSurfaceVariant"])
+    wf.text(c, 20, 372, "backs itself up, that backup is governed by whoever runs it.",
+            "labelSmall", wf.C["onSurfaceVariant"])
+
+    wf.section(c, 404, "Your data")
+    _about_card(c, 418, (
+        ("Export my data", "The account ID and usage counts we hold", "chevron"),
+        ("Delete account", "Unlinks Google. Your log stays on this phone.", "danger")))
+    wf.text(c, 32, 552, "Already uninstalled? You can also delete it at",
+            "labelSmall", wf.C["onSurfaceVariant"])
+    wf.text(c, 32, 568, "coffeecan.app/delete", "labelSmall", wf.C["primaryText"])
+
+    wf.section(c, 602, "The full policy")
+    wf.card(c, 616, 72)
+    wf.text(c, 32, 646, "coffeecan.app/privacy", "bodyLarge", wf.C["primaryText"])
+    wf.text(c, 32, 668, "Always the current version. Tap to open, hold to copy.",
+            "labelSmall", wf.C["onSurfaceVariant"])
+
+    # Art. 13(2)(d): the user must be told they can complain to a supervisory
+    # authority, and France-established means CNIL is it (rule 81).
+    wf.text(c, 20, 716, "Questions: hello@coffeecan.app", "labelSmall",
+            wf.C["onSurfaceVariant"])
+    wf.text(c, 20, 732, "You can also complain to the CNIL (cnil.fr).", "labelSmall",
+            wf.C["onSurfaceVariant"])
+    wf.gesture_bar(c)
+    return c
+
+
+def ai_disclosure():
+    """+2.2b: what the AI features send, and the controls that turn them off.
+
+    Explanation first, controls after, and nothing material below the fold
+    (§6.11). A switch reachable before the facts that explain it is the
+    classic finding, and under Art. 4(11) consent granted from a bare control
+    with no adjacent explanation is not informed consent at all.
+
+    TWO CONTROLS, NOT ONE, AND NO MASTER SWITCH ABOVE THEM (rule 95). Both
+    specialists arrived here independently, which is the strongest signal in
+    the whole review. Counsel came via GDPR Recital 43 and Art. 7(2): the data
+    categories differ materially, because a photograph carries incidental
+    content the user never meant to send — the counter it was standing on, a
+    face, a room — whereas the suggestion path sends only fields they typed. A
+    user can entirely rationally accept the second and refuse the first. The
+    Play specialist came via Prominent Disclosure & Consent, and put it more
+    sharply: with one flag gating both, a modal shown at Scan Label also
+    authorises a later Ask-AI transfer, which means *that* transfer had no
+    disclosure immediately before it. A parent switch would recreate exactly
+    that defect inside this screen.
+
+    THIS SCREEN IS NOT THE CONSENT STEP AND MAY NEVER BE PRESENTED AS ONE
+    (rule 94). Play's PD&C requirement says the disclosure "must not require
+    the user to navigate into a menu or settings" — which disqualifies a
+    settings screen by its own text. The first-run modal is the compliance
+    artifact; this is a re-readable copy and a withdrawal control. It is a
+    natural engineering shortcut to think one screen can replace both, and it
+    is exactly wrong.
+
+    THE CONTROLS ARE ASYMMETRIC ON PURPOSE (rule 97). Off takes effect on the
+    tap: no confirmation dialog, no "are you sure, you'll lose label
+    scanning". Granting cost one affirmative tap, so withdrawal must not cost
+    more, and a confirmation that exists only on the off path is precisely the
+    asymmetry Art. 7(3) prohibits. Turning one back *on* opens that
+    operation's disclosure sheet, because a switch flipped in settings is a
+    settings-screen consent, which Play refuses and Art. 4(11) does not
+    recognise. Friction on the way back is fine; friction on the way out is
+    the one move the article actually forbids.
+
+    The state line under each control carries the date (Art. 7(1) — the
+    controller must be able to demonstrate consent, and the user-facing
+    corollary is being able to see it). It reads "On since 3 August", never
+    "You agreed to this on 3 August", which reads as a fait accompli being
+    defended back at someone.
+
+    "If you turn them off" exists because the fear that stops people
+    withdrawing is that it will delete their log. It says the three true
+    things separately, and the third one — that copies already sent are not
+    recalled — is unflattering and stays anyway (rule 99). Note what it does
+    *not* say: nothing about how long a provider keeps a copy, because rule
+    100 forbids asserting that until the retention terms exist.
+
+    The report row is a mirror. The primary control belongs on the AI output
+    itself (specs/legal-android.md rule 5 as amended) — a report affordance
+    the user must navigate to Settings to find fails for the same structural
+    reason a settings-screen disclosure does. It is here because someone who
+    dismissed a bad suggestion can still get back to it.
+    """
+    c = wf.Canvas("How we use AI — scheme E (+2.2b)")
+    wf.status_bar(c)
+    wf.top_bar(c, "How we use AI", back=True)
+
+    wf.section(c, 112, "What we send")
+    wf.card(c, 126, 152)
+    for i, ln in enumerate(("Coffee Can can read a bean bag's label from a",
+                            "photo, and suggest brew settings from details",
+                            "you've typed. Both are optional.")):
+        wf.text(c, 32, 156 + i * 20, ln, "bodyMedium", wf.C["onSurface"], size=13)
+    # onSurface, not onSurfaceVariant: this is the paragraph naming the
+    # destination countries, which rule 63 puts among the facts a reader is
+    # least likely to expect. Greying it would rank the least-expected fact on
+    # the screen as secondary to the sentence introducing the feature.
+    for i, ln in enumerate(("What you send goes to our server, and from",
+                            "there to Anthropic (United States) or Qwen",
+                            "(China). Nothing else on this phone is sent.")):
+        wf.text(c, 32, 226 + i * 20, ln, "bodyMedium", wf.C["onSurface"], size=13)
+
+    wf.section(c, 306, "AI features")
+    wf.card(c, 320, 172)
+    for i, (title, sub, state, on) in enumerate((
+            ("Read labels from photos", "Sends the photo you take",
+             "On since 3 August", True),
+            ("Suggest brew settings", "Sends the details you typed. No photo.",
+             "Off", False))):
+        ry = 320 + i * 86
+        wf.text(c, 32, ry + 30, title, "bodyLarge", wf.C["onSurface"])
+        wf.text(c, 32, ry + 48, sub, "bodyMedium", wf.C["onSurfaceVariant"], size=12)
+        wf.text(c, 32, ry + 66, state, "labelSmall",
+                wf.C["primaryText"] if on else wf.C["outline"])
+        switch(c, 268, ry + 44, on)
+        if i == 0:
+            wf.line(c, 32, ry + 86, 332, ry + 86)
+    # Permanent, in both states -- a consequence line that appears only on the
+    # off path is persuasion copy, which rule 97 bars.
+    wf.text(c, 20, 510, "Typing everything in by hand always works, with or without these.",
+            "labelSmall", wf.C["onSurfaceVariant"])
+
+    wf.section(c, 546, "If you turn them off")
+    wf.card(c, 560, 104)
+    bullets(c, 588, (("Nothing new is sent.",),
+                     ("Your log, and labels already read, stay put.",),
+                     ("Copies already sent aren't recalled.",)))
+
+    _about_card(c, 690, (("Report a bad suggestion", None, "chevron"),))
     wf.gesture_bar(c)
     return c
 
@@ -1905,10 +2198,15 @@ def profile():
     wf.text(c, 20, 440, "Saved automatically", "labelSmall", wf.C["outline"])
 
     wf.section(c, 468, "Account & legal")
+    # "Unlinks Google. Your log stays on this phone." is not softening -- under
+    # the no-server-storage architecture it is the whole truth, and Play's
+    # Account Deletion policy requires the confirmation state plainly what is
+    # deleted and what is retained. A user who fears deleting the account wipes
+    # four years of brews will never delete the account.
     _about_card(c, 482, (("Privacy Policy", None, "chevron"),
-                         ("How we use AI", "Re-read the disclosure", "chevron"),
-                         ("Open-source licences", None, "chevron"),
-                         ("Delete account", "Removes the account and its synced data",
+                         ("How we use AI", "What we send, and how to turn it off",
+                          "chevron"),
+                         ("Delete account", "Unlinks Google. Your log stays on this phone.",
                           "danger")))
     wf.text(c, 20, 748, "Version 1.0.0 (14)", "labelSmall", wf.C["outline"])
     wf.gesture_bar(c)
@@ -1939,6 +2237,8 @@ PAGES = [("00w_welcome.svg", welcome),
          ("+1.1c_vibe_brewing.svg", vibe_brewing),
          ("+2_profile.svg", profile),
          ("+2_profile_empty.svg", profile_empty),
+         ("+2.2a_privacy.svg", privacy_policy),
+         ("+2.2b_how_we_use_ai.svg", ai_disclosure),
          ("+2.1_create_account.svg", create_account)]
 
 # ----------------------------------------------------------------- motion ---

@@ -138,3 +138,104 @@ def ask(
     return _PROVIDER_CALLS[provider](
         messages=messages, prompt=prompt, system=system, model=model, max_tokens=max_tokens
     )
+
+
+# ------------------------------------------------------------------- vision --
+
+def call_anthropic_vision(*, image_base64: str, media_type: str, prompt: str, schema: dict) -> tuple[str, str]:
+    if not config.ANTHROPIC_API_KEY:
+        raise ProviderNotConfiguredError("anthropic is not configured on this server")
+
+    from anthropic import Anthropic
+
+    model = config.ANTHROPIC_VISION_MODEL
+    try:
+        response = Anthropic(api_key=config.ANTHROPIC_API_KEY).messages.create(
+            model=model,
+            max_tokens=1024,
+            # Schema-validated structured output where the provider offers it:
+            # the alternative is asking politely for JSON and hoping, which is
+            # what the Qwen branch below has to do.
+            output_config={"format": {"type": "json_schema", "schema": schema}},
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {"type": "base64", "media_type": media_type, "data": image_base64},
+                        },
+                        {"type": "text", "text": prompt},
+                    ],
+                }
+            ],
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise ProviderRequestError(str(exc)) from exc
+
+    if getattr(response, "stop_reason", None) == "refusal":
+        raise ProviderRequestError("the model declined to process this image")
+
+    text = "".join(block.text for block in response.content if block.type == "text")
+    return model, text
+
+
+def call_qwen_vision(*, image_base64: str, media_type: str, prompt: str, schema: dict) -> tuple[str, str]:
+    """Qwen's OpenAI-compatible endpoint takes the image as a data: URL."""
+    if not config.QWEN_API_KEY:
+        raise ProviderNotConfiguredError("qwen is not configured on this server")
+
+    from openai import OpenAI
+
+    model = config.QWEN_VISION_MODEL
+    try:
+        response = OpenAI(api_key=config.QWEN_API_KEY, base_url=config.QWEN_BASE_URL).chat.completions.create(
+            model=model,
+            max_tokens=1024,
+            response_format={"type": "json_object"},
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:{media_type};base64,{image_base64}"},
+                        },
+                        {"type": "text", "text": prompt},
+                    ],
+                }
+            ],
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise ProviderRequestError(str(exc)) from exc
+
+    return model, response.choices[0].message.content or ""
+
+
+_VISION_CALLS = {
+    "anthropic": call_anthropic_vision,
+    "qwen": call_qwen_vision,
+}
+
+
+def vision(provider: str, *, image_base64: str, media_type: str, prompt: str, schema: dict) -> tuple[str, str]:
+    return _VISION_CALLS[provider](
+        image_base64=image_base64, media_type=media_type, prompt=prompt, schema=schema
+    )
+
+
+def pick_provider(requested: Optional[str], preferred: str) -> str:
+    """Which provider actually serves a request.
+
+    The client may express a preference and does not get to insist: an
+    unconfigured provider falls back to whatever this deployment does have,
+    because a user tapping "suggest a recipe" wants a recipe, not a lecture
+    about server configuration. Raises only when *nothing* is configured.
+    """
+    configured = config.configured_providers()
+    if not configured:
+        raise ProviderNotConfiguredError("no AI provider is configured on this server")
+    for candidate in (requested, preferred):
+        if candidate and candidate in configured:
+            return candidate
+    return sorted(configured)[0]

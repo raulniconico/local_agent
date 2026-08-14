@@ -14,13 +14,35 @@ A small stateless FastAPI service that proxies chat requests to Anthropic or Qwe
 
 A single authenticated HTTP endpoint in front of three LLM vendors. Client apps hold one credential (`X-API-Key`) and one URL instead of three vendor SDKs and three sets of provider keys; the provider keys stay on the server. Swapping vendors becomes a field in the request body rather than a client-side code change.
 
-It is deliberately **stateless pass-through**:
+It is deliberately **stateless with respect to user content**:
 
 - No conversation memory. Multi-turn works by the client sending its full history in `messages` each time.
 - No tool-calling loop, no agent behaviour.
-- No storage of any kind.
+- **No user content is stored.** No bean, session, note or photo is ever written to disk, and request payloads are never logged.
 
 That minimalism is the point — it is why the project talks to provider SDKs directly instead of pulling in LangChain/LangGraph for a job that is just "send messages, get text back".
+
+**What it does store, and why the distinction matters.** Since 2026-08-14 the
+server keeps one small record per signed-in Android user: the Google `sub`, day
+counters, quota state and a ban flag (`accounts.py`). It is not an optional
+addition — metering and abuse cutoff are impossible without a record keyed to a
+user, and this server sits in front of paid provider APIs behind a key that
+ships inside a published APK. `specs/legal-accounts.md` rule 58 is explicit
+that the architecture must therefore be described as "no user *content*
+server-side" and **never** as "no storage": that record is pseudonymous
+personal data, it is what a GDPR access or deletion request covers, and a Data
+Safety form derived from "we store nothing" would be false.
+
+**Since 2026-08-14 it is also `coffee_android`'s backend**, which changed the
+shape of the project in three ways worth naming up front:
+
+- it grew **structured** endpoints (`/v1/suggest`, `/v1/vision`) that render
+  their own prompts, alongside the original free-form `/v1/ask`;
+- it grew an **identity** dependency (a verified Google ID token) on everything
+  that costs money;
+- it grew a **crawler** (`crawler.py`, off by default) so that roaster
+  catalogue and news data is fetched once here rather than by every installed
+  device — `specs/legal-android.md` §4 rule 23.
 
 The service ships as a Docker image (plain HTTP on `:8000`, so it fits App Runner, ECS/Fargate, or EC2), and `deploy/deploy.sh` automates the whole EC2 path end to end.
 
@@ -28,12 +50,13 @@ The service ships as a Docker image (plain HTTP on `:8000`, so it fits App Runne
 
 ### Relations with the other two sub-projects
 
-**This sub-project is fully independent of the other two.** It shares no code, no configuration, and no data with them. It is not specific to coffee at all — it is a general-purpose LLM gateway that happens to live in this repo, and would work unchanged if lifted out of it.
+**It shares no code with any of them** — no imports in either direction, no shared configuration, no shared database. It is still deployable in isolation. What changed on 2026-08-14 is that it is no longer *purpose*-independent: `coffee_android` cannot function without it, and three of its endpoints exist only to serve that client.
 
 | Relation | Status |
 | --- | --- |
-| `coffee_server/` ↔ `coffee/` | none — never touches coffee-can's database |
-| `coffee_server/` ↔ `coffee_agent/` | none — no imports either way |
+| `coffee_server/` ↔ `coffee/` | no code shared. Two prompts in `prompts.py` are deliberate near-verbatim **ports** of `claude_ocr.py`'s and `qwen_brew_suggest.py`'s, so the same question gets the same answer in both apps; they are copies, and drift between them should be a decision, not an accident |
+| `coffee_server/` ↔ `coffee_agent/` | none — no imports either way. `coffee_agent` may call `/v1/ask` like any other client |
+| `coffee_server/` ↔ `coffee_android/` | **the Android app's only backend.** It calls `/v1/suggest`, `/v1/vision`, `/v1/report`, `/v1/account` and (v1.1) `/v1/catalogue`, `/v1/news` — and nothing else, anywhere. See `coffee_android/plan/api.md` |
 
 Worth being explicit about the near-misses, because the resemblance is superficial:
 
@@ -53,8 +76,12 @@ The three projects overlap only in that all three call the same set of vendors, 
 coffee_server/
 ├── main.py             # FastAPI app, routes, startup check, CORS
 ├── schemas.py          # Pydantic request/response models
-├── providers.py        # per-provider call implementations + dispatch
-├── auth.py             # X-API-Key dependency
+├── providers.py        # per-provider call implementations + dispatch (chat + vision)
+├── prompts.py          # every prompt the server sends, rendered server-side
+├── auth.py             # X-API-Key dependencies + Google ID token verification
+├── accounts.py         # the account record: sub, counters, quota, ban. SQLite
+├── crawler.py          # roaster catalogue + news, allowlist-gated, OFF by default
+├── allowlist.json      # per-domain crawl permissions (specs/legal.md rule 3) — empty
 ├── config.py           # env-driven settings
 ├── requirements.txt
 ├── Dockerfile          # python:3.12-slim, uvicorn on :8000
@@ -69,16 +96,19 @@ coffee_server/
     └── .env.example    # deploy-time config (KEY_NAME, KEY_FILE, region, instance type…)
 ```
 
-Five modules, ~380 lines total.
+Eight modules.
 
 ### Module responsibilities
 
 | Module | Responsibility |
 | --- | --- |
-| `main.py` | Builds the `FastAPI` app; defines both routes; the `lifespan` startup check that raises if `SERVER_API_KEY` is unset and logs which providers are configured; CORS middleware. Translates `providers`' two exception types into HTTP 400 and 502. |
-| `schemas.py` | `ChatMessage`, `AskRequest`, `AskResponse`. Carries the validation rules — the `provider` `Literal`, the `max_tokens` bounds, and the model validator enforcing exactly one of `prompt`/`messages`. |
-| `providers.py` | One function per vendor plus a dispatch table. Normalises the two request shapes into a message list, handles the Anthropic-vs-OpenAI system-prompt difference, and wraps every upstream failure in `ProviderRequestError`. Provider SDKs are imported lazily inside each call. |
-| `auth.py` | A single FastAPI dependency comparing the `X-API-Key` header against `config.SERVER_API_KEY` with `hmac.compare_digest` (constant-time). Re-checks that the server key is non-empty and 500s if not, rather than trusting the startup invariant. |
+| `main.py` | Builds the `FastAPI` app; defines every route; the `lifespan` startup check that raises if `SERVER_API_KEY` is unset and warns when `GOOGLE_CLIENT_IDS` is unset or the crawler is disabled; CORS middleware. Translates `providers`' two exception types into HTTP 400 and 502, and `crawler`'s into 503. Owns `_parse_json_object`, the tolerant reader for model replies that arrive fenced or wrapped in prose. |
+| `schemas.py` | Every request/response model. Its docstring carries the load-bearing distinction: `/v1/ask` takes a free-form prompt, `/v1/suggest` and `/v1/vision` take **structured fields** — because a shipped client ships its key, so an endpoint it can reach that accepts arbitrary text is a published general-purpose LLM. |
+| `prompts.py` | Every prompt, in one file, server-side. Lets prompt wording and the JSON shape asked for be fixed by a deploy rather than by a Play release, and keeps an extracted key worth a coffee-recipe generator rather than a model. |
+| `providers.py` | One function per vendor for chat and for vision, plus dispatch tables. Normalises request shapes, handles the Anthropic-vs-OpenAI system-prompt difference, uses Anthropic's schema-validated structured output for OCR where available, and wraps every upstream failure in `ProviderRequestError`. `pick_provider()` decides who serves a request: the client may express a preference and does not get to insist. SDKs are imported lazily. |
+| `auth.py` | Two independent guards answering different questions. `require_api_key`/`require_read_key` ask "is this one of our clients?" (a constant-time compare against a key that ships in the APK, so a weak claim by construction). `require_account` asks "**which user** is this?" — a Google ID token verified against Google's JWKS including **audience**, without which any Google token in the world would authenticate. `meter()` maps the account store's refusals onto 429/403. |
+| `accounts.py` | The account record and nothing more: `sub`, day counters, sliding-window rate events, ban flag, in SQLite. Also the GDPR Art. 15 access document and Art. 17 erasure. Quota is charged **before** the provider call, so a client that reliably triggers a 502 cannot get unmetered retries. |
+| `crawler.py` | The catalogue/news fetch, centrally. Implements `specs/legal.md` §3.3–§3.6 — robots.txt fail-closed, one request at a time per host with jittered delay, budget counters that abort, conditional requests, a truthful User-Agent — behind an allowlist that is empty and a switch that is off. |
 | `config.py` | Reads every setting from the environment at import, with an explicitly-pathed `load_dotenv`. `configured_providers()` returns the set of vendors with a key set. |
 
 ### Request flow
@@ -104,6 +134,36 @@ providers.ask → _PROVIDER_CALLS[provider]
   ▼
 AskResponse{provider, model, content}
 ```
+
+The metered endpoints add two steps in front and one behind, and the order is
+deliberate:
+
+```
+android client
+  │  POST /v1/suggest  + X-API-Key + Authorization: Bearer <Google ID token>
+  ▼
+auth.require_api_key             → 401  "one of our clients?"
+  ▼
+auth.require_account             → 401 bad token · 503 if GOOGLE_CLIENT_IDS unset
+  │  verify signature/iss/exp/**aud** against Google's JWKS → sub
+  │  accounts.touch(sub)         ← first call for a sub *is* account creation
+  ▼
+providers.pick_provider()        → 400 only if nothing at all is configured
+  ▼
+auth.meter(sub, "suggest")       → 429 burst · 429 daily quota · 403 banned
+  │  charged BEFORE the upstream call, deliberately
+  ▼
+prompts.brew_suggestion()        ← the prompt is built here, never sent by the client
+  ▼
+providers.ask → upstream         → 502 on any provider failure
+  ▼
+main._parse_json_object()        → 502 if the reply is not usable JSON
+  ▼
+SuggestResponse{provider, model, summary, dose_g, grind_size, stages[]}
+```
+
+`pick_provider` runs before metering so that a request nobody can serve is a
+400 rather than a charge against the user's quota.
 
 ### Deployment topology
 
@@ -217,6 +277,62 @@ curl -s http://localhost:8000/v1/ask \
        ]}'
 ```
 
+### 3.2a `POST /v1/suggest` — brew suggestion (the Android client's Ask-AI)
+
+Requires **both** `X-API-Key` and `Authorization: Bearer <Google ID token>`. Metered as `suggest`.
+
+**Request** — structured, never a prompt:
+
+```json
+{"bean": {"name": "Ethiopia Guji", "origin": "Guji", "process": "Natural",
+          "roaster": "Belleville", "note": "blueberry, jasmine"},
+ "dripper": "Hario V60", "dose_g": 15, "provider": "qwen"}
+```
+
+Every `bean` field is optional and length-capped. `provider` is a *preference*; an unconfigured one silently falls back (`providers.pick_provider`), because a user asking for a recipe wants a recipe, not a lecture about server configuration. Qwen is preferred — it is the text-reasoning task the desktop app already points there, and the cheaper of the two.
+
+**Response** — parsed and normalised server-side, so the client gets a typed shape rather than a JSON string to defend against:
+
+```json
+{"provider": "qwen", "model": "qwen-max",
+ "summary": "…", "dose_g": 15.0, "grind_size": "medium-fine",
+ "stages": [{"temperature_c": 92, "water_g": 30, "time_seconds": 30, "circling": "swirl gently"}]}
+```
+
+**A supplied `dose_g` is a constraint, not a suggestion**: it is forced back into the response after the model replies. The user is going to weigh out that much whatever the model says, and writing a drifted number into their session would record a brew that never happened. Same rule as `qwen_brew_suggest.py`'s.
+
+### 3.2b `POST /v1/vision` — bean-label OCR
+
+Requires both credentials. Metered as `vision`. Centralises what `claude_ocr.py`/`qwen_ocr.py` do on the desktop, so the Android client never holds a provider key.
+
+```json
+// request
+{"image_base64": "<base64>", "media_type": "image/jpeg"}
+// response
+{"provider": "anthropic", "model": "claude-opus-5",
+ "fields": {"name": "…", "origin": "…", "…": null}, "empty": false}
+```
+
+Anthropic is preferred here because it supports schema-validated structured output for this, which turns "usually the right JSON" into the right JSON; the Qwen branch appends an explicit key list to the prompt instead. `413` if the decoded image exceeds `MAX_IMAGE_BYTES` (6 MB default). **`empty: true` is a real outcome, not an error** — a blurry shot or a photo of a mug — and the client renders it as its own message rather than as an inexplicably blank form.
+
+EXIF stripping is the *client's* job, at ingest (`legal-android.md` rule 2). The server cannot verify it happened, which is precisely why the rule places it at capture time on the device.
+
+### 3.2c `POST /v1/report` — flag AI output
+
+Requires both credentials, **not** metered and not consent-gated. `{"operation": "read_labels"|"suggest_brew", "reason": str?, "output": str?}` → `{"status": "received"}`. Written to the log for a human, deliberately not into the account record: a report is about the model's output, not about the reporter. Satisfies `legal-android.md` rule 5.
+
+### 3.2d `GET` / `DELETE /v1/account` — access and erasure
+
+Requires both credentials. `GET` returns the entire Art. 15(3) access document — the `sub`, usage counters, quota state, held rate-limit events, and a sentence stating what is *not* here. `DELETE` erases the record outright (hard delete, no tombstone) and touches nothing on the device, because there is no route from here to it.
+
+### 3.2e `GET /v1/catalogue`, `GET /v1/news` — v1.1, cache reads
+
+Require `X-API-Key` matching **`READ_API_KEY`** (the metered key is also accepted). No account, no metering: serving a cached list is not a cost that needs rationing.
+
+Both return `503` today, with a message naming the reason: three compliance gates are unmet (`specs/legal.md` rules 2–3 — outreach, the 14-day wait, a per-domain allowlist entry — and `specs/legal-accounts.md` rule 72 — `legal.md` §1.2's use case must be re-opened before crawl results are served to Play users). `allowlist.json` ships empty, so **`CRAWLER_ENABLED=1` alone still crawls nothing**: the switch is not the permission.
+
+`/v1/catalogue` carries a `rubric` object alongside its items — the art. D.111-16 ranking/links/exhaustiveness/frequency disclosure — served with the data so the catalogue screen renders it without French consumer law being compiled into an APK, and so correcting it is a deploy rather than a release (`legal-accounts.md` rule 76).
+
 ### 3.3 Internal API (`providers.py`)
 
 ```python
@@ -261,6 +377,21 @@ Text extraction differs by shape: Anthropic returns content blocks, joined with 
 | `QWEN_MODEL` | no | `qwen-max` | |
 | `QWEN_MAX_TOKENS` | no | `8192` | |
 | `QWEN_BASE_URL` | no | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` | Mainland-China accounts need the non-`-intl` host |
+
+| `READ_API_KEY` | no | falls back to `SERVER_API_KEY` | The catalogue/news key. Split from the metered key so a catalogue-triggered rotation cannot take the AI features down with it — `coffee_android/plan/api.md` §2 |
+| `GOOGLE_CLIENT_IDS` | for the Android client | *(empty)* | Comma-separated OAuth **web** client IDs. The audience allowlist for ID tokens. Empty **fails closed**: `/v1/suggest`, `/v1/vision` and `/v1/account` all 503, because serving paid calls to unauthenticated callers is the failure the whole module exists to prevent |
+| `ACCOUNT_DB_PATH` | no | `coffee_server/accounts.db` | SQLite file holding the account records. Not user content — see `accounts.py` |
+| `DAILY_QUOTA_ASK` / `_SUGGEST` / `_VISION` | no | `60` / `60` / `40` | Per-account daily caps. Abuse cutoffs, not product limits |
+| `RATE_LIMIT_WINDOW_SECONDS` | no | `60` | Sliding burst window |
+| `RATE_LIMIT_MAX_REQUESTS` | no | `6` | Requests per account per operation per window |
+| `ANTHROPIC_VISION_MODEL` | no | `claude-opus-5` | Separate from the chat model on purpose, so one can move without the other |
+| `QWEN_VISION_MODEL` | no | `qwen3.5-omni-flash` | |
+| `MAX_IMAGE_BYTES` | no | `6291456` | Beyond this, `/v1/vision` returns 413 |
+| `CRAWLER_ENABLED` | no | *off* | See `crawler.py`. Turning it on with an empty allowlist still crawls nothing |
+| `CRAWLER_ALLOWLIST_PATH` | no | `coffee_server/allowlist.json` | |
+| `CATALOGUE_TTL_SECONDS` / `NEWS_TTL_SECONDS` | no | `86400` / `7200` | |
+| `CRAWLER_USER_AGENT` | no | `CoffeeBeanIndexBot/0.1 (+https://coffeecan.app/bot; bot@coffeecan.app)` | `specs/legal.md` rule 17 requires it to be truthful with a contact that resolves; **rule 18 forbids ever replacing it with a browser string** |
+| `CRAWLER_CONTACT_EMAIL` | no | `bot@coffeecan.app` | Sent as the `From` header |
 
 At least one provider key is needed for the service to be useful; with none, it starts and logs a warning, and every `/v1/ask` returns 400.
 

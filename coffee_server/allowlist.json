@@ -1,0 +1,37 @@
+{
+  "_readme": [
+    "The per-domain crawl allowlist required by specs/legal.md rule 3.",
+    "NO SITE IS CRAWLED UNTIL IT HAS AN ENTRY HERE. crawler.py's Source.is_crawlable",
+    "enforces that in code: an entry is only crawlable when decision == 'allow', the",
+    "response is not 'no', cgu_permits_scraping is not false, and contacted_on,",
+    "robots_sha256 and decided_on are all filled in. An empty list therefore means",
+    "'crawl nothing', which is the correct state today.",
+    "",
+    "Before adding an entry, rule 2 requires the outreach email to have been sent and",
+    "14 days to have passed, and the CGU/CGV scraping clause must be quoted verbatim",
+    "in cgu_clause with a dated decision. Adding a domain here is a legal decision",
+    "someone is recording, not a configuration change.",
+    "",
+    "specs/legal-accounts.md rule 72 gates the whole feature separately: legal.md",
+    "§1.2's use case must be re-opened and re-recorded before crawl results are served",
+    "to Play users at all. Filling this file in does not discharge that."
+  ],
+  "_entry_template": {
+    "domain": "example-roaster.fr",
+    "tier": 2,
+    "endpoint": "https://example-roaster.fr/products.json?limit=250",
+    "contact_email": "contact@example-roaster.fr",
+    "contacted_on": "YYYY-MM-DD",
+    "response": "yes | no | silence",
+    "cgu_clause": "verbatim quote of the CGU/CGV clause about automated access, or '' if none",
+    "cgu_permits_scraping": null,
+    "robots_checked_on": "YYYY-MM-DD",
+    "robots_sha256": "sha256 of robots.txt at the date above",
+    "decision": "allow | exclude",
+    "decided_on": "YYYY-MM-DD",
+    "enabled": true,
+    "crawl_delay_seconds": 3.0,
+    "news_feed_url": ""
+  },
+  "sources": []
+}

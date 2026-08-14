@@ -448,6 +448,72 @@ once and will move again.
     time app content or data flow changes** — both are explicit,
     re-triggered obligations, not one-time setup.
 
+### 3.7 Amendments from the 2026-08-13 architecture change
+
+> The product changed on 2026-08-13: **no user content is stored server-side**,
+> **Google is the only sign-in method**, the account exists solely to authorise
+> and meter the server endpoints, the server runs the `specs/legal.md` crawler
+> and a coffee-news feed, the listing is **France-only**, and **iOS is deferred
+> to `specs/legal-ios.md`**. This spec is now **Android/Play only** — every
+> Apple-sourced rule has moved to that file.
+>
+> `specs/legal-accounts.md` §3.8 is the binding statement of the new
+> architecture (rules 58–103). Only the amendments to *this* file's own rules
+> are listed here, so the two documents do not diverge.
+
+- **Rule 4 is amended by `legal-accounts.md` rules 96 and 98.** There is now
+  **one disclosure modal per AI operation** rather than one modal for the
+  feature, each shown immediately before its own operation and describing only
+  its own payload. Each modal must additionally name the **destination
+  countries** and state the **withdrawal route** before the affirmative action
+  — Art. 13(1)(f) attaches when the data is obtained, not when the policy is
+  later read, and Art. 7(3) sentence 4 requires the withdrawal right be stated
+  *before* consent is given.
+- **Rule 5 is amended.** The report/flag control belongs **on the AI-generated
+  output itself**, not in a settings screen — a control the user must navigate
+  to Settings to find fails for the same structural reason a settings-screen
+  disclosure fails Prominent Disclosure & Consent. Mirroring it on `+2.2b` is
+  permitted and cheap; substituting it there is not. The original clause "even
+  a local export or email-to-developer flow satisfies the reporting
+  requirement" was written when there was no backend; with `coffee_server` in
+  scope, **route reports to a server endpoint** and keep a dated log — a
+  `mailto:` handoff leaves the app, against the policy's own framing, and fails
+  silently on a device with no mail client.
+- **Rule 14 is amended by `legal-accounts.md` rules 88–90.** What Play requires
+  in-app is a **link** to the canonical URL, not a copy of the policy text.
+  `+2.2a` renders a short summary generated from the data inventory *and*
+  exposes the URL as tappable, selectable text. The screen may not ship before
+  the domain is live and the URL is declared in Console (rule 89).
+- **Rule 16 has fired, and then partly unfired.** Accounts arrived, so Play's
+  Account Deletion policy is live — but cross-device sync did **not**, so the
+  Data Safety consequences that rule 16 anticipated largely reverse. See
+  `legal-accounts.md` rule 69 for what deletion must actually do with an
+  account that stores no content, and §3.8's re-derived Data safety set.
+- **Rules 11–12 are unchanged in substance and have risen in importance.**
+  Rule 12 (`coffee_server` payload retention) is now load-bearing on the app's
+  *headline* claim: "nothing of yours is stored on our server" is false if the
+  gateway logs request bodies.
+- **§2.1's account-less Data Safety declarations are superseded** by
+  `legal-accounts.md` §3.8's re-derivation: **Personal info → User IDs** as a
+  *stored* type (the metering record); **Photos** and **App activity → Other
+  UGC** as *ephemeral*, contingent on rule 12; and every bean, session, note
+  and photo not sent to AI stays **off the form entirely**. Email address drops
+  out if rule 60's `openid`-only scope holds.
+- **New, and it falsifies §2.1's central premise if missed:** `android:allowBackup`
+  defaults to **true**, so Android Auto Backup uploads the local database and
+  images to the user's Google Drive. See `legal-accounts.md` rule 62. Verify in
+  the **merged** manifest.
+- **Rule 25's re-opening trigger has fired.** See §4 below and
+  `legal-accounts.md` rule 72: serving crawl results through a public Play
+  listing is no longer `legal.md` use case (a), and `legal.md` §1.2 must be
+  re-opened and the use case re-recorded **before the catalogue or news feed
+  ships**. `legal.md` rules 29–33 are now Play-load-bearing — they are what
+  keeps the app off the IP-takedown path.
+- **Rule 8's impersonation concern widens from the share card to the
+  catalogue.** A feed listing many roasters' names alongside this app's
+  branding is a much easier place to imply a partnership than a single share
+  card ever was.
+
 ---
 
 ## 4. Addendum — the roaster-catalogue and news features must not run client-side

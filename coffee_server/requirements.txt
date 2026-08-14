@@ -4,3 +4,11 @@ pydantic
 python-dotenv
 anthropic
 openai
+# Google ID token verification for /v1/suggest, /v1/vision and /v1/account --
+# signature, issuer, expiry and audience, against Google's rotating JWKS.
+google-auth
+# The crawler's HTTP client and robots.txt parser (specs/legal.md §3.3-3.6).
+# Only imported when a crawl actually runs, which today is never -- see
+# crawler.py -- but they are declared so enabling it is not also a deploy.
+httpx
+protego

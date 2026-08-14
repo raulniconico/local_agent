@@ -1,12 +1,13 @@
 # coffee_android — design plan
 
-Status: **planning only**. Nothing in this directory has been built. This
-document went through one full round of review by three specialist agents
-(UI design, engineering, app development) — their findings are folded in
-throughout, most visibly in "Specialist review — resolutions" below. See
-`specs/legal-android.md` for the policy constraints this plan is written to
-satisfy; treat that document as binding, this one as the proposal built on
-top of it.
+Status: **build started** — the Gradle project in `../v1/` is real code now,
+partway through the closed-testing milestone (see "What exists in code" below
+for the line between built and planned). This document went through one full
+round of review by three specialist agents (UI design, engineering, app
+development) — their findings are folded in throughout, most visibly in
+"Specialist review — resolutions" below. See `specs/legal-android.md` for the
+policy constraints this plan is written to satisfy; treat that document as
+binding, this one as the proposal built on top of it.
 
 - [README.md](README.md) — this file: architecture, phasing, open decisions
 - [api.md](api.md) — every API surface: local Room schema/DAOs, `coffee_server`
@@ -14,8 +15,80 @@ top of it.
 - [screens.md](screens.md) — one section per screen: purpose, fields, states,
   Compose realization, API calls, wireframe
 - [screenshots/](screenshots/) — wireframe mockups (SVG), one per screen —
-  **wireframes, not real screenshots**, since nothing is built yet; see note
-  at the top of screens.md
+  **wireframes, not real screenshots**; see note at the top of screens.md
+
+---
+
+## What exists in code
+
+Built and wired into the nav graph (`../v1/app/src/main/java/app/coffeecan/`).
+The whole Gradle project moved under `../v1/` on 2026-08-14 so that a shipped
+version is a directory rather than a git tag; `../v1/README.md` is its own
+entry point and `../v1/AUDIT.md` is the spec/deck conformance review of exactly
+this code.
+
+| Deck page | Screen | State |
+| --- | --- | --- |
+| 00 | Home — bean list, "My flavor" radar | built; contribution calendar and the catalogue strip are not |
+| 0.1 / 0.2 / 0.2b | Bean Detail — full manual CRUD, process dropdown, roast-date picker, flavor radar + manual-override sheet, sessions list, delete-with-cascade confirm, **label scan** | built without the photo hero and Images strip (the carousel, which is what will justify an image-loading dependency) |
+| 3 (screens.md) | Scan Review — editable guessed fields, "was:" hints, empty-read state, report control | built |
+| 0.11 / 0.11b | Camera capture / permission denied | **superseded, see below** |
+| +1 | Sessions — the whole log, newest first | built, rows open the brew |
+| +1.1 | "Which bean?" sheet — pick / add / vibe-brew | built; both FABs open it |
+| 4 (screens.md) | Brew Session Detail + Stage editor + Ask-AI | built |
+| +2, +2.2a, +2.2b | Profile, Privacy, AI disclosure & consent | built, with real Google sign-in, working access/erasure/report controls |
+| 0.21b | Ask-AI suggestion sheet | built as a sheet over the brew form |
+
+Data layer: Room entities/DAOs mirroring `db.py` (including the eleven flavor
+columns on `sessions`, which is what the "auto" bean radar averages over),
+`CoffeeRepository`, `ConsentStore`, `AccountStore`.
+
+Network layer: `net/AiGateway.kt` is the **single chokepoint** — every AI call
+checks consent for that specific operation, then connectivity, then mints a
+Google ID token, and nothing retries. `account/GoogleAuth.kt` is the only place
+an identity token is obtained. The app talks to `coffee_server` and to nothing
+else: no provider SDK, no provider hostname, no roaster's host.
+
+Theme: scheme E ported token-for-token from `variants.py` `PURE_GREEN`, with
+Fredoka bundled in `res/font/` and the deck's rounded shape set (card 24, field
+16, sheet 32) and `viz*` chart colours.
+
+### Decision, 2026-08-14: the system camera, not CameraX
+
+Photos come from the system Photo Picker (existing) and `ACTION_IMAGE_CAPTURE`
+(new), so **the app declares no camera permission at all**. That deletes screen
+0.11b entirely — there is no permission to deny — and makes `legal-android.md`
+rule 3 inapplicable rather than merely satisfied. It also removes the
+multi-week CameraX cluster from the path to closed testing.
+
+There is a trap that makes the removal mandatory rather than cosmetic: an app
+that *declares* `CAMERA` must also hold it at runtime before
+`ACTION_IMAGE_CAPTURE` will launch. Re-adding the permission would break
+capture, not enable it.
+
+**What this gives up:** the deck's 0.11 — can-boy holding the camera, the
+shutter burst — is a branded moment the system camera app cannot provide. The
+scan prompt card keeps the copy and the position; the illustration is missing.
+Swapping CameraX back in later touches `PhotoSources.takePhoto` and nothing
+else, since ingest and review sit behind the same callback.
+
+EXIF is stripped by **re-encoding** (`media/ImageIngest.kt`), not by clearing
+named tags: scrubbing is a list that has to stay correct forever, while a pixel
+round-trip carries nothing across by construction. The downscale to 2048px is a
+side benefit the vision endpoint wanted anyway. Covered by an instrumented test
+(`app/src/androidTest/.../ImageIngestTest.kt`) — written, not yet run.
+
+**Not started:** Camera Capture (0.11/0.11b) and Scan Review (§3) — the
+`/v1/vision` endpoint and `AiGateway.readLabel` exist and are unused until the
+photo picker, CameraX and the EXIF strip land; the welcome/splash page (00w);
+Share Card export; and everything already deferred to v1.1 (Can-Drink, news,
+voice).
+
+**Nothing here has been compiled**: this checkout has no Android SDK, no
+Gradle and no wrapper (`gradlew` is missing — generate it on a machine that
+has Gradle before the first build, on JDK 17 or 21). Treat every "built" above
+as "written, not yet run". The server half *has* been run: see
+`specs/coffee-server.md`.
 
 ---
 
@@ -157,7 +230,7 @@ strongest signal in the whole review.
 | 16 | (UI) No delete affordance specified for sessions or stages anywhere in the plan, despite Home documenting bean deletion. | **Accepted — plain gap, fixed.** | Added swipe/destructive-action delete to Brew Session Detail's session list and to each stage row. |
 | 17 | (Engineering) No Room migration strategy named, despite the desktop schema's real history of additive and one genuinely hard migration (splitting a retired flavor axis). | **Accepted.** | Named `Migration` objects tested with `MigrationTestHelper` from the first schema change onward; `fallbackToDestructiveMigration()` explicitly banned in `api.md`. |
 | 18 | (App-dev) Missing engineering surface a real submission needs: adaptive icon, splash screen, a stated ProGuard/R8 decision, a stated crash-reporting decision, `FileProvider` (required for Share Card's `ACTION_SEND` and CameraX's capture handoff — not optional polish), OSS license attribution, an About/Legal home beyond a bare Profile row. | **Accepted.** | All added to scope explicitly (see Phasing) rather than left implicit: ship unminified for v1 (defer R8 rule-writing), explicitly no crash reporter for v1 (revisit v1.1 — adding one later needs its own Data Safety disclosure update), `FileProvider` configured from the start since Share Card literally cannot function without it. |
-| 19 | (UI) Bottom navigation bar vs. push-only navigation for the three top-level surfaces (Home/Catalogue/Profile) — raised as a genuine option. | **Not adopted for v1**, revisit if/when Catalogue returns in v1.1 and there are three real top-level destinations again worth flattening the back-stack for. | No change. |
+| 19 | (UI) Bottom navigation bar vs. push-only navigation for the three top-level surfaces (Home/Catalogue/Profile) — raised as a genuine option. | **Not adopted for v1**, revisit if/when Catalogue returns in v1.1 and there are three real top-level destinations again worth flattening the back-stack for. | **Superseded.** This debate had two options and the answer was a third one that neither side raised: `scheme_e.py`'s module docstring had already defined the deck as a **horizontal swipe axis** centred on Home (`-2 … 00 … +2`, with `0.x` meaning off-axis), and every page number in the deck encodes it. #19 resolved bottom-nav-vs-push without noticing, so its "no change" was a decision about the wrong question. The axis is now what the app implements — one `HorizontalPager` over `[00 Home, +1 Sessions, +2 Profile]` with every `0.x` page pushed on top of it (`v1/app/src/main/java/app/coffeecan/ui/Axis.kt`, `AUDIT.md` §5.11b, option (b)). Bottom nav stays declined; push is no longer how the top-level surfaces are reached. |
 | 20 | (UI) Sort control / "new" badge for the merged catalogue screen, so "browse one roaster's latest" (the old "What's New" use case) isn't lost inside the merge. | **Accepted in principle, deferred with the screen itself to v1.1.** | Noted in the v1.1 catalogue spec so it isn't lost by the time that work resumes. |
 
 ## Phasing (revised after specialist review)
@@ -206,7 +279,13 @@ weekend port.
 
 ## Remaining open items (not resolved by this review, flagged for later)
 
-1. Bottom navigation bar — revisit when Catalogue returns in v1.1 (#19).
+1. ~~Bottom navigation bar — revisit when Catalogue returns in v1.1 (#19).~~
+   Overtaken: the top-level surfaces are the deck's **swipe axis** now, not a
+   bar and not a push stack (#19, `AUDIT.md` §5.11b). What is open in its place
+   is narrower and is an accessibility item: nothing *visible* points from Home
+   to `+1` or `+2` any more — the axis is discoverable by gesture, by the back
+   arrows once you are on a page, and by the pager's accessibility actions. The
+   deck draws no page indicator; adding one would go beyond it.
 2. Sort/new-badge for the catalogue screen — carry into the v1.1 catalogue
    spec when that work resumes (#20).
 3. Tester recruitment for the closed-testing gate has no owner yet (#14) —

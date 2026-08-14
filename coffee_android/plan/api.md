@@ -185,11 +185,35 @@ never dynamic server-side data in the original app either.
 
 ---
 
-## 2. `coffee_server` — existing endpoint, reused as-is
+## 2. `coffee_server` — how the client authenticates
 
-### `POST /v1/ask` (already built, no changes needed)
+> **Superseded in part, 2026-08-14.** The plan below was written when the app
+> was going to call `/v1/ask` with a client-rendered prompt. It no longer does,
+> and must not: a shipped client ships its API key, so an endpoint it can reach
+> that accepts arbitrary text is a published general-purpose LLM on the
+> developer's bill. The app now calls **`POST /v1/suggest`**, which takes the
+> bean fields and the dripper and renders the prompt server-side
+> (`coffee_server/prompts.py`). The key-related analysis below survives intact
+> and is what the account requirement came out of.
+>
+> **What is built, as of 2026-08-14:** `/v1/suggest`, `/v1/vision`,
+> `/v1/report`, `GET`+`DELETE /v1/account`, and `/v1/catalogue` + `/v1/news`
+> (which return 503 until the compliance gates in §3.2 are met). Server-side
+> per-account metering, daily quota and a sliding-window burst limit are in
+> place, which closes the "no rate limit or spend cap in `config.py`" gap this
+> section flagged. See `specs/coffee-server.md` §3.
+>
+> **Auth is now two things, not one:** the `X-API-Key` header *and*
+> `Authorization: Bearer <Google ID token>`, verified server-side against
+> Google's JWKS including audience. The key says "one of our clients"; the
+> token says *which user*, and only the second can be metered or cut off. An
+> extracted key alone now reaches nothing that costs money — which is the
+> answer to the abuse-cost problem stated below, arrived at through
+> `specs/legal-accounts.md` §3.8's account rather than through Play Integrity.
 
-Used for the **Ask-AI brew suggestion** feature only. Client renders the same
+### `POST /v1/ask` (the original analysis, retained)
+
+Originally intended for the **Ask-AI brew suggestion** feature. Client renders the same
 prompt shape `qwen_brew_suggest.py` already uses server-side in the desktop
 app (bean fields + chosen dripper → structured-JSON-response instruction),
 sends it as `prompt`, and parses the returned `content` string as JSON
@@ -225,7 +249,16 @@ shouldn't take down the AI features and vice versa.
 
 ---
 
-## 3. `coffee_server` — new endpoints this plan depends on (not built yet)
+## 3. `coffee_server` — the endpoints this plan depends on
+
+> **Built on 2026-08-14.** All of §3.1–§3.3 exist now, plus `/v1/suggest`,
+> `/v1/report` and `/v1/account`, which this section did not anticipate. The
+> shapes below are the design; `specs/coffee-server.md` §3 is the built
+> contract and wins where they differ. §3.2/§3.3 remain **v1.1 in the client**
+> — the endpoints answer 503 until `specs/legal.md` rules 2–3 (outreach, the
+> 14-day wait, a per-domain allowlist entry) and `specs/legal-accounts.md`
+> rule 72 (re-record the use case) are satisfied, and `allowlist.json` ships
+> empty so enabling the crawler alone changes nothing.
 
 **Revised after specialist review**: §3.1 is v1's only cross-project
 dependency now — app-dev review found it's genuinely a small, straight port
