@@ -12,4 +12,8 @@ plugins {
     // fails at compile time with "serializer has not been found".
     id("org.jetbrains.kotlin.plugin.serialization") version "2.0.21" apply false
     id("com.google.devtools.ksp") version "2.0.21-1.0.28" apply false
+    // JVM-only Compose screenshot rendering (no emulator/device) -- how the
+    // "-1.1"/"-1.1a" render-and-compare pass in this session's conversation
+    // was done. Test-only; does not affect the shipped app.
+    id("app.cash.paparazzi") version "1.3.5" apply false
 }

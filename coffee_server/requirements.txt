@@ -12,3 +12,7 @@ google-auth
 # crawler.py -- but they are declared so enabling it is not also a deploy.
 httpx
 protego
+# python:3.12-slim (Dockerfile) doesn't reliably ship the IANA tz database;
+# zoneinfo.ZoneInfo("Europe/Paris") (scheduler.py) falls back to this package
+# when the system one is missing.
+tzdata

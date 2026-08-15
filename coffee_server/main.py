@@ -38,6 +38,7 @@ import config
 import crawler
 import prompts
 import providers
+import scheduler
 from auth import meter, require_account, require_api_key, require_read_key
 from schemas import (
     AccountResponse,
@@ -81,7 +82,10 @@ async def lifespan(app: FastAPI):
         )
     if not config.CRAWLER_ENABLED:
         logger.info("Catalogue/news crawler is disabled (CRAWLER_ENABLED unset). See crawler.py.")
+    else:
+        scheduler.start()
     yield
+    scheduler.stop()
 
 
 app = FastAPI(title="LLM Gateway", version="0.1.0", lifespan=lifespan)

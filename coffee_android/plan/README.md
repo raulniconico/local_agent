@@ -29,6 +29,7 @@ this code.
 
 | Deck page | Screen | State |
 | --- | --- | --- |
+| -1 | Can Drink — roaster catalogue, search/Roaster/Origin/Sort filters, rubric disclosure | **built but not wired in v1** (2026-08-15) — the axis page renders a static "coming soon" placeholder (`CanDrinkComingSoon`) instead; the full screen is complete and ready for v2, a one-line swap in `Axis.kt` once `crawler.py`'s legal gates clear -- see screens.md §7 |
 | 00 | Home — bean list, "My flavor" radar | built; contribution calendar and the catalogue strip are not |
 | 0.1 / 0.2 / 0.2b | Bean Detail — full manual CRUD, process dropdown, roast-date picker, flavor radar + manual-override sheet, sessions list, delete-with-cascade confirm, **label scan** | built without the photo hero and Images strip (the carousel, which is what will justify an image-loading dependency) |
 | 3 (screens.md) | Scan Review — editable guessed fields, "was:" hints, empty-read state, report control | built |
@@ -81,8 +82,10 @@ side benefit the vision endpoint wanted anyway. Covered by an instrumented test
 **Not started:** Camera Capture (0.11/0.11b) and Scan Review (§3) — the
 `/v1/vision` endpoint and `AiGateway.readLabel` exist and are unused until the
 photo picker, CameraX and the EXIF strip land; the welcome/splash page (00w);
-Share Card export; and everything already deferred to v1.1 (Can-Drink, news,
-voice).
+Share Card export; the `-1w` Can-Drink first-run intro (§7's built/not-built
+split); and everything still deferred to v1.1 (news, voice) -- Can-Drink
+Catalogue itself moved back into v1 on 2026-08-15, see the table above and
+screens.md §7.
 
 **Nothing here has been compiled**: this checkout has no Android SDK, no
 Gradle and no wrapper (`gradlew` is missing — generate it on a machine that
@@ -213,7 +216,7 @@ strongest signal in the whole review.
 | # | Finding | Verdict | Change |
 |---|---|---|---|
 | 1 | **All three specialists independently flagged the same bug**: the AI-disclosure screen (§11) says "shown once, ever," but `specs/legal-android.md` §2.1 explicitly requires "one-time **and periodically re-shown**." The screen's copy is also photo-specific but gates the text-only Ask-AI flow too, and "shown" vs. "accepted" were conflated (declining once would permanently lock a user out with no re-prompt). | **Accepted, all three parts.** | Re-show periodically (every 90 days or every Nth AI attempt, whichever is simpler to implement) until accepted; track `shown`/`accepted` as separate flags — declining shows manual entry and re-prompts on the next AI attempt; genericize the copy to cover both "photo" and "text details" rather than hard-coding photo language. See `screens.md` §11 update. |
-| 2 | (App-dev) Can-Drink Catalogue is the one v1 feature whose `coffee_server` dependency isn't "just a port" — it needs a scheduler, TTL cache, and the full kill-switch/circuit-breaker apparatus `specs/legal.md` mandates, comparable in weight to the audio work already deferred. It's also the single most legally-sensitive feature in the app (its own addendum in `specs/legal-android.md` §4) and the least essential to the core logging workflow. | **Accepted.** | **Move Can-Drink Catalogue to v1.1**, alongside News (which shares its backend infra and becomes nearly free once the catalogue work exists anyway). v1 now has exactly **one** cross-project `coffee_server` dependency (`POST /v1/vision`), not three. See revised phasing below. |
+| 2 | (App-dev) Can-Drink Catalogue is the one v1 feature whose `coffee_server` dependency isn't "just a port" — it needs a scheduler, TTL cache, and the full kill-switch/circuit-breaker apparatus `specs/legal.md` mandates, comparable in weight to the audio work already deferred. It's also the single most legally-sensitive feature in the app (its own addendum in `specs/legal-android.md` §4) and the least essential to the core logging workflow. | **Accepted at the time; superseded 2026-08-15.** | *Original change (2026-08-14):* move Can-Drink Catalogue to v1.1, alongside News. *Superseded:* the flagged `coffee_server` infrastructure (scheduler, TTL cache, allowlist/robots apparatus) got built anyway (`coffee_server/crawler.py`, `scheduler.py`), so the engineering-weight rationale no longer holds; the screen shipped into v1 on 2026-08-15 (see screens.md §7). The legal-compliance point in this finding is still fully live and un-resolved by the code shipping — real data is still gated on `specs/legal.md`'s outreach/allowlist process and `legal-accounts.md` rule 72, tracked separately from this UI-readiness finding. |
 | 3 | (UI + Engineering, independently) Porting the desktop's "insert a row the instant the screen opens, delete it on back-nav if untouched" pattern is unsafe on Android: a Compose screen can be torn down by process death (backgrounding, OS memory reclaim) with no back-press event ever firing, orphaning empty rows permanently. | **Accepted.** | Bean Detail and Brew Session Detail switch to **in-memory draft state** (`ViewModel` + `SavedStateHandle`), writing to Room only on first real edit or explicit save — no DB row for a screen that was opened and abandoned. |
 | 4 | (Engineering) Debounced whole-entity autosave (replacing the desktop's per-field immediate commit) has a real loss window: "everything since the last debounce fire," not "the field being typed." | **Accepted.** | Pair the UI debounce timer with a lifecycle-triggered flush — save on `ON_STOP`/`ON_PAUSE` and on back-navigation, not just the timer. |
 | 5 | (UI) `#34C759` (the ported desktop accent) fails WCAG AA contrast (~2.2:1) as text or as a fill behind white text — verified by computation, and the plan already uses a passing darker green (`#1E7A3D`) in one place (Share Card) but not consistently. | **Accepted.** | Two tokens: `accent` (`#34C759`, decorative-only — chart lines, slider tracks, heatmap cells) and `accentText`/`onAccent` (`#1E7A3D`, every button label/link/text-on-green). Route both through Material3's `primary`/`onPrimary` pair rather than ad hoc per-screen color picks. |
@@ -255,12 +258,19 @@ all three specialist reviews that bundling Tesseract4Android for a fallback
 path a working server call makes mostly redundant isn't worth it for v1.
 
 **v1.1 (deferred, each with a stated reason, not silently dropped):**
-- **Can-Drink Catalogue** (merging the desktop's "Can Drink"/"What's New")
-  — moved here per resolution #2; needs real backend infra
-  (scheduler/cache/circuit-breaker), not a port, and carries the app's
-  highest legal-compliance surface (`specs/legal-android.md` §4).
-- **News ticker** — shares the catalogue's backend work, nearly free once
-  that lands; bundled into the same pass.
+- ~~Can-Drink Catalogue~~ — **code moved back into v1 on 2026-08-15, but not
+  wired live**; see resolution #2's superseded note and screens.md §7. Its
+  `coffee_server` infra (scheduler, cache, circuit-breaker) got built in the
+  meantime, so the engineering rationale for the original v1.1 deferral no
+  longer applies — but the app's highest legal-compliance surface
+  (`specs/legal-android.md` §4) is still real, so the product decision (same
+  day) is to ship the `-1` axis page as a static placeholder in v1 and hold
+  the full screen for **v2**, once `CRAWLER_ENABLED`/`allowlist.json` are
+  real. The full screen is done, tested-by-reading, and one line away from
+  going live whenever that process completes.
+- **News ticker** — shares the catalogue's backend work, now nearly free
+  since that work already landed; still deferred only because no screen spec
+  for it exists yet, not for infrastructure reasons.
 - **Voice session** — needs `coffee_server` to grow an audio-capable
   endpoint (same shape of gap as vision, one level further out) plus its own
   microphone-specific disclosure design (a materially different

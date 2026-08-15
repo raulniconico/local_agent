@@ -4,15 +4,24 @@
     python3 screenshots.py            # write screenshots/*.png
     python3 screenshots.py --svg      # keep the intermediate SVGs too
 
-WHY THIS EXISTS. This checkout has no Android SDK, no Gradle and no wrapper,
-so the app cannot be built or run here (plan/README.md, "Nothing here has been
-compiled"). A screenshot of a running app is therefore not obtainable. What is
-obtainable, and what this file produces, is a *simulation*: every frame below
-is drawn from the real thing -- `app/src/main/java/app/coffeecan/**`'s layout,
-`ui/theme/Theme.kt`'s tokens verbatim, and the exact user-facing strings as
-they appear in the Kotlin. Nothing here is drawn from the design deck
-(`plan/scheme_e.py`), which is the *target*; these frames are the *build*, and
-the difference between the two is the point of the audit they accompany.
+SUPERSEDED WHERE A REAL CAPTURE EXISTS. As of 2026-08-15 this checkout does
+have a working JDK, Android SDK and Gradle wrapper after all, and
+`app/src/test/java/app/coffeecan/screenshot/` has real Paparazzi tests --
+actual compiled Compose, rendered through layoutlib, no emulator needed. See
+`screenshots/REAL_CAPTURES.md` for exactly which PNGs in that directory are
+now real captures rather than this file's output; run this script only for
+the pages not yet on that list.
+
+WHY THIS EXISTED. This checkout used to have no Android SDK, no Gradle and no
+wrapper, so the app could not be built or run here (plan/README.md, "Nothing
+here has been compiled"). A screenshot of a running app was therefore not
+obtainable, and what this file produces instead is a *simulation*: every
+frame below is drawn from the real thing -- `app/src/main/java/app/coffeecan/**`'s
+layout, `ui/theme/Theme.kt`'s tokens verbatim, and the exact user-facing
+strings as they appear in the Kotlin. Nothing here is drawn from the design
+deck (`plan/scheme_e.py`), which is the *target*; these frames are the
+*build*, and the difference between the two is the point of the audit they
+accompany.
 
 TREAT THEM AS EVIDENCE OF WHAT THE CODE SAYS, NOT PROOF THAT IT RUNS. A
 Compose measure/layout pass is not reimplemented here -- text wrapping is

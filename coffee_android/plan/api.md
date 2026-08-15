@@ -254,21 +254,27 @@ shouldn't take down the AI features and vice versa.
 > **Built on 2026-08-14.** All of §3.1–§3.3 exist now, plus `/v1/suggest`,
 > `/v1/report` and `/v1/account`, which this section did not anticipate. The
 > shapes below are the design; `specs/coffee-server.md` §3 is the built
-> contract and wins where they differ. §3.2/§3.3 remain **v1.1 in the client**
-> — the endpoints answer 503 until `specs/legal.md` rules 2–3 (outreach, the
-> 14-day wait, a per-domain allowlist entry) and `specs/legal-accounts.md`
-> rule 72 (re-record the use case) are satisfied, and `allowlist.json` ships
-> empty so enabling the crawler alone changes nothing.
+> contract and wins where they differ. §3.2/§3.3's **client** was built on
+> 2026-08-15 (`ui/screens/CanDrinkScreen.kt`, screens.md §7) but, same day, is
+> **not wired live in v1** — the `-1` axis page shows a static placeholder
+> instead, and the full screen ships in **v2**. The endpoints themselves
+> still answer 503 until `specs/legal.md` rules 2–3 (outreach, the 14-day
+> wait, a per-domain allowlist entry) and `specs/legal-accounts.md` rule 72
+> (re-record the use case) are satisfied for real; `allowlist.json` still
+> ships empty.
 
-**Revised after specialist review**: §3.1 is v1's only cross-project
-dependency now — app-dev review found it's genuinely a small, straight port
-of existing `claude_ocr.py` logic to a new route. §3.2-3.3 moved to v1.1
-after the same review found the catalogue endpoint is real new
-infrastructure (scheduler, TTL cache, the full kill-switch/circuit-breaker
-apparatus `specs/legal.md` mandates), comparable in weight to the audio
-endpoint the original draft already deferred — keeping it in v1 alongside
-vision was an inconsistency the original phasing didn't acknowledge. Both
-remain written concretely enough to hand off when that work resumes.
+**Revised after specialist review, then revised again 2026-08-15**: §3.1 was
+v1's only cross-project dependency for a while — app-dev review found it's
+genuinely a small, straight port of existing `claude_ocr.py` logic to a new
+route, while §3.2-3.3 moved to v1.1 after the same review found the catalogue
+endpoint was real new infrastructure (scheduler, TTL cache, the full
+kill-switch/circuit-breaker apparatus `specs/legal.md` mandates), comparable
+in weight to the audio endpoint the original draft already deferred. That
+infrastructure got built anyway (`coffee_server/crawler.py`,
+`coffee_server/scheduler.py`), which removed the engineering reason for the
+deferral, so the Can-Drink client moved back into v1. The audio endpoint
+(§3.4) has no such build yet and stays deferred on its own, unrelated
+grounds.
 
 ### 3.1 `POST /v1/vision` — bean-label OCR (blocks: Bean Detail's scan flow)
 
@@ -312,7 +318,15 @@ this downscale step happens on a copy used for the network call — the
 locally-persisted photo (already EXIF-stripped per §1's migration note and
 `README.md` resolution #8) keeps its own separate handling.
 
-### 3.2 `GET /v1/catalogue` — roaster listings (v1.1 — blocks: Can-Drink screen)
+### 3.2 `GET /v1/catalogue` — roaster listings (client built, live in v2 — see screens.md §7)
+
+> The response shape below is the original design draft; the built one is
+> `coffee_server/schemas.py`'s `CatalogueResponse`/`CatalogueItem` (`items`,
+> not `listings`; `url`/`image_url`, not `product_url`/`photo_url`; no
+> `in_stock` — the crawler's Shopify/WooCommerce parsers don't extract a
+> stock signal, so the client doesn't filter or badge on one either, see
+> screens.md §7). `net/ServerApi.kt`'s `CatalogueItemDto` mirrors the built
+> shape, not this draft.
 
 Replaces client-side `whats_new.py` calls entirely, per
 `specs/legal-android.md` §4. Server crawls on the existing schedule/rate
@@ -349,7 +363,7 @@ Gated behind the **read key** (§2's key-split resolution), not the AI-calls
 key — this data isn't confidential, the split exists so an AI-key rotation
 can't take this screen down as collateral damage.
 
-### 3.3 `GET /v1/news` — ranked headlines (v1.1, bundled with §3.2)
+### 3.3 `GET /v1/news` — ranked headlines (v1.1 still, unlike §3.2 — no client screen built yet)
 
 Same centralization logic as §3.2, replacing client-side `coffee_news.py`.
 Nearly free once §3.2's scheduler/cache infrastructure exists — bundled into
@@ -380,7 +394,7 @@ fields out) rather than design a new shape from scratch.
 | Brew Session Detail | `BrewSessionDao`, `BrewStageDao` | — | closed-testing-ready |
 | Ask-AI Suggestion | writes via `BrewSessionDao`/`BrewStageDao` on accept | `POST /v1/ask` | v1 |
 | Voice Session | writes via `BrewSessionDao`/`BrewStageDao` on accept | `POST /v1/audio` (§3.4) | v1.1 |
-| Can-Drink Catalogue | Room-cached copy of `/v1/catalogue`'s response, filtered locally | `GET /v1/catalogue` (read key) | v1.1 |
+| Can-Drink Catalogue | `CatalogueDao`, Room-cached copy of `/v1/catalogue`'s response, filtered locally | `GET /v1/catalogue` (read key) | built 2026-08-15, but **not wired live in v1** — `-1` axis page shows a static placeholder instead; full screen ships **v2**, once legal.md's outreach/allowlist process completes |
 | Camera Capture | writes file to app-private storage (EXIF-stripped on write), returns path | — | v1 |
 | Profile Settings | local `DataStore`/prefs (mirrors `profile.py`'s single JSON blob — no DB table needed, same as desktop) | — | closed-testing-ready |
 | Share Card export | reads `BeanDao`/`BrewSessionDao` for render data | — | closed-testing-ready |

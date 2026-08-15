@@ -212,53 +212,101 @@ this ships, don't assume the existing disclosure copy covers it).
 
 ---
 
-## 7. Can-Drink Catalogue — **v1.1** (moved out of v1 after specialist review)
+## 7. Can-Drink Catalogue — **built, ships as a placeholder in v1; full screen is v2**
 
-**Wireframe:** `screenshots/sheme_1/07_catalogue.svg`
+**2026-08-15, same day, revised again**: the full screen (below) is built and
+correct, but the product decision is to *not* present a live-looking
+catalogue UI to real users while the data behind it is still real-world-gated
+on unsent outreach emails. `ui/Axis.kt`'s `-1` page renders
+`CanDrinkComingSoon` (`ui/screens/CanDrinkScreen.kt`) instead: a static
+"Can Drink is brewing" screen with no network call at all. The full
+`CanDrinkScreen` composable stays in the tree, fully wired to
+`CatalogueGateway`/Room/Coil, and swapping it back in for v2 is a one-line
+change in `Axis.kt` once `specs/legal.md`'s outreach/allowlist process and
+`legal-accounts.md` rule 72 are actually satisfied — see the rest of this
+section for the full spec, which is unchanged and still current for v2.
 
-**Ships in v1.1, not v1** (README.md resolution #2, reversing the v0 draft):
+**Wireframe:** `screenshots/sheme_1/07_catalogue.svg` (pre-scheme-E sketch);
+`screenshots/scheme-e/-1_can_drink.svg` and `-1w_can_drink_intro.svg` are the
+current deck pages (`scheme_e.py`'s `can_drink()`/`can_drink_intro()`).
+
+**Moved back into v1 on 2026-08-15**, reversing the v1.1 deferral below (kept
+for the record): the `coffee_server` half app-dev flagged as new
+infrastructure — the scheduler, the TTL cache, `crawler.py`'s
+allowlist/robots/rate-limit apparatus — was since built anyway (see
+`specs/coffee-server.md`, `coffee_server/scheduler.py`), so the dependency
+that justified the deferral no longer exists as a blocker to *writing* this
+screen. **What still blocks it from serving real data in production is
+unchanged and is not a code gap**: `crawler.py`'s `CRAWLER_ENABLED` defaults
+off and `allowlist.json` ships empty until the real outreach-and-14-day-wait
+(`specs/legal.md` rules 2-3) and the `legal-accounts.md` rule 72 re-verdict
+both happen for real, in the world, not in code. That's also, separately,
+why the *product* decision above is to keep the built screen unwired in v1
+rather than let it render its empty/503 state to real users — a "coming
+soon" placeholder reads as intentional; a catalogue screen that's
+permanently empty reads as broken.
+<details><summary>Original v1.1 deferral note (2026-08-14, superseded)</summary>
+
 app-dev review found this screen's `coffee_server` dependency is real new
 infrastructure (scheduler, TTL cache, the full kill-switch/circuit-breaker
 apparatus `specs/legal.md` mandates) rather than a port — comparable in
 weight to the audio endpoint the v0 draft already deferred — and it carries
 the single largest legal-compliance surface in the app
-(`specs/legal-android.md` §4's dedicated addendum). Kept fully specified
-here so the work is ready to pick up, not because it's shipping in v1.
+(`specs/legal-android.md` §4's dedicated addendum).
+</details>
 
 **Purpose:** browse roaster listings — merges `can_see_dialog.py`'s
 filterable full catalogue and `whats_new_dialog.py`'s per-roaster browse
 into one screen: a Roaster filter chip row covers the "browse one roaster"
-use case `whats_new_dialog.py` existed for, without a second screen. **UI
-review flag, carried forward for when this ships**: the merge as drawn drops
-"What's New"'s actual value (catching up on recent arrivals) — add a sort
-control (Newest / Name / Price, defaulting to Newest when a roaster filter
-is active) and consider a "New" badge for recently-added listings so the
-merge isn't just "What's New quietly deleted."
+use case `whats_new_dialog.py` existed for, without a second screen. A sort
+control (Newest / Name / Price, defaulting to Newest) covers "What's New"'s
+actual value that a plain merge would have dropped, and a "New" badge marks
+recently-added listings, per the review flag this section used to carry.
 
-**Filters:** Roaster (chips/dropdown), Origin (dropdown, includes "Not
-stated"), search text field, "In stock only" toggle (default on) — all
-applied **client-side** over a Room-cached copy of the full catalogue
-response (see API note below), not sent as query params.
+**Filters:** Roaster (dropdown chip), Origin (dropdown chip, includes "Not
+stated"), search text field, Sort (Newest / Name / Price) — all applied
+**client-side** over a Room-cached copy of the full catalogue response (see
+API note below), not sent as query params.
 
-**Content:** listing grid/list (name, roaster, origin, price, weight, in-
-stock badge, hotlinked photo via Coil — never cached to disk, per
+**Dropped from the original spec, on real-data grounds, not a scope cut**:
+the "In stock only" toggle and in-stock/sold-out badge. `schemas.py`'s
+`CatalogueItem` carries no stock field and `crawler.py`'s Shopify/WooCommerce
+parsers extract none — the wireframe's `stock` values were illustrative
+sample data, never a wire contract. Add both back together if the crawler
+ever parses `variants[].available`; drawing an "In stock" pill against data
+that was never fetched would be showing the user a fact nobody checked.
+
+**Added beyond the original spec**: an explicit "via {roaster}" attribution
+line on every card (not just the roaster name as a data field) and an info
+affordance opening the D.111-16 ranking rubric `crawler.py` already serves
+(`RUBRIC`, ~line 354) — `specs/legal-accounts.md` rule 76 requires that
+rubric "directly accessible from" this screen, and a Google-Play-policy
+review (2026-08-15) flagged both as the two UI gaps against Play's IP and
+impersonation policies once outreach/allowlist compliance is otherwise met.
+
+**Content:** listing grid (name, "via {roaster}" attribution, origin, price,
+weight, hotlinked photo via Coil — disk cache disabled app-wide, per
 `specs/legal-android.md` §4 rule 26), tap → open `product_url` in external
 browser (`Intent.ACTION_VIEW`, matching desktop's `QDesktopServices`).
 
-**API calls:** `GET /v1/catalogue` (new endpoint, `api.md` §3.2, gated
-behind the read key not the AI key) — **this screen cannot ship correctly
-until that endpoint exists**; it must not fall back to a client-side scrape
-of roaster sites under any circumstance, per `specs/legal-android.md` §4.
-**Revised after app-dev review:** the endpoint returns the full unfiltered
-listing set; the client caches it in Room and filters locally — this also
-gives a usable (if stale) offline catalogue view for free, which the v0
-query-param-filtering design didn't.
+**API calls:** `GET /v1/catalogue` (`coffee_server/main.py`, gated behind the
+read key not the AI key — `net/ServerApi.kt`, `net/CatalogueGateway.kt`). The
+endpoint returns the full unfiltered listing set; the client caches it in
+Room (`data/CatalogueItemEntity.kt` via `CoffeeDatabase` v2) and filters
+locally — this also gives a usable (if stale) offline catalogue view for
+free, which query-param filtering wouldn't.
 
-**States:** loading (skeleton grid), empty-after-filter ("no beans match"),
-load-failed (retry button — this is core screen content here, unlike Home's
-decorative preview strip, so a real error state is warranted; a Room-cached
-previous response can serve as a stale-but-usable fallback before showing
-the error state at all).
+**States:** loading (spinner while the cache is empty), empty-after-filter
+("No beans match that"), empty-cache load-failed (retry button), and a
+**stale-but-usable fallback**: a refresh failure with something already
+cached shows the last saved list plus a small banner, never the full error
+state — implemented in `ui/screens/CanDrinkScreen.kt`.
+
+**Not yet built**: the `-1w_can_drink_intro` first-run page (the `can_boy`
+illustration + "Start" CTA). The screen currently opens straight to the list
+on every visit, cache-first, rather than gating first-run behind an intro
+card — worth adding back if a real first-run distinction proves useful once
+the catalogue has real data behind it.
 
 ---
 
