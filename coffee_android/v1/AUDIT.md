@@ -110,6 +110,21 @@ Putting it on sign-in instead is defensible but weaker: sign-in is Art. 6(1)(b),
 and it is the AI transfer that needs Art. 8 cover. Either way this is a product
 decision that has not been made, not a line of code that was forgotten.
 
+> **STATUS, 2026-08-15**: Fixed, on `AiDisclosureSheet` per this section's own
+> recommendation. An unticked "I'm 15 or older" `Checkbox` appears whenever
+> `ConsentStore.observeAgeAffirmed()` reads false, and gates the accept
+> button's `enabled` -- disabled until checked, same shape as any other
+> required-field gate in the app. One global `age_affirmed_at` DataStore key,
+> not one per `AiOperation`: age is a fact about the person, not about which
+> transfer they're authorising, so affirming it once (either operation) covers
+> both from then on and the checkbox stops appearing. Defaults fail-closed
+> (`initial = false` on the `collectAsState`, not `true`) so a slow first
+> DataStore read never briefly enables the button for someone who hasn't
+> affirmed. Verified with two new Paparazzi captures,
+> `screenshots/0.11a_ai_disclosure_labels.png` (checkbox shown, button
+> disabled) and `screenshots/+1.4_ai_disclosure_suggest.png` (already
+> affirmed, checkbox gone, button live) -- see `screenshots/REAL_CAPTURES.md`.
+
 ### B2 — The app is English-only and cannot be localised without an extraction pass (rule 87)
 
 Rule 87 is explicit about what France-only does *not* relieve, and about what
@@ -127,6 +142,44 @@ the hardest cases are the ones that matter most legally: the disclosure copy is
 built by a `when(operation)` returning a data class, and the plural forms
 ("1 brew" / "N brews", "its 1 logged brew" / "its N logged brews") are hand-written
 `when` branches that need `plurals` resources to survive French agreement rules.
+
+> **STATUS, 2026-08-15**: Fixed. Every reachable string in `res/values/strings.xml`
+> now has a name — roughly 230 `<string>` entries plus nine `<plurals>` blocks,
+> extracted screen by screen from all thirteen `ui/screens/` and `ui/components/`
+> files that render live UI, with call sites switched to `stringResource(...)` /
+> `pluralStringResource(...)` (or `context.getString(...)` in the handful of
+> coroutine/non-`@Composable` call sites — `AiDisclosureSheet`'s age checkbox,
+> `LaunchedEffect` blocks, `ConsentStore`-adjacent catch clauses — where
+> `stringResource` cannot be called). `GatewayFailure.displayMessage(context)`
+> is the new seam for the two fixed-copy exception cases (`Offline`,
+> `SignInRequired`, `ConsentMissing`); the genuinely dynamic ones (`RateLimited`,
+> `Server`, `Malformed` — a server or SDK detail string) are deliberately left
+> untranslated, since this app has no French text for content it didn't write.
+> `res/values-fr/strings.xml` carries a complete, hand-written French
+> translation of every one of those entries (verified 1:1 name-for-name against
+> the English file with a scripted diff — nothing silently falls back).
+>
+> **Three deliberate exceptions**, each noted inline in `strings.xml`: the
+> eleven flavour-axis names (`BeanEntity.FLAVOR_AXES` / `ShortFlavorAxes`) stay
+> English — tasting-note domain vocabulary a mechanical pass shouldn't guess
+> at; `Choices.kt`'s dripper/grinder/filter/process lists stay English —
+> they're stored data values, not UI chrome, and translating them would
+> silently rewrite what's in the database; and `CanDrinkScreen.kt`'s full v2
+> composable (everything except the live `CanDrinkComingSoon` placeholder) is
+> untouched, matching its own unreachable-in-v1 status elsewhere in this
+> document. The app name and the "Can Drink" feature name are carried
+> unchanged into French on purpose, the ordinary choice for a branded product
+> name.
+>
+> Verified: `compileDebugKotlin` and `assembleDebug` both green at the
+> shipping `compileSdk=36`; all 15 Paparazzi tests still pass; a fresh capture
+> of `HomeScreenScreenshotTest#home` produced the byte-identical image hash to
+> its pre-extraction capture, confirming the English default renders exactly
+> as before. The French file was not render-verified through Paparazzi (that
+> would need a `values-fr`-aware locale override in the test environment,
+> not attempted here) — it's been checked for resource-name parity and XML
+> well-formedness, not for how the translated strings actually lay out on
+> screen.
 
 ### B3 — Backing out of a brew loses it silently
 
@@ -154,6 +207,20 @@ most user-damaging defect in the build, on the screen the app's docstring calls
 
 `rememberSaveable` does not save it: it survives process death, but back
 navigation pops the `NavBackStackEntry` and takes the saved state with it.
+
+> **STATUS, 2026-08-15**: Fixed. `BrewSessionScreen.kt` now carries the exact
+> pattern this section asks for, ported from `BeanDetailScreen`: a
+> `baseline`/`baselineStages` pair captured at hydration time (not a blank
+> `SessionDraft()` — a freshly recipe-reused new brew already has non-empty
+> values on purpose, and diffing against empty would read it as dirty before
+> anyone touched it), `dirty = draft != baseline || stages != baselineStages`,
+> a `DisposableEffect` + `LifecycleEventObserver` flushing existing sessions
+> through `app.appScope` on `ON_STOP`, and a `leave()` used by both
+> `BackHandler` and the top bar's back `IconButton`: not dirty pops outright,
+> a dirty new brew shows a "Discard this brew?" `AlertDialog`, a dirty
+> existing brew flushes then pops. Compiles clean at `compileSdk=36`,
+> `BrewSessionScreenScreenshotTest` passes unchanged under Paparazzi, full
+> `assembleDebug` stays green.
 
 ### B4 — The build cannot sign in or reach the gateway as configured
 
@@ -203,6 +270,12 @@ summary of it.
 ## 4. Defects
 
 ### D1 — Canvas stroke widths and offsets are in pixels, not dp
+
+> **STATUS, 2026-08-15. Fixed** (confirms the earlier "third pass" status
+> block above, verified directly this time): every stroke width and offset
+> in both `RadarChart.kt` and `ExtractionBar.kt` is `N.dp.toPx()`, no bare
+> float literals remain.
+
 
 `DrawScope` works in pixels. `ui/components/RadarChart.kt` uses raw floats
 throughout:
@@ -298,6 +371,13 @@ error that a single `aapt2` invocation catches and a careful reader does not.
 `app/src/main/**/*.xml` is a five-second check and is worth running before any
 review that claims the module is buildable; it now passes on every file.
 
+> **STATUS, 2026-08-15**: Re-checked after this pass added 15 more drawables
+> (the dripper glyph set) — the batch generator hit this exact bug on its
+> first run (real em dashes weren't in its template), fixed there before any
+> file was committed. A repo-wide regex sweep for `--` inside `<!--...-->`
+> bodies across `app/src/main/**/*.xml` (delimiters excluded, so `<!--` and
+> `-->` themselves don't false-positive) comes back clean.
+
 ---
 
 ## 5. Scheme E conformance — the app is not scheme E
@@ -330,11 +410,53 @@ review that claims the module is buildable; it now passes on every file.
 > scan card (camera pose, 108dp). None of it is re-drawn: every coordinate is
 > the deck's own geometry, flattened out of `wireframes.logo()` and
 > `scheme_e.can_boy_*()` by script and pixel-diffed against the deck's render
-> before landing. **Still missing from §5.6b:** the dripper glyphs
-> (`plan/dripper_icons/`, Sessions rows and `+1.1`'s choice rows), the mark on
-> `+1.1`'s "From Coffee Can" row at 40dp, the mark in Home's top bar, `00w`'s
-> splash, and `sparkle()` on the AI surfaces. `can_boy()` and `can_boy_sad()`
-> stay unbuilt because their screens are.
+> before landing. **Still missing from §5.6b, at the time:** the dripper
+> glyphs (`plan/dripper_icons/`, Sessions rows and `+1.1`'s choice rows), the
+> mark on `+1.1`'s "From Coffee Can" row at 40dp, and `00w`'s splash.
+> `can_boy()` and `can_boy_sad()` stay unbuilt because their screens are.
+>
+> **STATUS, 2026-08-15.** The dripper glyphs and the `+1.1` mark are fixed
+> (§5.6e, §5.6f, both done 2026-08-15). **Two items dropped, both checked
+> against `scheme_e.py` directly rather than re-asserted:** "the mark in
+> Home's top bar" isn't a real gap — `home()`'s `wf.top_bar(c, "Coffee Can",
+> brand=True)` only sets a bigger/bolder title *text style*
+> (`wireframes.top_bar`'s `brand` parameter never draws a logo glyph
+> anywhere in its body); there is no mark to port. "`sparkle()` on the AI
+> surfaces" is similarly not actionable — `sparkle()` is defined in
+> `wireframes.py` but has zero call sites anywhere in `scheme_e.py`; the deck
+> currently draws no AI glyph on any page (the closest hit is `log_brew()`'s
+> docstring explicitly saying its own icon is "Deliberately NOT sparkle()").
+> Implementing either would be inventing placement the deck doesn't specify.
+> `00w`'s splash is the one item here still open — see §5.10.
+> **Fixed, 2026-08-15, later the same day** — see §5.10 item 3's own status
+> block for what shipped and why the intermediate "already built" note in
+> between was itself wrong.
+>
+> **THE MASCOTS MOVE NOW, 2026-08-15.** Everything above describes the
+> illustrations as flattened `VectorDrawable`s, which is right for a still and
+> is precisely why nothing animated: flattening bakes the nested transforms
+> into absolute path data, welding the arm that should pivot to the body it
+> should pivot against. The deck's figures are functions with knobs, and
+> `ui/components/CanBoy.kt` is now those functions in Compose — the deck's
+> `d` strings parsed verbatim with `PathParser`, its `<g transform>` nesting
+> reproduced as the same ordered `withTransform` calls, evaluated at runtime.
+> `MascotCamera` runs `_shutter_pose`'s own beat (aim, press, flash, recoil,
+> settle; 24 frames × 70ms), which is the one mascot animation the deck
+> actually specifies — `MOTION` lists `0.1_bean_profile` and there is a GIF of
+> it. `MascotHeartbreak` is new, for the news failure state. Verified the way
+> this document keeps insisting on: rendered at 164×164 and pixel-diffed
+> against the deck rendering the same function at the same size, worst channel
+> delta 53–54/255 with nothing above 96.
+>
+> **Two of the three are extrapolations, and should be read as such.** The
+> deck animates *only* the camera. `can_boy_sad` takes no knobs at all and is
+> drawn already-broken, so the heart splitting is invented motion that settles
+> on the deck's own frame; `can_boy_v60` has a `tilt` knob the deck never
+> drives, and `MascotPourOver` does not use it — it rocks the whole flattened
+> figure ±1.2°, which is a weaker thing than the kettle-only pivot `tilt`
+> describes and is flagged in its own docstring. Porting `can_boy_v60` to
+> Canvas is what would close that gap; it is a much larger figure (kettle,
+> cone, server, stream, spiral rib) and was not attempted.
 >
 > Two things the implementation pass found that this section had wrong or
 > missed, recorded here rather than silently corrected:
@@ -501,6 +623,22 @@ signed in" against an empty background.
 has been re-rendered; `screenshots/+2_profile_empty.png` now shows what the code
 actually produces, which is emptier.)*
 
+> **STATUS, 2026-08-15.** Both halves of this are now resolved, and the second
+> one reverses the call above. The in-app mark exists (`ic_brand_wordmark.xml`
+> / `ic_brand_lockup.xml`, flattened from the deck's own `wireframes.logo()`
+> and exposed as `CoffeeCanLogo`) — see §5.6b. And the **launcher icon is no
+> longer the hand-redrawn silhouette**: on an explicit product decision it now
+> draws the `Can` wordmark, reusing `ic_brand_wordmark.xml`'s path data
+> verbatim rather than carrying a second, hand-drawn interpretation of the
+> same mark that could drift from it. The "defensible call" this section
+> credited was also never actually measured against a render — checked now,
+> the wordmark stays legible and clear of the circular mask at the 48dp a
+> launcher really uses (framing maths in the file's own comment: 0.968 scale,
+> content 34.7 from centre against the 36 a 72dp circle mask allows). The
+> tagline is still dropped, which is the part of the old reasoning that
+> survives: it is illegible at icon sizes, and the deck drops it below 40dp
+> for the same reason.
+
 ### 5.6b The illustration and icon vocabulary is entirely absent
 
 > **Mostly fixed, fourth pass.** The mark and both mascot poses that built
@@ -566,8 +704,28 @@ The Android module re-drew a *different* can silhouette by hand for the launcher
 icon (`ic_launcher_foreground.xml`, whose comment says the wordmark is
 "deliberately not reproduced here" — correct at 48dp, and not a decision about
 the in-app mark) and then never brought the real one in at all.
+**Both halves fixed 2026-08-15** — the in-app mark landed (§5.6b), and the
+launcher icon was later rebuilt on `ic_brand_wordmark.xml`'s own path data, so
+the hand-redrawn silhouette is gone and there is now exactly one drawing of
+this mark in the module. See §5.6's status block.
 
 ### 5.6c `0.2` is a different screen in the deck, not a filled-in `0.1`
+
+> **STATUS, 2026-08-15.** Fixed for the saved-bean (`!isNew`) branch: photo
+> hero (real photo if attached, a gradient placeholder otherwise), no top app
+> bar (floating back/delete discs — see below for why delete, not share),
+> the pulled-up rounded panel with a drag handle, the headline title + meta
+> line + divider, and an Images strip (0.2b) wired to a real, non-scanning
+> attach flow. Verified against a real Paparazzi render, not just read —
+> `screenshots/REAL_CAPTURES.md`. The fields themselves are still the same
+> editable capsules as 0.1 rather than genuinely read-only, which the
+> paragraph below already argues is the right call ("every field... are
+> identical between a blank and a filled form"); what was actually wrong was
+> the *chrome* around them, which is what this fix addresses. One
+> undischarged substitution: the deck's top-right disc is Share Card export,
+> which doesn't exist yet (§5.10) — Delete sits in that slot until it does,
+> documented at the call site rather than silently dropped. `0.1` (the blank
+> form) was already correct and is untouched.
 
 `BeanDetailScreen`'s docstring justifies collapsing 0.1 and 0.2 into one
 composable like this:
@@ -613,6 +771,13 @@ gives the model more to work with — but it is undocumented, it contradicts
 
 ### 5.6e `+1.1` collapsed two screens into one
 
+> **STATUS, 2026-08-15. Fixed.** `WhichBeanSheet` now draws the deck's three
+> visual peers verbatim — title, subtitle, and three icon rows with real
+> glyphs (`CoffeeCanLogo`/`BagGlyph`/`DripperGlyph`, not `BagTile`s), each a
+> chevron-tipped row. "From Coffee Can" now pushes a real `+1.1a`
+> (`PickBeanScreen`) instead of listing beans inline. Verified against a real
+> Paparazzi render — `screenshots/REAL_CAPTURES.md`.
+
 The deck's `+1.1` is a **three-choice menu sheet** — title "Log a brew",
 subtitle "Which bean is in the cup?", then three icon rows with chevrons:
 *From Coffee Can* / *Add a new bean* / *Vibe brewing*, each with a one-line
@@ -627,6 +792,21 @@ defensible, again undocumented, and it loses the subtitle that explains what the
 sheet is for.
 
 ### 5.6f `+1_sessions` rows are missing half their content
+
+> **STATUS, 2026-08-15. Fixed, with two corrections to this table itself
+> found by reading `scheme_e.py`'s actual `sessions()` source rather than
+> re-deriving it: the disc is 40dp (`r=20`), not 28dp, and the date is
+> `onSurfaceVariant`, not `primary` green — only the chevron was genuinely
+> missing.** All five real rows now fixed: real dripper glyphs (15 vectors,
+> `Illustrations.kt`'s `DripperGlyph`, not just V60), the extraction verdict
+> in the meta line, the inset divider, the chevron, and a Sort action on the
+> top bar. One documented, deliberate divergence: dripper names show the
+> full stored string ("Hario V60") rather than the deck's shortened demo
+> values ("V60") — no abbreviation rule is specified anywhere for the other
+> 14 drippers, so inventing one risked being wrong; a real render caught
+> that the long form needs `maxLines = 1` to avoid wrapping the fixed-height
+> row, which is now in place. Verified against a real Paparazzi render —
+> `screenshots/REAL_CAPTURES.md`.
 
 | | Deck | Build |
 | --- | --- | --- |
@@ -644,15 +824,26 @@ the one place you scan for *why* a brew was good — leaves it out.
 
 ### 5.6g Smaller placement divergences found in the sweep
 
-- **`0.1`'s empty radar.** The deck draws a short card containing only the
-  caption *"Log a brew to start building this bean's flavor profile"*. The build
-  draws a full 260dp empty radar net with the caption under it. `RadarChart`'s
-  empty state is well designed and this is the one screen where the deck says
-  not to use it — a new bean has nothing to show and the net is 260dp of nothing.
-- **Radar caption placement.** Deck: *outside and below* the card (`0.2b`), or on
-  the section-header row (`00_home`). Build: inside the card, under the chart.
-- **Section-header actions the build is missing:** `Search` (Home), `Sort`
-  (Sessions), `Ask AI` (Bean Detail), `Add img` (Bean Detail).
+- ~~**`0.1`'s empty radar.**~~ **Fixed, 2026-08-15.** `RadarSection`
+  (`BeanDetailScreen.kt`) takes a `showChart` flag; `0.1`'s call site passes
+  `draft.manual || tasted.n > 0`, which is false on a bean that's never been
+  saved unless a manual override was already set, and renders the deck's
+  short caption-only card instead of a 260dp empty net. `0.2` always shows
+  the chart, matching the deck's own `0.2` page, which never omits it.
+- ~~**Radar caption placement.**~~ **Fixed, 2026-08-15.** The caption sits
+  below the card now, not inside it, on Bean Detail (`00_home`'s own
+  caption was already on the section-header row — see §5.9's corrections).
+- ~~**Section-header actions the build is missing:** `Search` (Home), `Sort`
+  (Sessions), `Ask AI` (Bean Detail), `Add img` (Bean Detail).~~ **STATUS,
+  2026-08-15**: `Search` and `Sort` were already built (stale claims,
+  corrected in §5.9). `Add img` is built (§5.6c) but as a tile at the end of
+  the Images strip, not header text — checked against the deck's own
+  `0.2b_bean_detail_lower.svg` render, which draws it the same way, so the
+  tile is the correct reading and this bullet's framing was imprecise, not
+  the build. `Ask AI` on Bean Detail is the one still-real item here, and
+  it's the same divergence §5.6d already documents (Ask-AI lives on Brew
+  Session Detail instead) — a product-placement question, not fixed by this
+  pass.
 - **`+2.2a` / `+2.2b` are the closest match in the whole deck** — same sections,
   same order, same copy, switches in the same place. They were specified rule by
   rule after the visual language was set, which is exactly why they came out
@@ -866,14 +1057,14 @@ instead of stopping 34dp short of it; nothing the deck shows is off screen.
 
 | Deck page | Divergence | Called out in code? |
 | --- | --- | --- |
-| `00_home` | ~~top bar carries "Add bean" + a person icon~~ — the person icon is gone with the axis (§5.11b); "Add bean" stays, on the deck's own axis note. The brand mark in the bar is still missing (§5.6) | yes |
-| `00_home` | no **Search** action on "Your beans" | no |
-| `00_home` | all beans render; the deck shows three plus "See all N beans" | no |
-| `00_home` | brew count is plain coloured text; the deck uses a `primaryContainer` **pill** | no |
-| `00_home` | bean card meta is the roaster; the deck shows process + roast date | no |
-| `00_home` | no "Average across N sessions" caption on the My-flavor heading | no |
+| `00_home` | ~~top bar carries "Add bean" + a person icon~~ — the person icon is gone with the axis (§5.11b); "Add bean" stays, on the deck's own axis note. ~~The brand mark in the bar is still missing (§5.6)~~ — **stale, 2026-08-15: not a real gap, see §5.6b's status note — the deck's own `top_bar(..., brand=True)` never draws a mark, only a bigger title style, which the build already has** | yes |
+| ~~`00_home`~~ | ~~no **Search** action on "Your beans"~~ — **stale, 2026-08-15: built**, confirmed against a real render | no |
+| ~~`00_home`~~ | ~~all beans render; the deck shows three plus "See all N beans"~~ — **stale, 2026-08-15: built** (§5.8's sixth pass), confirmed against a real render | no |
+| ~~`00_home`~~ | ~~brew count is plain coloured text; the deck uses a `primaryContainer` **pill**~~ — **stale, 2026-08-15: built**, confirmed against a real render | no |
+| ~~`00_home`~~ | ~~bean card meta is the roaster; the deck shows process + roast date~~ — **stale, 2026-08-15: built** ("Natural · Roasted 28 Jul"), confirmed against a real render | no |
+| ~~`00_home`~~ | ~~no "Average across N sessions" caption on the My-flavor heading~~ — **stale, 2026-08-15: this is built** (`HomeScreen.kt`'s `SectionHeader("My flavor", caption = ...)`), confirmed against a real render | no |
 | `0.1` | the scan card keeps the copy and position, no can-boy | yes |
-| `0.2` / `0.2b` | no photo hero, no Images carousel | yes |
+| ~~`0.2` / `0.2b`~~ | ~~no photo hero, no Images carousel~~ — **fixed 2026-08-15, §5.6c** | yes |
 | `0.11` / `0.11b` | superseded by the photo-source sheet; the mascot viewfinder is gone | yes, with the manifest trap that makes it mandatory |
 | `+2` signed in | no avatar, no Change photo, no Name, no Email | yes — **and this is the spec winning, not a regression**: rule 60 deleted all four |
 
@@ -888,14 +1079,96 @@ instead of stopping 34dp short of it; nothing the deck shows is off screen.
    was already there. 21 columns, the width the card fits, from that week's
    Monday back; month labels derived from the dates on screen rather than the
    deck's four hard-coded ones. Home now carries both summary panes.
-3. **Welcome / splash `00w`** — `themes.xml` paints a window background and
-   nothing else. No `core-splashscreen`, no `windowSplashScreen*` attributes.
-4. ~~**The in-app brand mark** (§5.6).~~ Built, fourth pass — on the two empty
-   states. Home's top bar and the splash still have none.
-5. **Home's "My flavor" caption.**
-6. **Search** on Home's bean list.
-7. **Photo carousel / rotate / remove** — a scanned photo is stored but nothing
-   renders a bean's images.
+3. ~~**Welcome / splash `00w`**~~ — **stale claim, 2026-08-15**, corrected the
+   same day it was written. The earlier note here said "nothing here was
+   missing" on the strength of `Theme.CoffeeCan.Splash` alone -- but that
+   theme is the *platform* SplashScreen API, which draws a small centred
+   icon from a static `windowSplashScreenAnimatedIcon` and hands off the
+   instant Compose has a first frame (by design -- Play's own guidance is
+   against holding it open past that point). It cannot draw the deck's
+   actual `welcome()`: a full-bleed 290dp wordmark, a 1000ms ease-out-cubic
+   opacity reveal, held for 2000ms total. That half genuinely did not exist
+   -- confirmed by reading `MainActivity.kt` in full, which had no second
+   screen for it to hand off to. **Fixed the same day**: a real
+   `ui/screens/WelcomeScreen.kt`, the nav graph's own start destination
+   (`Routes.Welcome` in `Nav.kt`, popped with `inclusive = true` the moment
+   it navigates to `Routes.Axis`, so back from Home never returns to it).
+   `CoffeeCanLogo(size = 290.dp, tagline = true, disc = false)` — the disc
+   is dropped for the same reason the deck drops it, a Brand disc on a Brand
+   ground is invisible — faded in via a hand-written `Easing` reproducing
+   `scheme_e.py`'s `_ease_out_cubic` frame-for-frame rather than
+   approximating it with a stock Compose curve. Verified with a real
+   Paparazzi capture at the resting (fade = 1) state (`WelcomeScreenContent`
+   split out for exactly that, since a plain `snapshot()` doesn't advance
+   `Animatable`'s frame clock and would otherwise always capture fade = 0)
+   — `screenshots/00w_welcome.png`, superseding the simulator for this frame.
+   This also fixed a second, related bug the user reported directly: Home
+   briefly rendering `00_home_empty` on every cold launch of a phone that
+   actually has beans, before the real list arrived and swapped it in. Root
+   cause: `HomeScreen.kt` collected `observeBeans()` with
+   `initial = emptyList()`, which is indistinguishable from "the shelf is
+   genuinely empty" for however long Room's first query takes to answer,
+   since a Flow's first emission isn't synchronous with collection start.
+   Fixed with `initial = null` and a three-way branch (loading / empty /
+   populated) instead of two; the loading branch is now what the splash
+   covers, rather than a wrong screen the splash used to expose for one
+   frame.
+
+   **Follow-up, same day, from real-device feedback the sandbox can't
+   reproduce (no emulator here — see the memory note on that):** the
+   `windowSplashScreenAnimatedIcon` originally left in place
+   (`@drawable/ic_brand_wordmark`) drew the logo solid, immediately, before
+   `WelcomeScreen` ever mounted — so the actual on-device sequence was
+   "logo pops in solid → resets to invisible → fades back in", not a
+   single fade. Fixed by pointing that attribute at a new empty
+   `ic_splash_icon_none.xml` instead: the platform phase now shows *only*
+   Brand green, matching `WelcomeScreenContent`'s own t=0 frame exactly, so
+   the hand-off has no visible seam and the fade is the only time the logo
+   ever appears. `Theme.CoffeeCan.Splash`'s own comment — which had
+   explicitly argued a second Compose splash screen must never exist
+   alongside the platform one — is annotated rather than silently
+   overridden, since that was a real prior stance and the fade requirement
+   is what changed it. Total time on screen is now 3000ms (1000ms reveal +
+   2000ms hold), also a same-day product decision, up from 2000ms.
+   Re-verified: all 33 Paparazzi tests still pass, `assembleDebug` green at
+   `compileSdk = 36`.
+
+   **Second follow-up, same day — the first fix was incomplete and the bug
+   was still reproducing on device.** The blank splash icon it introduced
+   was a 1dp vector *declaring no path at all*, which is degenerate enough
+   that the platform can reject it and fall back to the launcher icon —
+   i.e. the exact thing it was written to prevent, made worse by the
+   launcher icon having just become the "Can" wordmark. Fixed properly with
+   three changes that are each load-bearing, now documented as such in
+   `WelcomeScreen.kt`'s own docstring: (1) `ic_splash_icon_none.xml` is now
+   a normal 240x240 vector containing a real full-bleed path filled
+   `#00000000` — unambiguously valid, paints nothing; (2) `MainActivity`
+   calls `setOnExitAnimationListener { it.remove() }`, cutting the splash
+   away with no exit animation, since the default one zooms and fades the
+   icon out and would otherwise run *concurrently* with this screen's
+   fade-in of the same mark; (3) the Compose side already started at
+   `fade = 0` and was never the problem — now pinned by a regression test,
+   `WelcomeScreenScreenshotTest#welcomeFirstFrame`, whose captured frame is
+   verified to contain exactly one colour (`#34C759`, 288000 px, zero logo
+   pixels) against the resting frame's 7309 near-white wordmark pixels.
+   Timing also corrected to the actual spec: **2000ms reveal, then frozen
+   1000ms** (was 1000ms + 2000ms — same 3s total, wrong split). 34 tests
+   pass. Note what still cannot be checked here: whether the platform splash
+   really draws nothing is an on-device property, and there is no
+   emulator in this environment — items (1) and (2) are reasoned from the
+   SplashScreen contract, not observed.
+4. ~~**The in-app brand mark** (§5.6).~~ Built, fourth pass, on the two empty
+   states. Home's top bar was never actually a gap here (§5.6b's
+   2026-08-15 status note) — only the splash (item 3 above) is still open.
+5. ~~**Home's "My flavor" caption.**~~ **Stale, 2026-08-15**: built
+   (`HomeScreen.kt`), confirmed against a real render — see the §5.9 table.
+6. ~~**Search** on Home's bean list.~~ **Stale, 2026-08-15**: built
+   (`HomeScreen.kt`'s `searching`/`query` state and `CapsuleField`),
+   confirmed against a real render — see the §5.9 table.
+7. ~~**Photo carousel / rotate / remove**~~ — display + attach built 2026-08-15
+   (`ImagesStrip`, §5.6c); **rotate and remove are still missing** —
+   `BeanImageEntity.rotation` is stored and read by nothing, and there's no
+   delete affordance on a thumbnail once it's attached.
 
 Correctly *not* built: `-1_can_drink`, `-1w_can_drink_intro`, the news ticker
 (v1.1 per resolution #2), and voice session (v1.1).
@@ -1039,13 +1312,10 @@ it; Process, Roast date and Note are below the fold.)*
 
 ## 8. Recommended order of work
 
-1. **B3** — one `DisposableEffect` and a `leave()` on Brew Session. Half a day,
-   and it is silently losing user data today.
-2. **D5** — `room.schemaLocation` + `room-testing`. Two lines, and the window
-   closes the moment anyone bumps the schema version.
-3. **B1** — decide where the 15+ affirmation lives, then implement it and the
-   `ConsentStore` flag. Blocks closed testing, because the testers are real data
-   subjects.
+1. ~~**B3**~~ — done, 2026-08-15: see §3's status block.
+2. ~~**D5**~~ — done: `room.schemaLocation` is set in `app/build.gradle.kts`.
+3. ~~**B1**~~ — done, 2026-08-15: see §3's status block. Landed on
+   `AiDisclosureSheet`, the recommended option.
 4. **D1** — `.dp.toPx()` across `RadarChart` and `ExtractionBar`. Cheap, and
    invisible until someone runs it.
 5. **D2, D3, D4** — three small honesty fixes on the three screens where a wrong
@@ -1056,8 +1326,7 @@ it; Process, Roast date and Note are below the fold.)*
    because every screen added first has to be revisited afterwards.
 7. **§5.11 item 3** — the capsule field. The decision that settles whether this
    app looks like scheme E or like Material 3 in scheme E's colours.
-8. **B2** — string extraction, then French. Large, mechanical, and it gets worse
-   with every screen added before it happens.
+8. ~~**B2**~~ — done, 2026-08-15: see §3's status block.
 9. **B4** and TLS in front of `coffee_server` — release-configuration gates that
    are nobody's design problem but block everything downstream of them.
 10. Then the unbuilt v1 surface: Share Card, the heatmap, the mark.

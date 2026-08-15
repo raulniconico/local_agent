@@ -98,7 +98,10 @@ CRAWLER_ALLOWLIST_PATH = Path(
     os.environ.get("CRAWLER_ALLOWLIST_PATH", Path(__file__).resolve().parent / "allowlist.json")
 )
 CATALOGUE_TTL_SECONDS = int(os.environ.get("CATALOGUE_TTL_SECONDS", str(24 * 3600)))
-NEWS_TTL_SECONDS = int(os.environ.get("NEWS_TTL_SECONDS", str(2 * 3600)))
+# One hour, product decision 2026-08-15 (was two). See scheduler.py's
+# NEWS_INTERVAL_SECONDS for the cadence this pairs with and, importantly, for
+# the specs/legal.md rule 15 divergence that hourly news polling opens.
+NEWS_TTL_SECONDS = int(os.environ.get("NEWS_TTL_SECONDS", str(3600)))
 # specs/legal.md rule 17: truthful, descriptive, with a contact that resolves.
 # Rule 18 forbids ever replacing this with a browser string.
 CRAWLER_USER_AGENT = os.environ.get(

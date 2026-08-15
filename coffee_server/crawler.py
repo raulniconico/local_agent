@@ -41,6 +41,8 @@ import threading
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -201,6 +203,25 @@ class Fetcher:
     # -- the one request method --------------------------------------------
 
     def get_json(self, client, url: str, *, source: Source) -> Optional[object]:
+        """A single conditional GET returning parsed JSON, or None on 304."""
+        response = self._get(client, url, source=source)
+        return None if response is None else response.json()
+
+    def get_text(self, client, url: str, *, source: Source) -> Optional[str]:
+        """A single conditional GET returning the raw body, or None on 304.
+
+        The news feeds are XML, not JSON, and before 2026-08-15 they were
+        fetched with a bare `httpx.Client.get` that went around this class
+        entirely -- no robots.txt check, no per-host delay, no conditional
+        request, no budget charge. That was already wrong and became
+        untenable when the news refresh moved to hourly: 24x the request
+        count is only defensible if each one is a conditional poll costing
+        ~200 bytes, which is exactly what routing through here buys.
+        """
+        response = self._get(client, url, source=source)
+        return None if response is None else response.text
+
+    def _get(self, client, url: str, *, source: Source):
         """A single conditional GET, or None if nothing changed (304).
 
         Conditional requests are the whole reason the steady state is ~8
@@ -256,7 +277,7 @@ class Fetcher:
                 response.headers.get("etag", ""),
                 response.headers.get("last-modified", ""),
             )
-            return response.json()
+            return response
 
         raise CrawlerUnavailableError(f"{url}: gave up after retries")
 
@@ -401,27 +422,60 @@ def _refresh_catalogue() -> _Cached:
 
 
 def _refresh_news() -> _Cached:
+    """Poll each allowlisted feed once, conditionally.
+
+    RUNS HOURLY, unlike the catalogue's daily crawl -- see `scheduler.py` for
+    the cadence and the spec divergence it records. What makes hourly
+    defensible rather than 24x rude is that every request here is a
+    conditional GET through [Fetcher]: an unchanged feed answers 304 in about
+    200 bytes and is never parsed. A feed that has not published since the
+    last poll therefore costs both sides almost nothing, which is the
+    steady state legal.md rule 19 is written around.
+
+    A 304 is not an error and not an empty feed: it means "unchanged", so the
+    previously cached items for that source are carried forward rather than
+    dropped. Without that, every hourly poll would blank the feed.
+    """
     sources = [s for s in load_sources() if s.is_crawlable and s.news_feed_url]
     if not sources:
         raise CrawlerUnavailableError("no allowlisted news feed")
 
     import httpx
 
+    previous: dict[str, list[dict]] = {}
+    if _news is not None:
+        for item in _news.items:
+            previous.setdefault(item["source"], []).append(item)
+
+    fetcher = Fetcher()
     items: list[dict] = []
-    headers = {"User-Agent": config.CRAWLER_USER_AGENT, "From": config.CRAWLER_CONTACT_EMAIL}
-    with httpx.Client(follow_redirects=True, headers=headers) as client:
+    with httpx.Client(follow_redirects=True) as client:
         for source in sources:
             try:
-                response = client.get(source.news_feed_url, timeout=(10, 30))
-                response.raise_for_status()
-                root = ET.fromstring(response.text)
-            except Exception as exc:  # noqa: BLE001
+                body = fetcher.get_text(client, source.news_feed_url, source=source)
+            except CrawlerUnavailableError as exc:
+                # One unreachable feed must not take the whole refresh down;
+                # the others are still worth serving. Carry this source's
+                # last-known items rather than silently losing them.
                 logger.warning("news feed %s failed: %s", source.news_feed_url, exc)
+                items.extend(previous.get(source.domain, []))
                 continue
+
+            if body is None:  # 304 Not Modified
+                items.extend(previous.get(source.domain, []))
+                continue
+
+            try:
+                root = ET.fromstring(body)
+            except ET.ParseError as exc:
+                logger.warning("news feed %s is not parseable XML: %s", source.news_feed_url, exc)
+                items.extend(previous.get(source.domain, []))
+                continue
+
             # Headline, source, date, link. Nothing else is extracted, because
-            # nothing else may be shown (rule 74): no snippet past the
-            # headline, and specifically no AI-written summary -- that is a
-            # derivative use outside the droit voisin exception.
+            # nothing else may be shown (legal-accounts.md rule 74): no snippet
+            # past the headline, and specifically no AI-written summary -- that
+            # is a derivative use outside the droit voisin exception.
             for entry in root.iter():
                 tag = entry.tag.split("}")[-1]
                 if tag not in ("item", "entry"):
@@ -435,11 +489,48 @@ def _refresh_news() -> _Cached:
                         "title": " ".join(title.split()),
                         "source": source.domain,
                         "url": link,
-                        "published_at": None,
+                        "published_at": _published_at(entry),
                     }
                 )
 
     return _Cached(items=items, fetched_at=int(time.time()))
+
+
+#: RSS uses RFC 822 in <pubDate>; Atom uses RFC 3339 in <published>/<updated>.
+_DATE_FIELDS = ("pubDate", "published", "updated", "date")
+
+
+def _published_at(entry) -> Optional[int]:
+    """The item's publication date as Unix seconds, or None.
+
+    The date is one of the four fields rule 74 permits the app to show, and
+    until now this was hard-coded to None -- so every headline rendered
+    undated. Both feed dialects are accepted because the allowlist does not
+    constrain which one a roaster's blog emits.
+
+    None on anything unparseable, deliberately: a wrong date on a news item
+    is worse than no date, and the screen already renders the undated case.
+    """
+    for field in _DATE_FIELDS:
+        raw = _child_text(entry, field)
+        if not raw:
+            continue
+        for parse in (parsedate_to_datetime, _parse_rfc3339):
+            try:
+                parsed = parse(raw)
+            except Exception:  # noqa: BLE001
+                continue
+            if parsed is None:
+                continue
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return int(parsed.timestamp())
+    return None
+
+
+def _parse_rfc3339(raw: str):
+    # datetime.fromisoformat handles "Z" only from 3.11; normalise for 3.10.
+    return datetime.fromisoformat(raw.strip().replace("Z", "+00:00"))
 
 
 def _child_text(node, name: str) -> str:

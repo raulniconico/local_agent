@@ -29,9 +29,10 @@ this code.
 
 | Deck page | Screen | State |
 | --- | --- | --- |
-| -1 | Can Drink — roaster catalogue, search/Roaster/Origin/Sort filters, rubric disclosure | **built but not wired in v1** (2026-08-15) — the axis page renders a static "coming soon" placeholder (`CanDrinkComingSoon`) instead; the full screen is complete and ready for v2, a one-line swap in `Axis.kt` once `crawler.py`'s legal gates clear -- see screens.md §7 |
+| -1 | **Coffee news** — headline, source, date, link; prefetched during the splash, cached in Room, hourly server refresh | built 2026-08-15 (`ui/screens/NewsScreen.kt`). Shows only the four fields `legal-accounts.md` rule 74 permits — no snippet, no AI summary, and `NewsItemEntity` has nowhere to store one. Real headlines are still gated on `CRAWLER_ENABLED` + the allowlist + rule 72, so the shipped state is the "no feed yet" 503 branch. |
+| -1 (v2) | Can Drink — roaster catalogue, search/Roaster/Origin/Sort filters, rubric disclosure | **built, and now unwired** — news took the `-1` slot on 2026-08-15, so `CanDrinkScreen.kt` and its `CanDrinkComingSoon` placeholder are both kept whole but unreferenced, for v2. Wiring it back is still a one-line swap in `Axis.kt`, but it now needs a home: `-2` is the obvious one, and is already the next slot the axis would accept. |
 | 00 | Home — bean list, "My flavor" radar | built; contribution calendar and the catalogue strip are not |
-| 0.1 / 0.2 / 0.2b | Bean Detail — full manual CRUD, process dropdown, roast-date picker, flavor radar + manual-override sheet, sessions list, delete-with-cascade confirm, **label scan** | built without the photo hero and Images strip (the carousel, which is what will justify an image-loading dependency) |
+| 0.1 / 0.2 / 0.2b | Bean Detail — full manual CRUD, process dropdown, roast-date picker, flavor radar + manual-override sheet, sessions list, delete-with-cascade confirm, **label scan**, photo hero + Images strip | built 2026-08-15; the photo hero and Images strip (`coil-compose`, already pulled in for -1 Can Drink) landed on the `0.2`/`0.2b` (saved-bean) branch — see AUDIT.md §5.6c |
 | 3 (screens.md) | Scan Review — editable guessed fields, "was:" hints, empty-read state, report control | built |
 | 0.11 / 0.11b | Camera capture / permission denied | **superseded, see below** |
 | +1 | Sessions — the whole log, newest first | built, rows open the brew |
