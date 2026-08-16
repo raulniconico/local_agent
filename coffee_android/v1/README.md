@@ -19,22 +19,41 @@ The design plan, the API contract and the per-screen specs live one level up in
 `../plan/README.md` before changing anything here, and `AUDIT.md` for what this
 build currently gets wrong.
 
-## Building
+## Building and installing
 
-**Not from this checkout.** There is no Android SDK, no Gradle and no wrapper
-here — `gradlew` is missing and has to be generated on a machine that has
-Gradle, on JDK 17 or 21:
+The wrapper is generated (Gradle 8.11.1) and `local.properties` points at a
+real SDK, so this checkout builds as it stands. **`JAVA_HOME` must name a JDK
+17** — it is not tidiness: on a newer JDK the Kotlin compiler aborts with
+`IllegalArgumentException: <version>` out of `JavaVersion.parse` before it
+looks at any of this code.
 
 ```bash
 cd coffee_android/v1
-gradle wrapper --gradle-version 8.9
-./gradlew assembleDebug
+JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk    # -r keeps the database
+adb shell am start -n app.coffeecan/.MainActivity           # optional
 ```
 
-Four `buildConfigField`s in `app/build.gradle.kts` ship empty and the app is
-inert without them — sign-in throws and both AI features are unreachable (see
-AUDIT.md B4). Real values belong in `local.properties` or CI secrets, never
-committed:
+`adb` lives in `$ANDROID_HOME/platform-tools/`, which is not necessarily on
+`PATH`; `adb devices` should list the phone before the install (USB debugging
+on, and the RSA prompt accepted on the device). `installDebug` does the build
+and the install in one step and is equivalent.
+
+The APK is signed with the local debug key. Reinstalling over a build signed
+by a *different* key fails rather than damaging anything, but the only way
+past it is `adb uninstall app.coffeecan`, **which deletes the on-device
+database and photos** — export a sync bundle first (Profile → "Send to
+desktop", or `coffee_agent`'s USB tools).
+
+Neither Play Store nor release signing is set up here; nothing in this section
+produces a shippable artifact.
+
+Four `buildConfigField`s in `app/build.gradle.kts` ship empty, and a build
+made without them is **half an app**: everything local works — beans,
+sessions, photos, the flavour radar, sync bundles — while sign-in throws and
+both AI features (label scan, news) are unreachable (see AUDIT.md B4). That is
+the state a plain `assembleDebug` here produces. Real values belong in
+`local.properties` or CI secrets, never committed:
 
 | Field | What it is |
 | --- | --- |
@@ -56,7 +75,11 @@ python3 screenshots.py --svg    # keep the vector source alongside
 
 Needs Chrome or Chromium on `PATH` for rasterisation, and Fredoka installed for
 correct type; no Python dependencies. **These are simulations drawn from the
-Kotlin, not captures of a running app** — this checkout cannot run one. The
+Kotlin, not captures of a running app** — for real frames, either install to a
+phone (above) or render a composable through Paparazzi
+(`app/src/test/.../screenshot/`, goldens in `app/src/test/snapshots/images/`;
+see `PaparazziEnvironment.kt` for the `compileSdk = 35` toggle that run
+needs). The
 docstring in `screenshots.py` says exactly what they are faithful about and what
 they are not. When a screen changes, change the corresponding function there in
 the same commit, the way `../plan/scheme_e.py` is kept in step with the deck.

@@ -59,7 +59,7 @@ nothing else. It does.
   | `POST v1/suggest` | ✓ | field shapes match `schemas.py` exactly |
   | `POST v1/vision` | ✓ | base64 + `media_type`, matches |
   | `POST v1/report` | ✓ | `operation` values match the server's `Literal` |
-  | `GET v1/account` | ✓ | **one field missing client-side — see D3** |
+  | `GET v1/account` | ✓ | all fields present since D3 was fixed |
   | `DELETE v1/account` | ✓ | |
   | `GET v1/catalogue`, `GET v1/news` | ✓ | declared, unused until v1.1 |
   | — | `POST v1/ask` | deliberately absent from the client, and the reason is
@@ -325,6 +325,16 @@ summary of it.
 > in both `RadarChart.kt` and `ExtractionBar.kt` is `N.dp.toPx()`, no bare
 > float literals remain.
 
+> **RE-CHECKED, 2026-08-16**, and swept across the whole module rather than
+> the two files the defect named. The only bare-float strokes left are
+> `CanBoy.kt`'s flash burst and `BagTile.kt`'s bag glyph, and both are
+> **correct as they are**: those draw in figure space — a fixed coordinate
+> system the canvas is scaled into, the deck's own geometry — where a
+> `dp.toPx()` would not track the figure's size and would be the bug. The
+> distinction to apply when adding a new `Canvas`: dp if the stroke is
+> measured against the screen, raw float if it is measured against the
+> drawing.
+
 
 `DrawScope` works in pixels. `ui/components/RadarChart.kt` uses raw floats
 throughout:
@@ -350,6 +360,20 @@ ones**, so do not use them to check this.
 
 ### D2 — `+2.2a` promises a long-press the code does not implement
 
+> **STATUS, 2026-08-16. Fixed** — recorded now because the code fix landed
+> without one. The policy card carries `combinedClickable(onClick = open,
+> onLongClick = copyPolicyUrl)`; `copyPolicyUrl` writes `POLICY_URL` through
+> `LocalClipboardManager` and confirms with a `privacy_link_copied`
+> snackbar, present in all three locales. The copy was left exactly as it
+> was, deliberately: on this screen the promise is the compliant half (rule
+> 88's "tappable, selectable") and the missing behaviour was the defect, so
+> the fix is to keep the sentence and make it true.
+>
+> **Not verified on a device.** A long-press is precisely what a Paparazzi
+> still cannot exercise, and the phone attached to this machine is
+> PIN-locked. What is checked is the wiring and the strings, not the
+> gesture.
+
 `PrivacyScreen` prints *"Always the current version. Tap to open, hold to
 copy."* The card carries `Modifier.clickable { open(POLICY_URL) }` and nothing
 else. There is no `combinedClickable`, no `LocalClipboardManager`, no
@@ -359,6 +383,18 @@ it does not have, on the one screen where a wrong statement is a store risk.
 
 ### D3 — The Art. 15(3) access document under-reports
 
+> **STATUS, 2026-08-16. Fixed** — likewise recorded after the fact.
+> `AccountResponseDto` now carries `rate_limit_events_currently_held`, and
+> the document names it on its own line (`access_rate_limit_records`, three
+> locales), unconditionally — including at zero, because "0 rate-limit
+> records" answers the question and an absent line does not. The two screens
+> now agree: every category `delete_account_body1` promises deletion erases
+> appears in the document, which is what `AccessDocumentTest` asserts
+> (2026-08-16, three cases: the full record, zero, and an empty response).
+> Building the text moved out of the sheet into `accessDocument()` for that
+> test to reach — the sheet fills its body from the network, which Paparazzi
+> does not run, so a screenshot could never have covered this.
+
 `coffee_server/schemas.py:181` returns `rate_limit_events_currently_held`.
 `net/ServerApi.kt`'s `AccountResponseDto` has no such field, so `DataAccessSheet`
 never renders it. Meanwhile `DeleteAccountDialog` tells the user deletion erases
@@ -367,6 +403,23 @@ does not show. Rule 93 lists rate-limit records among what the access response
 holds. Add the field and a line to the rendered document.
 
 ### D4 — `+2.2b`'s consent row collapses five states into two
+
+> **STATUS, 2026-08-16. Fixed**, and now rendered. `ConsentRow` reads three
+> labels instead of two: "On since <date>", "Off — we changed what this
+> sends, take another look" for a consent that lapsed on a
+> `disclosureVersion` bump (`withdrawnAt == null && accepted &&
+> acceptedVersion < version`, the same distinction `shouldPrompt` makes),
+> and "Off". Verified as a picture, not just as a branch —
+> `AiDisclosureScreenScreenshotTest.consentStates` renders one live row
+> against one lapsed row, the only render of that label anywhere; the
+> pre-existing `aiDisclosure` still has both rows Off and cannot show it.
+>
+> **Three of the five states still share "Off"** — never-asked,
+> shown-but-declined, and withdrawn — and that is the intended end state,
+> not a partial fix. The defect was that lapsed and turned-off want
+> *different next actions*; the other three want the same one (tap, get the
+> sheet), and inventing labels to distinguish them would be telling the user
+> about the state machine rather than about their choice.
 
 `OperationConsent` can distinguish never-asked, shown-but-declined, live,
 withdrawn, and *lapsed because `disclosureVersion` was bumped*. `ConsentRow`
@@ -776,6 +829,33 @@ this mark in the module. See §5.6's status block.
 > documented at the call site rather than silently dropped. `0.1` (the blank
 > form) was already correct and is untouched.
 
+> **THE SUBSTITUTION IS DISCHARGED, 2026-08-16.** Share Card is built (§5.10
+> item 1), so the top-right disc is now Share on both pages — the deck's own
+> assignment for that slot. Delete did not go back on the bar: it lives at the
+> bottom-right of the *opened* photo, faded in with the pull and inert until
+> the pull is settled (`PhotoHeroPage`'s `pulledAction`). That is a product
+> decision on top of the deck, which draws no delete affordance on either page
+> at all: with Share taking the only spare corner of the bar, the choice was a
+> third disc crowded next to it or a deliberate gesture in front of the one
+> destructive action on the screen. The gesture won. Rendered both ways in
+> `PhotoHeroPageScreenshotTest` — closed shows Share alone, open shows both.
+
+> **STATUS, 2026-08-16.** The panel now pulls *down* as well as up, on both
+> pages built out of `PhotoHeroPage` (`0.2`/`0.2b` and the brew session).
+> Reported: the hero was a 224dp centre-cropped band and there was no way to
+> see the rest of the bag. Dragging down from the top of the panel now grows
+> the hero to the photo's own aspect ratio — capped at a screen less 96dp so
+> the panel stays grabbable — and releases to whichever end is nearer;
+> `cropToFit` unwinds the crop over that same travel, so a photo too tall to
+> fit even opened is letterboxed rather than trimmed. This is an addition to
+> the deck, not a correction of it: `scheme_e.py` draws only the closed
+> state, and nothing in it is changed by the gesture (the two closed stills
+> re-record byte-identical). Geometry is verified by a Paparazzi pair
+> (`PhotoHeroPageScreenshotTest.photoClosedWithPhoto` / `photoPulledOpen`)
+> and the scaling by `CropToFitTest`; **the gesture itself is unverified —
+> Paparazzi has no finger**, so drag, settle and fling have not been run
+> anywhere but in reasoning about the nested-scroll contract.
+
 `BeanDetailScreen`'s docstring justifies collapsing 0.1 and 0.2 into one
 composable like this:
 
@@ -1119,10 +1199,45 @@ instead of stopping 34dp short of it; nothing the deck shows is off screen.
 
 ### 5.10 Specified for v1 and not built
 
-1. **Share Card export** (`screens.md` §10) — no share icon on either top bar, no
-   `GraphicsLayer` render, no `ACTION_SEND`. `FileProvider` is configured and
-   `file_paths.xml` already declares `share/`, so the plumbing waits on the
-   screen. In the **closed-testing** milestone, not deferred to v1.1.
+1. ~~**Share Card export** (`screens.md` §10)~~ — **built 2026-08-16**, on both
+   pages. `share/ShareCard.kt` renders the PNG, `share/ShareSheet.kt` previews
+   it and hands it to `ACTION_SEND` through the `FileProvider` and the
+   `cache-path share/` that were already declared for it.
+
+   **It is the desktop's card, not the deck's, and that was a decision.**
+   `wireframes.share_card()` draws 1080×1350 with the photo full-bleed under a
+   scrim and a score line in place of the details; §10's prose asks for "the
+   same visual design as the desktop PNG". Asked to settle it, the product
+   owner chose the actual implemented desktop design, so the export is
+   1080×1920+ on `#34C759`, white throughout, photo → name → radar + caption →
+   detail rows, mark bottom-right; a brew adds a divider, its own dated
+   heading, brew details, stages, score and note, and is sized purely by
+   content (2438px for the reference brew, against the desktop's 2347 — Fredoka
+   is not Qt's default sans, so every measured line differs a little).
+
+   Not the `GraphicsLayer` route this section recommended. `CanvasDrawScope`
+   over an `ImageBitmap` at `Density(1f)` reproduces `QPainter` on a `QPixmap`
+   exactly — card pixels, no composition, no off-screen node to keep alive —
+   and it made the whole renderer a plain function that a test can call. The
+   y-cursor arithmetic §10 warned about is real but ported straight across, and
+   with `TextMeasurer` the "unknown height → scratch canvas → crop" dance
+   became a measured block list summed before the bitmap is allocated.
+
+   Verified by rendering both sides and comparing: the desktop's own output
+   (`share_card.py` driven headless over a synthetic DB) against
+   `ShareCardScreenshotTest`, whose device is configured 1080×1920 at density 1
+   so the golden *is* the card. Three stills — bean, bean with a photo, brew.
+
+   **Two divergences worth knowing.** The `"<name> share with you:"` header is
+   dropped: it reads the desktop's local profile, and this app deliberately has
+   none. And `#34C759` is the desktop's card green, which `Theme.kt` calls
+   decorative-only and unfit behind white text (≈2.2:1) — kept because
+   "the actual, implemented desktop design" was the instruction, and because a
+   shared image is not a UI surface Play or WCAG measure. `primary` #196D2E is
+   the one-line change if that judgement ever flips.
+
+   Still not built from §10: the deck's "Save to photos" button. The system
+   share sheet already lists Photos and Files beside Instagram and WeChat.
 2. ~~**Contribution calendar** — the deck's "Brewing activity" card.~~ Built,
    `ui/components/ContributionCalendar.kt`, over the `dailyCounts()` query that
    was already there. 21 columns, the width the card fits, from that week's
@@ -1365,10 +1480,15 @@ it; Process, Roast date and Note are below the fold.)*
 2. ~~**D5**~~ — done: `room.schemaLocation` is set in `app/build.gradle.kts`.
 3. ~~**B1**~~ — done, 2026-08-15: see §3's status block. Landed on
    `AiDisclosureSheet`, the recommended option.
-4. **D1** — `.dp.toPx()` across `RadarChart` and `ExtractionBar`. Cheap, and
-   invisible until someone runs it.
-5. **D2, D3, D4** — three small honesty fixes on the three screens where a wrong
-   statement is a store risk.
+4. ~~**D1**~~ — done: every stroke and offset in `RadarChart` and
+   `ExtractionBar` is `N.dp.toPx()`. Re-checked 2026-08-16, and widened to the
+   rest of the module: the remaining bare floats are in `CanBoy` and
+   `BagTile`, which draw in figure space inside a scaled canvas, where a `dp`
+   would be the bug.
+5. ~~**D2, D3, D4**~~ — done, all three; see each one's status block. D3 and D4
+   gained tests with the fix (`AccessDocumentTest`,
+   `AiDisclosureScreenScreenshotTest.consentStates`); D2's long-press is the
+   one behaviour still unexercised, for want of an unlocked device.
 6. **§5.11 items 1–2** — the type scale and the component treatments. One file
    and an afternoon respectively, and together they are most of the visual gap
    between the build and the deck. Do these **before** any new screen is added,

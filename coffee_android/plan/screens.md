@@ -410,6 +410,22 @@ carries; no endpoint is involved in either direction.
 
 ## 10. Share Card export
 
+> **BUILT 2026-08-16** — `share/ShareCard.kt` (the renderer) and
+> `share/ShareSheet.kt` (preview + `ACTION_SEND`), reached from the share disc
+> on Bean Detail and Brew Session Detail. **The export follows the desktop
+> PNG, not the wireframe below.** The two disagreed — this section's own
+> "same visual design as the desktop PNG" against `wireframes.share_card()`'s
+> 1080x1350 scrim-over-photo card — and the product owner settled it on the
+> desktop's actual implemented design. So: 1080 wide, 1920 floor, green ground,
+> white text, photo then name then radar-with-caption then the detail rows;
+> a brew adds a divider, a dated heading, its brew details, stages, score and
+> note. The wireframe's segmented "This bean / This brew" switch is not built
+> either — each page shares its own subject, which is what the share disc being
+> *on* that page already means — and neither is "Save to photos", since the
+> system sheet lists Photos and Files itself. See AUDIT.md §5.10 item 1 for the
+> full record, including the two knowing divergences (no profile header, and
+> the desktop's decorative green kept behind white text).
+
 **Wireframe:** `screenshots/sheme_1/10_share_card.svg`
 
 **Purpose:** render and export a shareable image — ported from

@@ -34,6 +34,7 @@ this code.
 | 00 | Home — bean list, "My flavor" radar | built; contribution calendar and the catalogue strip are not |
 | 0.1 / 0.2 / 0.2b | Bean Detail — full manual CRUD, process dropdown, roast-date picker, flavor radar + manual-override sheet, sessions list, delete-with-cascade confirm, **label scan**, photo hero + Images strip | built 2026-08-15; the photo hero and Images strip (`coil-compose`, already pulled in for -1 Can Drink) landed on the `0.2`/`0.2b` (saved-bean) branch — see AUDIT.md §5.6c |
 | 3 (screens.md) | Scan Review — editable guessed fields, "was:" hints, empty-read state, report control | built |
+| 10 (screens.md) | Share Card export — render a shareable PNG, preview it, hand it to the system share sheet | built 2026-08-16 (`share/ShareCard.kt`, `share/ShareSheet.kt`); reached from the share disc on `0.2` and on a saved brew. Renders coffee-can desktop's card design, **not** the wireframe's — the two specs disagreed and the desktop's implemented design was chosen; see AUDIT.md §5.10 item 1 |
 | 0.11 / 0.11b | Camera capture / permission denied | **superseded, see below** |
 | +1 | Sessions — the whole log, newest first | built, rows open the brew |
 | +1.1 | "Which bean?" sheet — pick / add / vibe-brew | built; both FABs open it |
@@ -83,16 +84,18 @@ side benefit the vision endpoint wanted anyway. Covered by an instrumented test
 **Not started:** Camera Capture (0.11/0.11b) and Scan Review (§3) — the
 `/v1/vision` endpoint and `AiGateway.readLabel` exist and are unused until the
 photo picker, CameraX and the EXIF strip land; the welcome/splash page (00w);
-Share Card export; the `-1w` Can-Drink first-run intro (§7's built/not-built
+the `-1w` Can-Drink first-run intro (§7's built/not-built
 split); and everything still deferred to v1.1 (news, voice) -- Can-Drink
 Catalogue itself moved back into v1 on 2026-08-15, see the table above and
 screens.md §7.
 
-**Nothing here has been compiled**: this checkout has no Android SDK, no
-Gradle and no wrapper (`gradlew` is missing — generate it on a machine that
-has Gradle before the first build, on JDK 17 or 21). Treat every "built" above
-as "written, not yet run". The server half *has* been run: see
-`specs/coffee-server.md`.
+**What "built" means here, as of 2026-08-16**: compiled, and rendered. The
+checkout has an SDK and a wrapper (`v1/README.md` has the commands), the app
+installs and runs on a real phone, and Paparazzi renders every screen listed
+above through layoutlib on the JVM. What is still unverified is *behaviour that
+needs fingers* — gestures, animation timing, share targets — since there is no
+emulator here and on-device checks depend on someone holding the phone. The
+server half has been run too: see `specs/coffee-server.md`.
 
 ---
 
