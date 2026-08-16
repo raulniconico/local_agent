@@ -222,6 +222,55 @@ navigation pops the `NavBackStackEntry` and takes the saved state with it.
 > `BrewSessionScreenScreenshotTest` passes unchanged under Paparazzi, full
 > `assembleDebug` stays green.
 
+### B5 — ACCESS_NETWORK_STATE was never declared, and it crashed the app
+
+**Found on a real device, 2026-08-15**, the first time this project was ever
+run on hardware from this checkout. `AndroidManifest.xml` declared `INTERNET`
+and nothing else, but `net/AiGateway.kt`'s `requireOnline()` calls
+`ConnectivityManager.getActiveNetwork()`, which requires
+`android.permission.ACCESS_NETWORK_STATE`. Without it that call does not
+return null -- it throws:
+
+```
+java.lang.SecurityException: ConnectivityService: Neither user 10400 nor
+current process has android.permission.ACCESS_NETWORK_STATE.
+    at app.coffeecan.net.AiGatewayKt.requireOnline(AiGateway.kt:228)
+```
+
+`requireOnline()` is the first line of **every** gateway call, so this broke
+the label scan, the brew suggestion and the news feed identically -- every
+network feature in the app, on every device, always.
+
+**Why it was invisible for so long.** Nothing in the test suite reaches it:
+Paparazzi renders composables, and `TestFakes.kt` overrides the gateway
+outright, so no test has ever executed `requireOnline`. It cannot be caught by
+reading either, unless you already know that `getActiveNetwork()` throws
+rather than degrades.
+
+**Why it crashed rather than failed.** `SecurityException` is not an
+`IOException`, an `HttpException` or a `SerializationException`, so
+`asGatewayFailure()`'s `else -> this` returned it unmapped. `NewsFeed.refresh`
+caught only `GatewayFailure`, and the splash prefetch launches into `appScope`,
+which had no `CoroutineExceptionHandler` -- an uncaught throwable there reaches
+the thread's default handler and kills the process. That is the "crashed in the
+first second" report: the prefetch fires during the reveal, and the process
+died before the splash could hand off.
+
+**Fixed** by declaring the permission (normal/install-time: no runtime prompt,
+no Data safety row, and it reports whether *this device* has a network, not
+anything about the user). Verified on an SM-S908U: the `SecurityException` is
+gone, the app survives launch, and the `-1` page now renders the *accurate*
+failure -- "You're offline", because `api.coffeecan.app` genuinely does not
+resolve yet (B4) -- instead of the generic catch-all.
+
+**Three hardening changes stay**, because each was a real defect the crash only
+exposed: `NewsFeed.refresh` catches `Throwable` (rethrowing
+`CancellationException`) and now **logs** it, `appScope` has a
+`CoroutineExceptionHandler`, and the `-1` page keys its illustration off "did
+this fail" rather than off two named failure kinds. Without the logging the
+root cause could not be found at all: the first device run showed only the
+generic "couldn't load" copy with no trace behind it.
+
 ### B4 — The build cannot sign in or reach the gateway as configured
 
 Not a design fault, but it gates everything: `AI_API_KEY`, `READ_API_KEY` and

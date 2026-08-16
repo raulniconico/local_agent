@@ -375,7 +375,36 @@ feature, app version number, OSS license attribution) rather than a single
 bare row — a real submission needs all of these somewhere and Profile is the
 only screen with an obvious claim to them.
 
-**API calls:** none — local `DataStore`/prefs only.
+**Desktop sync** (added 16 Aug 2026): a "Sync with desktop" row above the
+legal ones — a setting, not a disclosure — opening a dialog with the two
+directions a bundle can travel. **"Send to desktop"** works: `SyncBundle.export`
+writes a zip of every bean, session, stage and image into `cacheDir/share/`
+and hands it to the share sheet through the FileProvider grant.
+**"Receive from desktop"** opens a bundle through
+`ActivityResultContracts.OpenDocument` and merges it. It **never overwrites**:
+beans whose names are new are inserted, beans already here are left untouched
+and counted, and the snackbar reports both numbers. The desktop can afford a
+real per-bean "phone or desktop?" adjudication because an agent drives it and
+can ask; this screen has no such conversation available, and the alternative
+to asking is guessing with someone's whole log — so it declines instead. The
+subtitle promises exactly that guarantee ("add what's new"), which is what
+makes an import safe to tap.
+
+The row's subtitle names the *shape* of the sync ("as a file you carry
+yourself") at the point of tapping. That is load-bearing, not copywriting:
+the Privacy Policy two rows down promises we hold no copy, and a row offering
+bare "sync" would read as retracting it. A file moving between two machines
+one person owns keeps the promise intact — routing it through
+`coffee_server` would not, and would re-open `specs/legal-accounts.md` §3.8
+and the Play Data safety form first.
+
+The desktop half is `coffee_agent/sync_tools.py` (`inspect_coffee_bundle` /
+`apply_coffee_bundle`), which owns the by-name conflict model. The two write
+one format and must change together — `SyncBundle.VERSION` and
+`sync_tools.BUNDLE_VERSION` must stay equal.
+
+**API calls:** none — local `DataStore`/prefs only. Sync is a file the user
+carries; no endpoint is involved in either direction.
 
 ---
 

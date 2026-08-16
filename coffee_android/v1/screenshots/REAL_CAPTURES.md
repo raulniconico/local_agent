@@ -105,6 +105,18 @@ the same function at the same size before landing: worst channel delta 53/255
 on `can_boy_sad` and 54/255 on `can_boy_camera`, with nothing above 96 and
 ~0.17% of pixels above 32 -- stroke antialiasing, not structure.
 
+**Sixth batch, 2026-08-15** -- the bottom navigation bar, and the pour-over
+now that it is Canvas-drawn.
+
+| File | Test |
+| --- | --- |
+| `axis_with_bottom_bar.png` | `SwipeAxisScreenshotTest#axisOnHome` -- the only capture that shows the bar, since every other screenshot renders a single page in isolation. Also the check that the bar's selection follows `pagerState.currentPage`. |
+| `mascot_pour_over.png` | `MascotScreenshotTest#pourOverRest` -- `can_boy_v60` at tilt = 0, the deck's resting 30 degree pour angle. Pixel-diffed against the deck's own render at 184x184: worst channel delta 63/255, 0.27% above 32, nothing above 96. |
+
+`00_home_empty.png` still shows the CTA at rest: the idle wiggle's waveform
+starts at 0, so the animation's first frame -- the only one a Paparazzi
+snapshot can take -- is the un-shaken button.
+
 **Still simulated**:
 - `0.2b_bean_detail_lower`, `0.2e_saved_snackbar` -- below-the-fold content and a transient Snackbar state respectively; lower priority, not attempted this pass.
 - The signed-in half of `+2.3_data_access` -- see the table above.

@@ -152,6 +152,18 @@ in `screens.md` so they aren't missed during specialist review.
 
 - **UI:** Jetpack Compose, Material3, Navigation Compose for screen-to-screen
   flow. One `Activity`, Compose-only — no XML layouts, no Fragments.
+- **Window insets on the swipe axis: the outer Scaffold owns the bottom, the
+  pages own the top.** The four axis pages (Home, News, Sessions, Profile)
+  each carry their own `Scaffold`, and each must pass
+  `contentWindowInsets = AxisPageInsets` (`ui/Axis.kt`) rather than take the
+  default. The default is `systemBars`, and the axis `Scaffold` has *already*
+  padded the pager by its bottom bar's height — a figure that includes the
+  system navigation inset, because `NavigationBar` consumes that inset
+  internally. A page that also claims the bottom applies that inset twice and
+  leaves a dead band above the bar: measured at 37dp on a device with
+  three-button navigation, and roughly half that on gestures.
+  **Paparazzi cannot catch this** — every inset is zero there, so the goldens
+  render correctly either way and only a real device shows it.
 - **State:** MVVM — one `ViewModel` per screen, `StateFlow`-exposed UI state,
   matching the desktop app's per-dialog-worker pattern (`_ScanWorker`,
   `_SuggestionWorker`, etc.) with Kotlin coroutines instead of `QThread`.

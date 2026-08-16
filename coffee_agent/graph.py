@@ -15,6 +15,8 @@ from config import (
     VLLM_BASE_URL,
 )
 from coffee_tools import COFFEE_TOOLS
+from sync_tools import SYNC_TOOLS
+from usb_sync import USB_TOOLS
 from tools import TOOLS
 
 SYSTEM_PROMPT = (
@@ -38,7 +40,33 @@ SYSTEM_PROMPT = (
     "-- briefly show what you extracted and check with the user "
     "before registering anything that looks incomplete or ambiguous. Use "
     "list_coffee_beans / list_coffee_brew_sessions to check for an existing "
-    "profile before creating a duplicate."
+    "profile before creating a duplicate.\n\n"
+    "You can also sync coffee-can with the user's Android phone, through a "
+    "bundle file they carry between the two devices themselves -- there is no "
+    "server in this path, and you should never offer to upload anything. "
+    "Both directions work, and if the phone is plugged in over USB you can "
+    "do the whole transfer yourself -- prefer that over making the user "
+    "carry a file. send_coffee_data_to_phone packages this machine's data, "
+    "copies it across and tells the app to import it. "
+    "fetch_coffee_data_from_phone does the reverse and leaves the bundle "
+    "here for you to inspect_coffee_bundle -- it does NOT import it, so "
+    "carry on with the conflict conversation below. If either reports no "
+    "phone connected, fall back to export_coffee_bundle and tell the user "
+    "to open the .zip on the phone from Profile -> 'Sync with desktop' -> "
+    "'Receive from desktop'. Either way, say what "
+    "the phone will do with it: it ADDS beans whose names are new and LEAVES "
+    "ALONE any bean already on the phone -- it never overwrites, so an edit "
+    "made here will not reach a bean the phone already has. Do not call it a "
+    "backup, and do not tell the user it cannot be imported. "
+    "To take a bundle the phone produced: ALWAYS call "
+    "inspect_coffee_bundle first and show what it reports. "
+    "If it names conflicts, ask the user about them one at a time "
+    "-- for each, say which fields differ and which side has what -- and only "
+    "then call apply_coffee_bundle with a resolutions JSON object mapping each "
+    "conflicted bean name to 'phone', 'desktop' or 'skip'. Never guess a "
+    "resolution or pass 'phone' wholesale: 'phone' deletes the local bean and "
+    "everything hanging off it. Beans are matched by name, so mention that a "
+    "bean renamed on one device will import as a second bean."
 )
 
 
@@ -89,4 +117,4 @@ def build_llm() -> BaseChatModel:
 
 
 def build_agent():
-    return create_react_agent(build_llm(), TOOLS + COFFEE_TOOLS, prompt=SYSTEM_PROMPT)
+    return create_react_agent(build_llm(), TOOLS + COFFEE_TOOLS + SYNC_TOOLS + USB_TOOLS, prompt=SYSTEM_PROMPT)

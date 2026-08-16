@@ -32,3 +32,12 @@ QWEN_BASE_URL = os.environ.get("QWEN_BASE_URL", "https://dashscope.aliyuncs.com/
 
 WORKSPACE_ROOT = Path(os.environ.get("AGENT_WORKSPACE", "~/Documents")).expanduser().resolve()
 WORKSPACE_ROOT.mkdir(parents=True, exist_ok=True)
+
+# The `adb` binary used by sync_tools' USB transfer. Left empty to auto-detect
+# (PATH first, then the usual SDK location) -- set it explicitly if you have
+# more than one SDK installed and the wrong adb wins.
+ADB_PATH = os.environ.get("ADB_PATH", "")
+
+# The Android application id the cable talks to. Only worth changing if you
+# build the app under a different id (e.g. a `.debug` suffix).
+ANDROID_PACKAGE = os.environ.get("ANDROID_PACKAGE", "app.coffeecan")

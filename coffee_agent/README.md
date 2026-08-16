@@ -65,7 +65,7 @@ you  <->  coffee_agent/main.py (CLI)  <->  LangGraph ReAct agent  <->  vLLM serv
 Each time you send a message, the agent runs a **ReAct loop**:
 
 1. The model receives the system prompt, the conversation so far, and the JSON
-   schemas of the three tools.
+   schemas of every tool below.
 2. It either answers directly, or emits a tool call (say
    `search_files(query="invoice", mode="name")`).
 3. LangGraph executes that call locally against your filesystem and feeds the
@@ -319,6 +319,77 @@ There's no dedicated file-import tool: for CSV/spreadsheet/text sources, the
 agent reads the file with `read_document` and works out bean/session fields
 itself before calling the `create_coffee_*` tools.
 
+### Desktop ↔ phone sync tools
+
+`sync_tools.py` moves beans, sessions, stages and page images between this
+machine's coffee-can database and the Android app
+([`../coffee_android`](../coffee_android)), through a **bundle** — a `.zip`
+you carry between the two devices yourself.
+
+**Nothing goes through a server, and that is deliberate.** The Android app
+tells the user their data stays on the phone and that there is no copy of it
+anywhere else (`specs/legal-accounts.md` §3.8). A bundle keeps that true: it
+travels between two devices the same person owns, by whatever means they
+choose (USB, a share sheet, a USB stick), and the developer never holds it.
+
+**Over USB, the agent does the whole thing itself** — no file to carry:
+
+- **`send_coffee_data_to_phone()`** — packages this machine's data, copies it
+  across the cable and tells the app to import it.
+- **`fetch_coffee_data_from_phone(destination="from-phone.zip")`** — asks the
+  app to package its log, pulls it back, and stops there. It deliberately does
+  *not* import: run `inspect_coffee_bundle` and resolve conflicts first.
+
+Both need the phone plugged in with USB debugging on (Settings → Developer
+options), and `adb` on `PATH` or `ADB_PATH` set. If no phone is connected they
+say so, and the manual file-carrying tools below still work.
+
+- **`export_coffee_bundle(destination)`** — writes every bean, its sessions,
+  stages and images to a zip inside the workspace (`.zip` appended if you
+  omit it), in the same format the phone reads.
+- **`inspect_coffee_bundle(bundle)`** — a dry run over a bundle the phone
+  produced: how many beans are new, how many already match, and which are in
+  **conflict**. Changes nothing.
+- **`apply_coffee_bundle(bundle, resolutions="{}")`** — imports it.
+  `resolutions` is a JSON object mapping each conflicted bean name to
+  `"phone"` (take the bundle's version), `"desktop"` (keep what's here) or
+  `"skip"`. New beans need no entry.
+
+**Conflicts are never resolved silently.** A bean present on both sides with
+any differing field is reported, and `apply_coffee_bundle` leaves it untouched
+until it's given an explicit choice for it — so a half-answered run cannot
+overwrite anything. `"phone"` **deletes the local bean** and everything
+hanging off it (its sessions, stages and image files) before writing the
+bundle's version; a half-replaced bean carrying the other side's sessions is
+the one outcome nobody wants. The system prompt tells the agent to inspect
+first and ask you per conflict.
+
+Two limits worth knowing before you rely on it:
+
+- **Beans are matched by name**, because that is the only identifier the two
+  databases share — coffee-can's `beans.id` and Room's are independent
+  sequences. Rename a bean on one device and it imports as a second bean.
+- **Not every field crosses.** The schemas diverged: the Android session has
+  `waterG`/`waterTempC`, which coffee-can's `brew_sessions` has no column
+  for, and coffee-can has `humidity`, which Room has no field for. Room's
+  stage `label` stays behind too (its free `note` maps to coffee-can's
+  `circling`). Those are left out rather than crammed into
+  approximately-right columns.
+
+Bundles carry a version number (`BUNDLE_VERSION`, matching Android's
+`SyncBundle.VERSION`); a bundle from a newer app than this agent understands
+is refused rather than imported partially.
+
+> **Both directions work, but they resolve conflicts differently.** The phone
+> exports and imports from Profile → "Sync with desktop". Coming *this* way,
+> you get the full per-bean adjudication above. Going the other way, the app
+> **never overwrites**: it adds beans whose names are new, leaves the rest
+> untouched, and reports how many it skipped. The asymmetry is about who can
+> be asked — this side has an agent that can put the question to you per bean,
+> and the phone has no such conversation available, so it declines rather than
+> guesses. So an edit you make here will not reach a bean the phone already
+> holds — only genuinely new beans cross in that direction.
+
 ## The sandbox
 
 Every tool call resolves its path through `_resolve()` in `tools.py`, which
@@ -387,6 +458,11 @@ than "look through my invoices").
   into memory. It's fine for a document folder and slow over very large trees.
 - **Local-model tool calling is fragile.** A 3B model will sometimes ignore the
   tools or malform a call; the Claude backend is far more reliable here.
+- **Phone sync matches beans by name, and it is one bundle at a time.** A bean
+  renamed on either device imports as a second bean, and a few fields have no
+  column on the far side (see [the sync tools](#desktop--phone-sync-tools)).
+  There is no incremental or automatic sync — you export, carry the file, and
+  import, each time.
 
 ## Tuning for your GPU
 
@@ -488,8 +564,10 @@ agent/
 │   ├── config.py       # reads .env, resolves the workspace root
 │   ├── tools.py        # search_files / read_document / write_document + sandbox
 │   ├── coffee_tools.py # bean/brew-session registration + image OCR, via ../coffee
+│   ├── sync_tools.py   # desktop <-> phone bundle export/inspect/import, via ../coffee
 │   ├── graph.py        # system prompt, build_llm() backend switch, ReAct agent
 │   └── main.py         # CLI chat loop -- run as `python main.py`, not `-m`
+├── coffee_android/    # sibling project: the phone half of bundle sync (data/SyncBundle.kt)
 ├── coffee/            # sibling project: coffee-can bean/brew tracker (CLI + GUI)
 │   └── src/coffee_can/
 │       ├── repo.py, db.py, paths.py  # SQLite storage, imported by coffee_agent/coffee_tools.py
