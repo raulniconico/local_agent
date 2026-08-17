@@ -37,13 +37,13 @@ never had.
 
 <table>
 <tr>
-<td align="center"><img src="coffee_android/v1/screenshots/00_home.png" width="230" alt="Home: the bean shelf, a brewing-activity calendar and an averaged flavour radar"></td>
-<td align="center"><img src="coffee_android/v1/screenshots/0.2_bean_detail.png" width="230" alt="Bean detail: photo hero, origin, variety, altitude, roaster, process and roast date"></td>
-<td align="center"><img src="coffee_android/v1/screenshots/%2B1_sessions.png" width="230" alt="Sessions: the whole brewing log, newest first, with dripper, dose, score and extraction"></td>
+<td align="center"><img src="docs/screenshots/android-home.png" width="230" alt="Home: the bean shelf with a photo of each bag, a brewing-activity heatmap, and an Add bean action"></td>
+<td align="center"><img src="docs/screenshots/android-sessions.png" width="230" alt="Sessions: seventeen brews, newest first, each with its dripper glyph, dose, score and extraction verdict"></td>
+<td align="center"><img src="docs/screenshots/android-flavor-radar.png" width="230" alt="My flavor: a brewing-activity heatmap above an eleven-axis radar averaged across seventeen sessions"></td>
 </tr>
 </table>
 
-<sub>Real frames — the compiled Compose UI rendered through Paparazzi, not mockups.</sub>
+<sub>Real screenshots, taken on a Galaxy S22 Ultra.</sub>
 
 <br>
 
@@ -52,15 +52,16 @@ never had.
 <table>
 <tr>
 <td width="42%" align="center">
-<img src="coffee_android/v1/screenshots/0.13_scan_review.png" width="240" alt="Scan review: fields read from a bag label, each editable, with a 'was:' hint showing what changed">
+<img src="docs/screenshots/android-bean-detail.png" width="240" alt="Bean detail: a photo of the DAK Purple Rain bag as the hero, a 'Scan the label to update these fields' card, and origin, variety, roaster, producer, process and roast date filled in">
 </td>
 <td width="58%">
 <h3>The label reads itself.</h3>
 <p>Point the camera at the bag. Origin, variety, altitude, roaster, process and
 roast date arrive already filled in — read by Claude vision, then handed
 straight back to you to check.</p>
-<p>Nothing is saved until you say so. Every guess shows its work, and anything
-it got wrong is one tap from corrected.</p>
+<p>The photo of the bag stays as the bean's hero image, so the shelf is
+recognisable at a glance. Nothing is saved until you say so, and anything the
+scan got wrong is one tap from corrected.</p>
 </td>
 </tr>
 </table>
@@ -79,7 +80,7 @@ draws its own picture over time. Or set it by hand and it stays exactly where
 you put it.</p>
 </td>
 <td width="42%" align="center">
-<img src="coffee_android/v1/screenshots/0.2c_flavor_manual.png" width="240" alt="Setting flavour manually: eleven labelled sliders from Fruity to Fermented, each with a 0–5 value">
+<img src="docs/screenshots/android-flavor-axes.png" width="240" alt="A scored brew: the radar above eleven labelled sliders from Fruity to Fermented, each with its own value">
 </td>
 </tr>
 </table>
@@ -89,7 +90,7 @@ you put it.</p>
 <table>
 <tr>
 <td width="42%" align="center">
-<img src="coffee_android/v1/screenshots/%2B2_profile.png" width="240" alt="Profile: privacy policy, how we use AI, and a delete-account row noting the log stays on the phone">
+<img src="docs/screenshots/android-profile.png" width="240" alt="Profile: 'Your beans and sessions stay on this phone', a Sign in with Google button, and rows for Language, Sync with desktop, Privacy Policy and How we use AI">
 </td>
 <td width="58%">
 <h3>Your beans and sessions stay on this phone.</h3>
@@ -119,9 +120,12 @@ drift.
   slider tracks, heatmap cells. Every label, link and button word runs through
   `#1E7A3D` instead, because the bright green measures ~2.2:1 against white and
   fails WCAG AA as text.
-- **A swipe axis, not a tab bar.** Home, Sessions and Profile ride one
-  `HorizontalPager`, matching the `-2 … 00 … +2` page numbering the original
-  deck was drawn in.
+- **A swipe axis with a bar that drives it.** News, Home, Sessions and Profile
+  ride one `HorizontalPager`, matching the `-1 … 00 … +2` page numbering the
+  original deck was drawn in. The bottom bar is an addition to that deck, added
+  once it became clear nothing *visible* pointed to the pages either side of
+  Home — selection follows the pager, so swiping moves the bar and tapping
+  animates the pager. One source of truth, both gestures intact.
 - **Charts that talk.** The radar, the extraction bar and the contribution
   calendar are Canvas-drawn, so each ships an explicit spoken summary — a
   Compose `Canvas` is invisible to TalkBack by default.
