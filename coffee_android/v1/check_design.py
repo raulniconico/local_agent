@@ -58,6 +58,27 @@ V._apply_style(V.FREDOKA_STYLE)
 
 theme = THEME.read_text()
 failures: list[str] = []
+deviations: list[str] = []
+
+# Tokens where the app deliberately departs from the deck, each with the
+# decision behind it. `deck_key -> (app_hex, why)`.
+#
+# THIS IS NOT A SUPPRESSION LIST, AND MUST NOT BECOME ONE. An entry here says
+# "the deck is the stale side, and here is the reasoning" -- it is reported
+# under its own heading, and it still says exactly which two values differ, so
+# the deviation stays visible on every run. The reason it exists at all is that
+# a check which can never go green is a check people stop reading; the 72
+# false positives this script used to print (see the strings.xml note further
+# down) are what that failure mode looks like. Anything added here needs the
+# same standard: a decision recorded in Theme.kt, not a value someone changed.
+ACCEPTED_DEVIATIONS = {
+    "surface": (
+        "#FFFFFF",
+        "page and cards are both plain white; nothing outlines a block, so "
+        "adjacent cards are separated by an inset rule and a standalone block "
+        "by its own heading (Theme.kt)",
+    ),
+}
 
 
 def report(section: str, bad: list[str], checked: int):
@@ -111,7 +132,12 @@ for deck_key, kt_name in COLOUR_MAP:
     if got is None:
         bad.append(f"{deck_key:24} deck {want}  -> no Compose val `{kt_name}`")
     elif want.upper() != got:
-        bad.append(f"{deck_key:24} deck {want.upper()}  app {got}")
+        accepted = ACCEPTED_DEVIATIONS.get(deck_key)
+        if accepted and accepted[0].upper() == got:
+            deviations.append(f"{deck_key:24} deck {want.upper()}  app {got}"
+                              f"  -- {accepted[1]}")
+        else:
+            bad.append(f"{deck_key:24} deck {want.upper()}  app {got}")
 
 seq_block = re.search(r'VizSequential = listOf\((.*?)\n\)', theme, re.S)
 app_seq = ["#" + x[-6:].upper() for x in re.findall(r'0x[0-9A-Fa-f]{8}', seq_block.group(1))]
@@ -169,8 +195,27 @@ report("shape tokens", bad, len(SHAPE_MAP) + 1)
 # Every literal screenshots.py draws as copy must exist in the Kotlin (or, for
 # the account sheet, in coffee_server). Sample DATA is exempt -- bean names and
 # dates are invented here the way the deck invents its own.
+#
+# res/values/strings.xml IS PART OF THE SOURCE FOR THIS CHECK, and leaving it
+# out is not a small omission. The localisation pass (AUDIT.md B2) moved every
+# user-facing string out of the Kotlin and into the resources; a check that
+# reads only *.kt therefore reported ~72 strings as "drawn but not in source"
+# that were present all along, which is worse than no check at all -- a wall of
+# false positives is how a real drift stops being noticed. Only `values/` is
+# read: `values-fr/` and `values-zh/` are translations of these same strings,
+# and the deck is drawn in English.
 kt = "\n".join(p.read_text() for p in SRC.rglob("*.kt"))
 kt += (HERE / "app/build.gradle.kts").read_text()
+strings_xml = HERE / "app/src/main/res/values/strings.xml"
+if strings_xml.exists():
+    # Unescape the XML-and-Android escaping so a resource reads as the sentence
+    # it renders as: \' and \" are Android's, &amp;/&lt;/&gt;/&#39; are XML's.
+    xml_text = strings_xml.read_text()
+    for esc, plain in ((r"\'", "'"), (r'\"', '"'), ("&amp;", "&"),
+                       ("&lt;", "<"), ("&gt;", ">"), ("&#39;", "'"),
+                       ("&quot;", '"')):
+        xml_text = xml_text.replace(esc, plain)
+    kt += "\n" + xml_text
 if SERVER.exists():
     kt += "\n".join(p.read_text() for p in SERVER.glob("*.py"))
 # Collapse whitespace, then dissolve every string-concat seam: Kotlin's
@@ -246,9 +291,15 @@ report("simulator copy fidelity", bad, checked)
 
 # ----------------------------------------------------------------- verdict ---
 print()
+if deviations:
+    print("ACCEPTED DEVIATIONS (recorded decisions, not drift):")
+    for line in deviations:
+        print(f"  {line}")
+    print()
 if failures:
     print("DRIFT: " + "; ".join(failures))
-    print("See AUDIT.md §5. Layout and component choice are NOT covered here — "
-          "render plan/screenshots/scheme-e/*.svg and compare by eye.")
+    print("See plan/design-spec.md §12. Layout and component choice are NOT "
+          "covered here — render plan/screenshots/scheme-e/*.svg and compare "
+          "by eye.")
     sys.exit(1)
 print("no drift in the checked dimensions (colour, type, shape, mock fidelity)")

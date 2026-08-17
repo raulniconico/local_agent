@@ -1267,7 +1267,7 @@ def which_bean():
     sessions_background(c)
     scrim(c)
     y = sheet(c, 300)
-    c.text(24, y + 26, "Which bean?", "headlineSmall")
+    c.text(24, y + 26, "Which bean is in the cup?", "headlineSmall")
     y += 46
     for name, roaster, origin, _, _p, _r in BEANS[:4]:
         bag_tile(c, 24, y + 6, 44, origin[:2])
@@ -1289,10 +1289,10 @@ def which_bean_empty():
     top_bar(c, "Coffee Can", action_text="Add bean")
     scrim(c)
     y = sheet(c, 528)
-    c.text(24, y + 26, "Which bean?", "headlineSmall")
+    c.text(24, y + 26, "Which bean is in the cup?", "headlineSmall")
     y += 48
-    c.wrap(24, y + 14, "No beans yet. Add the bag, or start brewing and name "
-           "it later.", W - 48, "bodyMedium", C["onSurfaceVariant"])
+    c.wrap(24, y + 14, "Add the bag you're brewing this week and start keeping "
+           "the log.", W - 48, "bodyMedium", C["onSurfaceVariant"])
     y += 56
     y = button(c, y, "Add a new bean", x=24, w=W - 48, kind="outlined") + 4
     button(c, y, "Just start brewing", x=24, w=W - 48, kind="text")
@@ -1375,8 +1375,9 @@ def brew_lower():
     c.text(ix, iy + 14, "Score", "labelLarge")
     slider(c, iy + 10, ix + 96, 120, 4.5)
     c.text(W - GUTTER - 16, iy + 14, "4.5", "labelSmall", C["onSurfaceVariant"], "end")
-    iy += 24
-    c.text(ix, iy + 30, "Clear score", "labelLarge", C["primary"])
+    # No "Clear score" control: the affordance the deck drew here does not
+    # exist in the app -- ValueBar has no clear action and no such string is in
+    # strings.xml. Drawing it made the simulator show a button nobody can tap.
     iy += 42
     c.text(ix, iy + 12, "Extraction", "labelLarge")
     ey = extraction_bar(c, ix, iy + 22, iw, 0.1)
