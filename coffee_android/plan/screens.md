@@ -1,12 +1,20 @@
 # coffee_android — screens
 
+> **⚠️ Design proposal, not the built spec.** Most of this document describes
+> the app as planned in early August 2026. The screens now exist in code;
+> **[design-spec.md](design-spec.md) §8 is the specification of what each one
+> actually is**, and §12.3 there lists the specific statements below that the
+> code has overtaken. Read this for intent and per-screen reasoning.
+
 Each section: purpose, fields/state, Compose realization, API calls (see
 `api.md` for full contracts), and a wireframe. **The wireframes in
-`screenshots/` are hand-drawn SVG mockups, not real app screenshots** — the
-app doesn't exist yet; this is what "a screenshot for every page" means at
-the planning stage, per the current-stage restriction (plan + legal only, no
-implementation). They show layout and content intent, not final visual
-polish — that's the UI specialist's job in the next review pass.
+`screenshots/` are hand-drawn SVG mockups, not real app screenshots** — they
+date from the planning stage, when the app did not yet exist. They show layout
+and content intent, not final visual polish.
+
+Real screenshots now exist in two forms: Paparazzi renders of the compiled
+Compose (`../v1/app/src/test/snapshots/images/`) and captures from a physical
+device (`../../docs/screenshots/`).
 
 11 screens/sheets total, down from the desktop app's 12 dialogs — "Can
 Drink" and "What's New" are proposed merged into one catalogue screen (see
@@ -44,9 +52,12 @@ nothing to preview yet. v1's Home omits both entirely rather than shipping
 an empty placeholder or a strip pointing at an unbuilt screen; add the strip
 back when §7 ships.
 
-**API calls:** `BeanDao.listAll()`, `BrewSessionDao.countByDate()`, flavor
+**API calls:** `BeanDao.listAll()`, ~~`BrewSessionDao.countByDate()`~~
+**[SUPERSEDED — the DAO shipped as `SessionDao.dailyCounts`]**, flavor
 average (local only). No `coffee_server` calls on this screen until the
-Catalogue strip returns in v1.1.
+Catalogue strip returns in v1.1. The activity heatmap above **is** built
+(`ContributionCalendar`, 21 week columns) — an earlier note in `v1/AUDIT.md`
+§6 saying the composable did not exist has itself been overtaken.
 
 **States:** empty (no beans yet → illustration + "Add your first bean" CTA
 instead of an empty list), loaded. (The v0 draft's catalogue-preview-loading/
@@ -360,8 +371,13 @@ of whether scanning is used.
 
 **Purpose:** single app-wide user profile — ported from `profile_dialog.py`.
 
-**Fields:** avatar (circular, tap to change via Photo Picker or remove),
-Name, Email.
+**Fields:** ~~avatar (circular, tap to change via Photo Picker or remove),
+Name, Email.~~ **[SUPERSEDED — all three are gone, and must not come back.]**
+`legal-accounts.md` rule 60 removed email from the architecture entirely: the
+app requests **no scopes at all**, never reads the ID token's `email` claim, and
+the server has no column one could go into. The shipped screen shows the brand
+mark, the signed-in/signed-out state line, and the account controls — no
+avatar, no name, no email.
 
 **Content:** also the natural home for the privacy-policy link required by
 `specs/legal-android.md` §3.4 rule 14 ("linked... from an in-app Settings
@@ -371,9 +387,15 @@ is the obvious existing screen for it. **Added after app-dev review**:
 expand this into a labeled "About & Legal" subsection (Privacy Policy, a
 re-openable copy of the AI-disclosure text from §11 for users who dismissed
 it with "Not now" and want to read it again without re-triggering an AI
-feature, app version number, OSS license attribution) rather than a single
+feature, app version number, ~~OSS license attribution~~) rather than a single
 bare row — a real submission needs all of these somewhere and Profile is the
 only screen with an obvious claim to them.
+
+**[SUPERSEDED in one part]:** the OSS-licence row was removed under
+`legal-accounts.md` rule 103. The shipped "About & legal" section is Language,
+Sync with desktop, Privacy Policy, and How we use AI, plus the account
+controls. Fredoka's OFL licence ships in `assets/licenses/` rather than being
+surfaced as a settings row.
 
 **Desktop sync** (added 16 Aug 2026): a "Sync with desktop" row above the
 legal ones — a setting, not a disclosure — opening a dialog with the two

@@ -1,5 +1,30 @@
 # Which PNGs in this directory are real
 
+> **⚠️ Verified 2026-08-17, and the table below is out of date.** Checked by
+> md5 against `app/src/test/snapshots/images/`, **16** of the 44 PNGs here are
+> byte-identical to a current Paparazzi golden; **28** are not. Several files
+> the table below lists as real captures — including `00_home.png`,
+> `+1_sessions.png`, `+2_profile.png` and `0.2_bean_detail.png` — have since
+> drifted from their goldens, because the screens changed and the copies here
+> were not refreshed.
+>
+> **Do not cite a file in this directory as a real render without re-checking
+> its md5 against the golden.** The reliable sources are, in order:
+> 1. `app/src/test/snapshots/images/` — 57 Paparazzi goldens, always current
+>    with the last test run;
+> 2. `../../../docs/screenshots/` — captures from a physical device
+>    (Galaxy S22 Ultra), used in the repository README;
+> 3. this directory — a mix, and the least trustworthy of the three.
+>
+> The re-check is one command:
+> ```bash
+> md5sum screenshots/00_home.png \
+>        app/src/test/snapshots/images/app.coffeecan.screenshot_HomeScreenScreenshotTest_home.png
+> ```
+
+---
+
+
 `screenshots.py`'s own docstring has always said the frames it draws are
 simulations, not captures -- there was no way to compile this checkout, so a
 hand-maintained Python approximation was the best available evidence, and

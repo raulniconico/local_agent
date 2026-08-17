@@ -116,10 +116,11 @@ ported from the desktop app's own design deck token-for-token, and a checked-in
 script (`coffee_android/v1/check_design.py`) fails the build if any of them
 drift.
 
-- **Two greens, never one.** `#34C759` is decorative only — chart strokes,
-  slider tracks, heatmap cells. Every label, link and button word runs through
-  `#1E7A3D` instead, because the bright green measures ~2.2:1 against white and
-  fails WCAG AA as text.
+- **Three greens, never one.** `#34C759` is decorative only — the mark, the
+  mascot's disc. Every label, link and button word runs through `#196D2E`
+  instead, because the bright green measures ~2.2:1 against white and fails
+  WCAG AA as text. Charts get a third, `#2B9343`, kept a full tone band clear
+  of the other two so a data mark is never mistaken for a control.
 - **A swipe axis with a bar that drives it.** News, Home, Sessions and Profile
   ride one `HorizontalPager`, matching the `-1 … 00 … +2` page numbering the
   original deck was drawn in. The bottom bar is an addition to that deck, added

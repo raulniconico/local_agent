@@ -1,5 +1,12 @@
 # coffee_android — API surface
 
+> **Status, 2026-08-17.** §3's "endpoints that don't exist yet" now all exist
+> and are called. For the built contract in one place — the seven endpoints, the
+> `AiGateway` chokepoint's check order, the Room schema at `version = 3`, and
+> the wire shapes — see **[design-spec.md](design-spec.md) §9–§10**. This
+> document retains the per-endpoint design reasoning and the request/response
+> detail behind each one.
+
 Three layers: local Room persistence (§1, self-contained, no dependency),
 `coffee_server`'s existing endpoint reused as-is (§2), and new `coffee_server`
 endpoints this plan depends on but that don't exist yet (§3). §3 is a

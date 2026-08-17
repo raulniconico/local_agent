@@ -7,17 +7,20 @@ a branch, so a shipped version stays readable as a directory.
 ```
 v1/
   settings.gradle.kts   build.gradle.kts   gradle.properties
-  app/                  the module (namespace app.coffeecan)
-  screenshots/          33 simulated screenshots, 1080x2400 PNG
-  screenshots.py        what draws them
-  check_design.py       scheme E drift check; passes on colour, type and shape
-  AUDIT.md              conformance review of exactly this code
+  app/                  the module (namespace app.coffeecan), 53 Kotlin files
+  screenshots/          44 PNGs + REAL_CAPTURES.md; a mix of Paparazzi output
+                        (360x800) and screenshots.py simulations (1080x2400)
+  screenshots.py        what draws the simulations
+  check_design.py       scheme E drift check; colour, type, shape, copy
+  AUDIT.md              HISTORICAL conformance review (2026-08-14)
 ```
 
-The design plan, the API contract and the per-screen specs live one level up in
-`../plan/`; the binding compliance documents live in `../../specs/`. Read
-`../plan/README.md` before changing anything here, and `AUDIT.md` for what this
-build currently gets wrong.
+**Start with [`../plan/design-spec.md`](../plan/design-spec.md)** — the
+standardised specification of what this build is: colour, type, shape,
+components, navigation, every screen, the data model and the API contract.
+`../plan/README.md`, `screens.md` and `api.md` are the design *proposal* that
+preceded it, and `AUDIT.md` is a historical audit whose headline findings have
+since been fixed. The binding compliance documents live in `../../specs/`.
 
 ## Building and installing
 
@@ -90,21 +93,27 @@ the same commit, the way `../plan/scheme_e.py` is kept in step with the deck.
 python3 check_design.py      # exits 1 while drift remains
 ```
 
-Diffs all 33 colour tokens, all 11 type roles and the shape set against
+Diffs all 36 colour tokens, all 11 type roles and the shape set against
 `../plan/variants.py` `PURE_GREEN` + `FREDOKA_STYLE`, then checks that every
-string `screenshots.py` draws exists in the Kotlin or in `coffee_server`.
+string `screenshots.py` draws exists in the Kotlin, in `res/values/strings.xml`
+or in `coffee_server`.
 
 It exists because reading `Theme.kt`'s own comment is not a check: the first
 version of that comment correctly claimed the colours were copied exactly, and a
 review that trusted it missed a type scale wrong in ten of eleven roles. All
-four sections pass today — the eleven type roles, the chip pill and the scrim
-were brought over in the scheme E pass, along with the capsule field, the deck's
-FAB fill, the bar dividers and the 16dp gutter.
+four sections pass today, with **one recorded deviation** it prints under its
+own heading — `surface` is `#FFFFFF` in the app against the deck's `#F2FAF2`,
+because page and cards are both plain white and nothing outlines a block.
 
-**Still open**, and each is separate work: the in-app brand mark, the can-boy
-mascot, the dripper glyphs, Home's contribution heatmap, `0.2`'s photo hero and
-Images strip, the Share Card, and `+1.1`'s three-choice menu. `AUDIT.md` §5.6
-through §5.10 is the list.
+**It must read the resources, not just the Kotlin.** The localisation pass moved
+every user-facing string into `strings.xml`; a version of this script that read
+only `*.kt` reported ~72 present strings as missing, which is worse than no
+check — a wall of false positives is how a real drift stops being noticed.
+
+**Closed since the scheme E pass:** the in-app brand mark, the can-boy mascot,
+the dripper glyphs, Home's contribution heatmap, `0.2`'s photo hero and Images
+strip, the Share Card, and `+1.1`'s three-choice menu are all built.
+`AUDIT.md` is historical — see `../plan/design-spec.md` for what v1 is now.
 
 **What it cannot check is layout, density, component choice and illustration.**
 For those, render a deck page and put it next to the matching frame:

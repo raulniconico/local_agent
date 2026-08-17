@@ -1,14 +1,30 @@
 # coffee_android v1 — conformance audit
 
+> **⚠️ HISTORICAL. This audit is dated 2026-08-14 and much of it has been
+> fixed.** It is kept because the *reasoning* per finding is still the best
+> record of why the code looks the way it does — but do not read its headline
+> or its counts as current.
+>
+> **What has changed since:** the checkout now builds, installs and runs on a
+> physical device; Paparazzi renders every screen; the scheme E pass landed, so
+> §5.2's "type scale is wrong in all eleven roles" and §5.4's "chips are not
+> pills" are closed and `check_design.py` now passes colour, type and shape;
+> the localisation blocker B2 is closed (three locales); B3's discard confirm,
+> B5's permission and B1's age affirmation are all built; Scan Review, the
+> welcome splash, News, the Share Card and the contribution calendar all exist.
+>
+> **For what v1 currently is, read [`../plan/design-spec.md`](../plan/design-spec.md).**
+> Its §12.3 also lists the statements in this file that are now false.
+
 **Date:** 2026-08-14 · **Scope:** every file under `v1/`, read against
 `specs/legal-android.md`, `specs/legal-accounts.md` §3.8 (rules 58–103),
 `specs/coffee-server.md` + `coffee_server/` as deployed, `plan/README.md`,
 `plan/api.md`, `plan/screens.md`, and the scheme E deck (`plan/scheme_e.py`).
 
-**Nothing here was compiled or run.** There is no Android SDK, no Gradle and no
-wrapper in this checkout. Every claim below comes from reading the source; the
-frames in `screenshots/` are simulations of that source, not captures of a
-running app (see `screenshots.py`'s docstring, and §5).
+**Nothing here was compiled or run** *at the time of writing* — there was no
+Android SDK, Gradle or wrapper in the checkout then. Every claim below comes
+from reading the source. **That is no longer the constraint**: see the box
+above.
 
 **Headline:** the compliance architecture is the strongest part of the build and
 holds up rule by rule. **The design is not scheme E.** The app took scheme E's

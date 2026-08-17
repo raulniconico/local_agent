@@ -9,13 +9,31 @@ development) — their findings are folded in throughout, most visibly in
 policy constraints this plan is written to satisfy; treat that document as
 binding, this one as the proposal built on top of it.
 
-- [README.md](README.md) — this file: architecture, phasing, open decisions
+> **⚠️ This document is the design *proposal*. It is no longer the
+> specification of the build.**
+>
+> The app moved a long way between 2026-08-14 and 2026-08-17, and several
+> decisions recorded below were overtaken by the code. **[design-spec.md](design-spec.md)
+> is the standardised specification of what v1 actually is** — written by
+> reading every source file and checking it against a running install on a
+> physical device. Read that first; read this one for the *reasoning* and the
+> review history that produced it.
+>
+> Statements below that the code has since overtaken are marked **[SUPERSEDED]**
+> inline, and design-spec.md §12.3 lists every one of them in a table.
+
+- [design-spec.md](design-spec.md) — **the current, binding v1 design
+  specification**: colour, type, shape, components, navigation, every screen,
+  data model, API contract, localisation, accessibility, verification
+- [README.md](README.md) — this file: architecture, phasing, open decisions,
+  and the specialist-review history
 - [api.md](api.md) — every API surface: local Room schema/DAOs, `coffee_server`
   endpoints (existing + proposed new ones), and which screen calls what
 - [screens.md](screens.md) — one section per screen: purpose, fields, states,
   Compose realization, API calls, wireframe
 - [screenshots/](screenshots/) — wireframe mockups (SVG), one per screen —
-  **wireframes, not real screenshots**; see note at the top of screens.md
+  **wireframes, not real screenshots**; see note at the top of screens.md.
+  Real device captures live in [`../../docs/screenshots/`](../../docs/screenshots)
 
 ---
 
@@ -81,13 +99,19 @@ round-trip carries nothing across by construction. The downscale to 2048px is a
 side benefit the vision endpoint wanted anyway. Covered by an instrumented test
 (`app/src/androidTest/.../ImageIngestTest.kt`) — written, not yet run.
 
-**Not started:** Camera Capture (0.11/0.11b) and Scan Review (§3) — the
-`/v1/vision` endpoint and `AiGateway.readLabel` exist and are unused until the
-photo picker, CameraX and the EXIF strip land; the welcome/splash page (00w);
-the `-1w` Can-Drink first-run intro (§7's built/not-built
-split); and everything still deferred to v1.1 (news, voice) -- Can-Drink
-Catalogue itself moved back into v1 on 2026-08-15, see the table above and
-screens.md §7.
+~~**Not started:** Camera Capture (0.11/0.11b) and Scan Review (§3) … the
+welcome/splash page (00w) … news~~
+
+**[SUPERSEDED 2026-08-17.]** All of that shipped. Photo source, scanning, Scan
+Review (`ui/components/ScanReviewSheet.kt`), the welcome splash
+(`ui/screens/WelcomeScreen.kt`) and News (`ui/screens/NewsScreen.kt`) are built
+and wired, and `AiGateway.readLabel` is live behind the consent sheet.
+
+**Genuinely not started:** voice sessions (needs an audio endpoint on
+`coffee_server`), Home's catalogue strip, and dark mode. The `-1w` Can-Drink
+first-run intro goes with the Can-Drink screen itself, which is complete but
+unwired pending `CRAWLER_ENABLED` + the allowlist process — see the table above
+and screens.md §7.
 
 **What "built" means here, as of 2026-08-16**: compiled, and rendered. The
 checkout has an SDK and a wrapper (`v1/README.md` has the commands), the app
@@ -167,26 +191,32 @@ in `screens.md` so they aren't missed during specialist review.
   three-button navigation, and roughly half that on gestures.
   **Paparazzi cannot catch this** — every inset is zero there, so the goldens
   render correctly either way and only a real device shows it.
-- **State:** MVVM — one `ViewModel` per screen, `StateFlow`-exposed UI state,
-  matching the desktop app's per-dialog-worker pattern (`_ScanWorker`,
-  `_SuggestionWorker`, etc.) with Kotlin coroutines instead of `QThread`.
+- **State:** ~~MVVM — one `ViewModel` per screen, `StateFlow`-exposed UI
+  state~~ **[SUPERSEDED]** — there is no `ViewModel` in the module. State lives
+  in `rememberSaveable` plus repository flows collected in the composable, and
+  `lifecycle-viewmodel-compose` is an unused dependency. Defensible for screens
+  this size, and `rememberSaveable` genuinely does survive process death.
 - **Local persistence:** Room, schema mirroring `coffee-can`'s SQLite
-  (`db.py`) column-for-column — see `api.md` §1. Same on-device-only, no
-  cloud sync, no accounts (per `specs/legal-android.md` §1's binding
-  architectural facts — do not add either without re-reading that spec's
-  §3.5 first).
+  (`db.py`) column-for-column — see `api.md` §1. On-device-only, no cloud
+  sync. ~~no accounts~~ **[SUPERSEDED]** — Google sign-in ships, and an
+  account exists to meter AI usage; `specs/legal-accounts.md` §3.8 (rules
+  58–103) is the binding statement of that architecture and supersedes
+  `legal-android.md` §1 here. Still no user content server-side.
 - **Network:** Retrofit + OkHttp, one `ApiService` interface against
   `coffee_server`, `X-API-Key` header interceptor. No other network calls
   from the client after §2's centralization fix — see `api.md` §3.
 - **Images:** Android Photo Picker (`PickVisualMedia`) for existing photos,
-  CameraX for capture, Coil (sharing the app's single `OkHttpClient` instance,
-  so the TLS-only Network Security Config actually covers image loads too)
-  for image loading (both local files and hotlinked remote roaster photos) —
-  matches `specs/legal-android.md` §3.1 rules 1-2 exactly (no
-  `READ_MEDIA_IMAGES`; EXIF location stripped via `androidx.exifinterface`
-  immediately on ingest — Photo Picker result *and* CameraX capture — before
-  the file is ever persisted, not filtered later at upload time; see
-  resolution #8).
+  ~~CameraX~~ **[SUPERSEDED]** the system camera via `ACTION_IMAGE_CAPTURE` for
+  capture (see the 2026-08-14 decision below), Coil (sharing the app's single
+  `OkHttpClient` instance, so the TLS-only Network Security Config actually
+  covers image loads too) for image loading — matches `specs/legal-android.md`
+  §3.1 rules 1-2 exactly (no `READ_MEDIA_IMAGES`). EXIF is stripped on ingest
+  before the file is ever persisted, never filtered later at upload time
+  (resolution #8) — though **[SUPERSEDED]** in method: it is done by
+  re-encoding the pixels in `media/ImageIngest.kt`, not via
+  `androidx.exifinterface` tag-clearing, because a scrub list has to stay
+  correct forever while a pixel round-trip carries nothing across by
+  construction.
 - **New/orphaned-draft safety:** Bean Detail and Brew Session Detail hold a
   new record as **in-memory draft state** (`ViewModel` + `SavedStateHandle`)
   until first real edit or explicit save, rather than inserting into Room the
@@ -207,15 +237,16 @@ in `screens.md` so they aren't missed during specialist review.
   `Canvas` has zero accessibility-tree presence by default (resolution #11).
   Save confirmation uses Material3 `Snackbar`, not a bespoke flash-bar
   composable (resolution #10).
-- **Theme:** Material3 `ColorScheme` built from `theme.py`'s tokens, with one
-  correction from specialist review: **two** green tokens, not one —
-  `accent` (`#34C759`, decorative-only: chart lines, slider tracks, heatmap
-  cells) and `accentText`/`onAccent` (`#1E7A3D`, WCAG-AA-passing, used for
-  every button label/link/text-on-green) — routed through Material3's
-  `primary`/`onPrimary` pair rather than picked ad hoc per screen. `#34C759`
-  alone fails contrast (~2.2:1) as text or as a fill behind white text
-  (resolution #5). Background `#F2F2F7`, white cards at 14dp corner radius,
-  pill-shaped buttons carry over unchanged — not a redesign otherwise.
+- **Theme:** **[SUPERSEDED in every number — see design-spec.md §2–§4.]** The
+  shipped theme is Material3 built from `variants.py`'s `PURE_GREEN` +
+  `FREDOKA_STYLE`, not `theme.py`. Resolution #5's substance held — the bright
+  green never carries text — but there are **three** greens, not two:
+  `Brand` `#34C759` (decorative only), `primary` **`#196D2E`** (not `#1E7A3D`;
+  every label, link and button word), and `VizSeries` `#2B9343` (data marks
+  only, a full tone band clear of primary so a chart mark is never mistaken for
+  a control). Background is `#FFFFFF` (not `#F2F2F7`) and cards are **24dp**
+  (not 14dp) — the radii moved with the typeface. `check_design.py` diffs all
+  36 colour, 11 type and 5 shape tokens on every run.
 
 Phasing below was reworked materially after specialist review — see
 "Phasing (revised after specialist review)" further down; the v0 phasing
@@ -249,7 +280,7 @@ strongest signal in the whole review.
 | 16 | (UI) No delete affordance specified for sessions or stages anywhere in the plan, despite Home documenting bean deletion. | **Accepted — plain gap, fixed.** | Added swipe/destructive-action delete to Brew Session Detail's session list and to each stage row. |
 | 17 | (Engineering) No Room migration strategy named, despite the desktop schema's real history of additive and one genuinely hard migration (splitting a retired flavor axis). | **Accepted.** | Named `Migration` objects tested with `MigrationTestHelper` from the first schema change onward; `fallbackToDestructiveMigration()` explicitly banned in `api.md`. |
 | 18 | (App-dev) Missing engineering surface a real submission needs: adaptive icon, splash screen, a stated ProGuard/R8 decision, a stated crash-reporting decision, `FileProvider` (required for Share Card's `ACTION_SEND` and CameraX's capture handoff — not optional polish), OSS license attribution, an About/Legal home beyond a bare Profile row. | **Accepted.** | All added to scope explicitly (see Phasing) rather than left implicit: ship unminified for v1 (defer R8 rule-writing), explicitly no crash reporter for v1 (revisit v1.1 — adding one later needs its own Data Safety disclosure update), `FileProvider` configured from the start since Share Card literally cannot function without it. |
-| 19 | (UI) Bottom navigation bar vs. push-only navigation for the three top-level surfaces (Home/Catalogue/Profile) — raised as a genuine option. | **Not adopted for v1**, revisit if/when Catalogue returns in v1.1 and there are three real top-level destinations again worth flattening the back-stack for. | **Superseded.** This debate had two options and the answer was a third one that neither side raised: `scheme_e.py`'s module docstring had already defined the deck as a **horizontal swipe axis** centred on Home (`-2 … 00 … +2`, with `0.x` meaning off-axis), and every page number in the deck encodes it. #19 resolved bottom-nav-vs-push without noticing, so its "no change" was a decision about the wrong question. The axis is now what the app implements — one `HorizontalPager` over `[00 Home, +1 Sessions, +2 Profile]` with every `0.x` page pushed on top of it (`v1/app/src/main/java/app/coffeecan/ui/Axis.kt`, `AUDIT.md` §5.11b, option (b)). Bottom nav stays declined; push is no longer how the top-level surfaces are reached. |
+| 19 | (UI) Bottom navigation bar vs. push-only navigation for the three top-level surfaces (Home/Catalogue/Profile) — raised as a genuine option. | **Not adopted for v1**, revisit if/when Catalogue returns in v1.1 and there are three real top-level destinations again worth flattening the back-stack for. | **Superseded.** This debate had two options and the answer was a third one that neither side raised: `scheme_e.py`'s module docstring had already defined the deck as a **horizontal swipe axis** centred on Home (`-2 … 00 … +2`, with `0.x` meaning off-axis), and every page number in the deck encodes it. #19 resolved bottom-nav-vs-push without noticing, so its "no change" was a decision about the wrong question. The axis is now what the app implements — one `HorizontalPager` over `[-1 News, 00 Home, +1 Sessions, +2 Profile]` with every `0.x` page pushed on top of it (`v1/app/src/main/java/app/coffeecan/ui/Axis.kt`). **[SUPERSEDED again, 2026-08-17: bottom nav is no longer declined.]** A `NavigationBar` ships *over* the pager and drives it — selection follows `pagerState.currentPage`, so swiping moves the bar and tapping animates the pager. It was added because the axis created the defect open item 1 below describes: once Home's profile icon and "Every brew you've logged" row were removed, nothing *visible* pointed to `+1` or `+2`. See design-spec.md §7.1. |
 | 20 | (UI) Sort control / "new" badge for the merged catalogue screen, so "browse one roaster's latest" (the old "What's New" use case) isn't lost inside the merge. | **Accepted in principle, deferred with the screen itself to v1.1.** | Noted in the v1.1 catalogue spec so it isn't lost by the time that work resumes. |
 
 ## Phasing (revised after specialist review)
@@ -305,13 +336,12 @@ weekend port.
 
 ## Remaining open items (not resolved by this review, flagged for later)
 
-1. ~~Bottom navigation bar — revisit when Catalogue returns in v1.1 (#19).~~
-   Overtaken: the top-level surfaces are the deck's **swipe axis** now, not a
-   bar and not a push stack (#19, `AUDIT.md` §5.11b). What is open in its place
-   is narrower and is an accessibility item: nothing *visible* points from Home
-   to `+1` or `+2` any more — the axis is discoverable by gesture, by the back
-   arrows once you are on a page, and by the pager's accessibility actions. The
-   deck draws no page indicator; adding one would go beyond it.
+1. ~~Bottom navigation bar~~ — **closed 2026-08-17.** The discoverability gap
+   this item described (nothing *visible* pointed from Home to `+1` or `+2`;
+   the pager's accessibility actions named the destinations for a screen reader
+   and drew nothing for anyone else) was fixed by adding a `NavigationBar` that
+   drives the pager rather than replacing it. Both the gesture and a visible
+   affordance now exist. See design-spec.md §7.1.
 2. Sort/new-badge for the catalogue screen — carry into the v1.1 catalogue
    spec when that work resumes (#20).
 3. Tester recruitment for the closed-testing gate has no owner yet (#14) —
