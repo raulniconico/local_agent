@@ -1515,12 +1515,11 @@ def pick_bean():
     "No brews yet", the same phrasing every other empty state in the deck
     uses.
 
-    Tapping a row goes to 0.2 (or 0.2_empty for Kenya), NOT straight into a
-    session form. That is a deliberate extra tap: the bean page is where
-    the FAB that logs a brew already lives, so the picker hands off to the
-    existing flow instead of forking a second one, and the user gets a
-    look at the bean -- roast date, past scores -- before committing the
-    session to it.
+    Tapping a row goes straight into +1.1's session form for that bean, NOT
+    0.2 (Bean Detail) (reversed 2026-08-17). The picker exists to answer
+    "which bean is in the cup", and a session is the only thing you can do
+    with that answer, so routing through the bean page first made the user
+    hunt for the FAB there instead of just landing on the form.
 
     "Add a new bean" at the foot is option (b) again, and it is not
     redundant: a picker with four rows and no way out is a dead end the

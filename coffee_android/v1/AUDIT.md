@@ -852,9 +852,13 @@ this mark in the module. See §5.6's status block.
 > state, and nothing in it is changed by the gesture (the two closed stills
 > re-record byte-identical). Geometry is verified by a Paparazzi pair
 > (`PhotoHeroPageScreenshotTest.photoClosedWithPhoto` / `photoPulledOpen`)
-> and the scaling by `CropToFitTest`; **the gesture itself is unverified —
-> Paparazzi has no finger**, so drag, settle and fling have not been run
-> anywhere but in reasoning about the nested-scroll contract.
+> and the scaling by `CropToFitTest`.
+>
+> **Verified on a real device later the same day** (Galaxy S22 Ultra, Android
+> 15, driven over `adb`): dragging the panel down opens the hero to the whole
+> photo and it settles there. What is still unexercised is the *fling*
+> branch of `onPreFling` — a scripted swipe releases with a velocity, but
+> nobody has flicked it hard in both directions and watched where it lands.
 
 `BeanDetailScreen`'s docstring justifies collapsing 0.1 and 0.2 into one
 composable like this:
