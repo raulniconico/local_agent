@@ -45,7 +45,10 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 
-HERE = pathlib.Path(__file__).resolve().parent
+# Lives in `coffee_android/plan/v1/` (audit side); reads drawables out of
+# `coffee_android/v1/` (the shipped module) and writes only into OUT.
+HERE = pathlib.Path(__file__).resolve().parent          # coffee_android/plan/v1
+APP = HERE.parent.parent / "v1"                         # coffee_android/v1
 OUT = HERE / "screenshots"
 W, H = 360, 800
 SCALE = 3
@@ -448,7 +451,7 @@ def _vector(name: str):
     """
     if name not in _VECTORS:
         ns = "{http://schemas.android.com/apk/res/android}"
-        root = ET.parse(HERE / "app/src/main/res/drawable" / f"{name}.xml").getroot()
+        root = ET.parse(APP / "app/src/main/res/drawable" / f"{name}.xml").getroot()
         assert root.tag == "vector" and not root.findall("group"), name
         size = float(root.get(ns + "viewportWidth"))
         paths = [(p.get(ns + "pathData"),
@@ -1403,8 +1406,10 @@ def brew_lower():
 
 
 def stage_editor():
-    """+1.2 -- StageEditorSheet. skipPartiallyExpanded, and the time is typed
-    rather than dialled: the parser takes "105", "1:45" and "1m45"."""
+    """+1.2 -- StageEditorSheet. skipPartiallyExpanded, and the time is DIALLED
+    rather than typed (2026-08-18): the field is read-only with a trailing clock
+    disc, and tapping it opens DurationPickerDialog. `parseSeconds` still takes
+    "105", "1:45" and "1m45" for AI suggestions and rows written before it."""
     c = Canvas("+1.2 Stage editor")
     brew_background(c)
     scrim(c)
@@ -1416,7 +1421,14 @@ def stage_editor():
     field(c, y, "Water (g)", "120", x=24, w=half)
     field(c, y, "Temp (°C)", "93", x=24 + half + 12, w=half)
     y += 68
+    at_y = y
     y = field(c, y, "At (time)", "0:45", x=24, w=W - 48) + 12
+    # the trailing clock disc: outline circle plus two hands, matching
+    # Icons.Filled.Schedule closely enough to read as the same affordance
+    cx, cy = W - 48, at_y + 28
+    c.circle(cx, cy, 9, "none", stroke=C["onSurfaceVariant"], sw=1.6)
+    c.line(cx, cy, cx, cy - 5, C["onSurfaceVariant"], sw=1.6)
+    c.line(cx, cy, cx + 4, cy + 2, C["onSurfaceVariant"], sw=1.6)
     y = field(c, y, "Note", "swirl gently", x=24, w=W - 48) + 12
     button(c, y, "Done", x=24, w=W - 48)
     return c

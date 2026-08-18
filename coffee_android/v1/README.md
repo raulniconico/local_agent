@@ -7,20 +7,31 @@ a branch, so a shipped version stays readable as a directory.
 ```
 v1/
   settings.gradle.kts   build.gradle.kts   gradle.properties
+  gradlew  gradle/      the wrapper (Gradle 8.11.1)
   app/                  the module (namespace app.coffeecan), 53 Kotlin files
-  screenshots/          44 PNGs + REAL_CAPTURES.md; a mix of Paparazzi output
-                        (360x800) and screenshots.py simulations (1080x2400)
-  screenshots.py        what draws the simulations
-  check_design.py       scheme E drift check; colour, type, shape, copy
-  AUDIT.md              HISTORICAL conformance review (2026-08-14)
+    src/main/           what ships
+    src/test/           Paparazzi goldens + geometry/ingest tests (Gradle owns
+                        these; they cannot live outside the module)
 ```
+
+**This directory is the shipped implementation and nothing else.** Every audit,
+check and monitoring artefact lives in [`../plan/v1/`](../plan/v1/) — the design
+spec, the coupling spec, `check_design.py`, `screenshots.py`, the simulator
+frames and the historical `AUDIT.md`. The split is deliberate: what ships and
+what judges it are separate, so the module can be read (and shipped) without
+wading through its own review, and the audit side can never be mistaken for
+something a user runs. The audit tools read this directory and never write to
+it.
 
 **Start with [`../plan/v1/design-spec.md`](../plan/v1/design-spec.md)** — the
 standardised specification of what this build is: colour, type, shape,
 components, navigation, every screen, the data model and the API contract.
-`../plan/README.md`, `screens.md` and `api.md` are the design *proposal* that
-preceded it, and `AUDIT.md` is a historical audit whose headline findings have
-since been fixed. The binding compliance documents live in `../../specs/`.
+`../plan/README.md`, `../plan/screens.md` and `../plan/api.md` are the design
+*proposal* that preceded it, and `../plan/v1/AUDIT.md` is a historical audit
+whose headline findings have since been fixed — **the bare `AUDIT.md` cited
+throughout this module's comments is that file.** `../plan/v1/coupling-spec.md`
+is the change audit: run it before editing anything under `app/`. The binding
+compliance documents live in `../../specs/`.
 
 ## Building and installing
 
@@ -51,72 +62,63 @@ desktop", or `coffee_agent`'s USB tools).
 Neither Play Store nor release signing is set up here; nothing in this section
 produces a shippable artifact.
 
-Four `buildConfigField`s in `app/build.gradle.kts` ship empty, and a build
-made without them is **half an app**: everything local works — beans,
+Four `buildConfigField`s are read from **`local.properties`** (git-ignored) by
+`app/build.gradle.kts`, falling back to placeholders when it has nothing to
+give. Copy [`local.properties.example`](local.properties.example) and fill it
+in; that example file is the tracked documentation of every key, and the real
+values are never committed.
+
+A build made without them is **half an app**: everything local works — beans,
 sessions, photos, the flavour radar, sync bundles — while sign-in throws and
 both AI features (label scan, news) are unreachable (see AUDIT.md B4). That is
-the state a plain `assembleDebug` here produces. Real values belong in
-`local.properties` or CI secrets, never committed:
+the state a plain `assembleDebug` produces on a fresh clone, and it is the
+intended state — `SERVER_BASE_URL` falls back to an RFC 2606 `.invalid` host
+that never resolves, so an unconfigured build fails loudly instead of quietly
+talking to production.
 
 | Field | What it is |
 | --- | --- |
 | `AI_API_KEY` | gateway key for the metered endpoints |
 | `READ_API_KEY` | gateway key for `/v1/catalogue` and `/v1/news` |
 | `GOOGLE_SERVER_CLIENT_ID` | the OAuth **web** client ID, checked as the token audience by `coffee_server/auth.py` |
-| `SERVER_BASE_URL` | defaults to `https://api.coffeecan.app/` |
+| `SERVER_BASE_URL` | the gateway host, from `local.properties`; defaults to an unroutable `.invalid` host so an unconfigured build cannot reach production |
 
 The Network Security Config refuses cleartext with no exceptions, so a local
 `coffee_server` on plain HTTP is unreachable by design. Terminate TLS in front
 of it rather than relaxing the config.
 
-## Screenshots
+## Verifying a change
+
+The tooling lives in `../plan/v1/` and is run from there, not from here:
 
 ```bash
-python3 screenshots.py          # -> screenshots/*.png
-python3 screenshots.py --svg    # keep the vector source alongside
+cd ../plan/v1
+python3 check_design.py        # 36 colour + 11 type + 5 shape tokens, 88 strings
+python3 screenshots.py         # redraw the simulator frames -> screenshots/*.png
 ```
 
-Needs Chrome or Chromium on `PATH` for rasterisation, and Fredoka installed for
-correct type; no Python dependencies. **These are simulations drawn from the
-Kotlin, not captures of a running app** — for real frames, either install to a
-phone (above) or render a composable through Paparazzi
-(`app/src/test/.../screenshot/`, goldens in `app/src/test/snapshots/images/`;
-see `PaparazziEnvironment.kt` for the `compileSdk = 35` toggle that run
-needs). The
-docstring in `screenshots.py` says exactly what they are faithful about and what
-they are not. When a screen changes, change the corresponding function there in
-the same commit, the way `../plan/scheme_e.py` is kept in step with the deck.
-
-## Checking the design against scheme E
-
-```bash
-python3 check_design.py      # exits 1 while drift remains
-```
-
-Diffs all 36 colour tokens, all 11 type roles and the shape set against
-`../plan/variants.py` `PURE_GREEN` + `FREDOKA_STYLE`, then checks that every
-string `screenshots.py` draws exists in the Kotlin, in `res/values/strings.xml`
-or in `coffee_server`.
-
+`check_design.py` reads this module (`Theme.kt`, `app/src/main/**`,
+`res/values/strings.xml`, `app/build.gradle.kts`) and writes nothing into it.
 It exists because reading `Theme.kt`'s own comment is not a check: the first
-version of that comment correctly claimed the colours were copied exactly, and a
-review that trusted it missed a type scale wrong in ten of eleven roles. All
-four sections pass today, with **one recorded deviation** it prints under its
-own heading — `surface` is `#FFFFFF` in the app against the deck's `#F2FAF2`,
-because page and cards are both plain white and nothing outlines a block.
+version of that comment correctly claimed the colours were copied exactly, and
+a review that trusted it missed a type scale wrong in ten of eleven roles.
 
-**It must read the resources, not just the Kotlin.** The localisation pass moved
-every user-facing string into `strings.xml`; a version of this script that read
-only `*.kt` reported ~72 present strings as missing, which is worse than no
-check — a wall of false positives is how a real drift stops being noticed.
+The tests that *do* live here are the ones Gradle owns:
 
-**Closed since the scheme E pass:** the in-app brand mark, the can-boy mascot,
-the dripper glyphs, Home's contribution heatmap, `0.2`'s photo hero and Images
-strip, the Share Card, and `+1.1`'s three-choice menu are all built.
-`AUDIT.md` is historical — see `../plan/v1/design-spec.md` for what v1 is now.
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+./gradlew :app:verifyPaparazziDebug   # 57 goldens
+./gradlew :app:recordPaparazziDebug   # re-record, then read the diff
+```
 
-**What it cannot check is layout, density, component choice and illustration.**
-For those, render a deck page and put it next to the matching frame:
+Paparazzi needs `compileSdk = 35` for the duration of a run and **36 restored
+immediately after** — see `app/src/test/.../PaparazziEnvironment.kt`, and
+`../plan/v1/coupling-spec.md` §6, which is where that trap is documented.
+
+**None of this covers layout, density, component choice, illustration, window
+insets, gesture timing or share targets.** For the first four, render a deck
+page next to the matching frame; for the rest there is no substitute for a
+physical device.
 
 ```bash
 google-chrome --headless=new --window-size=1080,2400 \

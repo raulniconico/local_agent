@@ -305,6 +305,7 @@ else.
 | `ExtractionBar` | −1…+1 axis, three zones | under / well extracted / over, with `VizBand` + `VizBandEdge` + `VizDeviation` |
 | `ValueBar` | slide bar | Score and all eleven flavour axes. Draggable — a 2026-08-17 change: dragging directly on what had been a read-only meter proved the better control, and the palette was copied across so a slider stops looking like an unrelated second widget |
 | `ContributionCalendar` | heatmap grid | `ActivityWeeks = 21`; selected cell enlarges ×1.3 |
+| `DurationPickerDialog` | two snapping wheels | Pour-stage elapsed time, `m` 0–29 and `ss` 0–59, in a standard `AlertDialog`. **Not** M3 `TimePicker`: that dials an hour and a minute on a 24-hour clock and labels itself so, which is the wrong question in the wrong units for an offset from the start of a brew |
 
 ### 5.3 Two flavour-axis label sets
 
@@ -494,6 +495,19 @@ sliders.
 Drafts, discard confirm and delete confirm are all built. Ask-AI opens as a
 sheet over the form.
 
+**A new brew pre-fills from the bean's last one** — dripper, grinder, grind
+size, filter, dose, water, temperature and ppm, i.e. the whole **Brew details**
+section. Never the result: no score, no extraction, no tasting axes, because
+carrying those over would be the app recording an opinion the user has not
+formed. Pour stages are *not* carried; the pour plan is what changes between
+brews of the same bag. The pre-filled values become the dirty-check baseline,
+so a reused form does not open asking to be saved.
+
+**The stage sheet's `At (time)` is a picker, not a typed field** — a trailing
+clock icon, tapping anywhere on the field opens `DurationPickerDialog`. It
+writes `m:ss`; `parseSeconds` still accepts `"105"` and `"1m45"` for AI
+suggestions and older rows.
+
 ### 8.9 `+2` Profile
 
 Two states, signed out and signed in. The mark, the state line — *"Your beans
@@ -662,8 +676,8 @@ the vision endpoint wanted anyway. Covered by instrumented tests.
 
 | Layer | Tool | Covers |
 | --- | --- | --- |
-| Design tokens | `../../v1/check_design.py` | 36 colour, 11 type, 5 shape tokens against `../variants.py` |
-| Rendering | Paparazzi, `app/src/test/…/screenshot/` | 57 goldens in `app/src/test/snapshots/images/` — real compiled Compose through layoutlib, no emulator |
+| Design tokens | `check_design.py` | 36 colour, 11 type, 5 shape tokens against `../variants.py` |
+| Rendering | Paparazzi, `app/src/test/…/screenshot/` | 58 goldens in `app/src/test/snapshots/images/` — real compiled Compose through layoutlib, no emulator |
 | Geometry | `ContributionCalendarGeometryTest`, `CropToFitTest` | layout maths |
 | Ingest | `ImageIngestTest`, `ImageIngestOrientationTest` | EXIF strip, orientation |
 | Insets, gesture, share targets | **a physical device only** | §4.3 |
@@ -690,12 +704,12 @@ worth knowing about:
    suppression mechanism: an entry needs a decision recorded in `Theme.kt`, and
    it still prints both values on every run.
 
-Still true, and not fixable by a script: **`../screenshots/*.png` is a mix.** Of
+Still true, and not fixable by a script: **`screenshots/*.png` is a mix.** Of
 its 44 PNGs, 16 are byte-identical to a current Paparazzi golden and 28 have
 drifted — including several that `REAL_CAPTURES.md` still lists as real. Trust,
-in order: the goldens in `../../v1/app/src/test/snapshots/images/` (57, always
+in order: the goldens in `../../v1/app/src/test/snapshots/images/` (58, always
 current with the last test run), then the physical-device captures in
-`../../../docs/screenshots/`, then `../screenshots/`.
+`../../../docs/screenshots/`, then `screenshots/` in this folder.
 
 ### 12.3 Where the older plan documents are wrong
 
@@ -713,7 +727,7 @@ specific statements in them are now false:
 | `screens.md` §1 | Home calls `BrewSessionDao.countByDate()` | `SessionDao.dailyCounts` |
 | `screens.md` §9 | Profile has avatar / Name / Email / OSS-licence rows | Rules 60 and 103 removed all four; the code correctly has none |
 | `api.md` §2 | `/v1/ask` is the AI endpoint | The app calls `/v1/suggest` and `/v1/vision`; `/v1/ask` is forbidden to this client |
-| `../../v1/AUDIT.md` header | "Nothing here was compiled or run"; "the design is not scheme E" | The app compiles, installs and runs; the scheme E pass landed and type/shape now conform |
+| `AUDIT.md` header | "Nothing here was compiled or run"; "the design is not scheme E" | The app compiles, installs and runs; the scheme E pass landed and type/shape now conform |
 | `../../v1/README.md` | "33 simulated screenshots, 1080×2400"; "All four sections pass" | 45 files, mostly 360×800 Paparazzi output; one colour token and the copy check do not pass |
 
 `scheme_e.py`'s `+2.1_create_account` page should be **retired**: it draws

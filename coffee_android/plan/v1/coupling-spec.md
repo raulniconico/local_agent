@@ -14,6 +14,7 @@
 
 - [0. The audit, in four steps](#0-the-audit-in-four-steps)
 - [1. Chokepoints — the structural rule](#1-chokepoints--the-structural-rule)
+  - [1.1 The directory boundary](#11-the-directory-boundary-is-itself-a-chokepoint)
 - [2. The change → cascade table](#2-the-change--cascade-table)
 - [3. Cross-project couplings](#3-cross-project-couplings)
 - [4. Behavioural rules implemented more than once](#4-behavioural-rules-implemented-more-than-once)
@@ -80,6 +81,35 @@ architecture cannot absorb. A screen that calls `ServerApi` directly, or an
 `open()` on a model-supplied path outside `_resolve()`, defeats the design
 silently: nothing fails, and the guarantee is simply gone.
 
+### 1.1 The directory boundary is itself a chokepoint
+
+`coffee_android/` is split so that **what ships and what judges it never mix**:
+
+| Directory | Contains | Invariant |
+| --- | --- | --- |
+| `../../v1/` | The Gradle module: Kotlin, resources, manifest, and the tests Gradle owns | Contains nothing that audits it |
+| `../` (`plan/`) | The scheme E deck and its generators (`variants.py`, `wireframes.py`, `scheme_e.py`) and the superseded proposal | The design *target*, independent of any build |
+| `.` (`plan/v1/`) | Specs, `check_design.py`, `screenshots.py`, simulator frames, `AUDIT.md` | **Reads `../../v1/`; never writes to it** |
+
+Three rules follow, and each has bitten before:
+
+1. **An audit artefact never lands in `../../v1/`.** A checker that ships is a
+   checker a user can run and a reviewer stops trusting as independent. If you
+   add a script, it goes here.
+2. **The audit side is read-only over the module.** `check_design.py` and
+   `screenshots.py` both resolve it as `APP = HERE.parent.parent / "v1"` and
+   only ever `read_text()` it. A tool that rewrote the thing it checks could
+   make itself pass.
+3. **`../../v1/app/src/test/` is the deliberate exception.** Gradle resolves
+   unit tests inside the module; the Paparazzi goldens physically cannot live
+   here. So the module holds exactly one class of verification, and it is the
+   one the build system forces.
+
+Consequence worth stating plainly: **`../../v1/` is a shippable artefact on its
+own, and `plan/v1/` is not runnable without it.** The dependency points one way.
+If you ever find the module reaching into `plan/`, that is the boundary
+breaking, and it breaks silently.
+
 ---
 
 ## 2. The change → cascade table
@@ -92,7 +122,7 @@ Keyed by what you edited. "Verify" columns are commands in §6.
 | --- | --- | --- |
 | A colour / type / shape value in `ui/theme/Theme.kt` | Nothing — **`../variants.py` `PURE_GREEN` is the source of truth**, not Theme.kt. Change the deck first, or record the divergence in `check_design.py`'s `ACCEPTED_DEVIATIONS` *with a rationale written into `Theme.kt`* | `V1`, then `V2` |
 | A token in `../variants.py` | `Theme.kt`, and re-render the deck (`python3 ../scheme_e.py`) | `V1`, `V2` |
-| Anything visual at all | 57 Paparazzi goldens re-record | `V2` |
+| Anything visual at all | 58 Paparazzi goldens re-record | `V2` |
 
 `ACCEPTED_DEVIATIONS` is **not** a suppression list: an entry without a
 decision recorded in `Theme.kt` is drift wearing a disguise. It still prints
@@ -103,12 +133,12 @@ both values on every run. Today it holds exactly one entry (`surface`).
 | You changed | Also move | Verify |
 | --- | --- | --- |
 | Any user-facing string | `res/values/strings.xml` **and** `values-fr/` **and** `values-zh/` | `V3` |
-| A string the mock deck also draws | `../../v1/screenshots.py` — `check_design.py` diffs 88 strings against it | `V1` |
+| A string the mock deck also draws | `screenshots.py` — `check_design.py` diffs 88 strings against it | `V1` |
 | Added a new string | All three locales; goldens; `LocaleScreenshotTest` renders all three | `V2`, `V3` |
 
-Current parity: **319** keys in `values/`, **317** in each of `values-fr/` and
+Current parity: **322** keys in `values/`, **320** in each of `values-fr/` and
 `values-zh/`. The two deliberate gaps are `app_name` and `app_title_home` —
-brand, untranslated on purpose. **Any third gap is a bug.** 317 distinct
+brand, untranslated on purpose. **Any third gap is a bug.** 320 distinct
 `R.string.*` symbols are referenced from Kotlin.
 
 Never hard-code a user-facing string in a composable. `check_design.py`'s copy
@@ -243,15 +273,24 @@ coupling into places grep does not reach.
 
 ## 6. Verification commands
 
-All paths relative to `coffee_android/v1/`.
+**The checks run from two different directories**, which is the practical face
+of the boundary in §1.1: the standalone Python tooling lives on the audit side,
+and the Gradle tasks must run inside the module because Gradle owns them.
 
 ```bash
+# ============ from coffee_android/plan/v1/  (the audit side) ============
+
 # V1 — design tokens + mock copy fidelity (36 colour, 11 type, 5 shape, 88 strings)
 python3 check_design.py            # must exit 0
 
-# V2 — Paparazzi goldens (57).  SEE THE TWO WARNINGS BELOW.
+# V1b — redraw the simulator frames after any copy or visual change
+python3 screenshots.py             # -> screenshots/*.png
+
+# ============ from coffee_android/v1/  (the module) ============
+
+# V2 — Paparazzi goldens (58).  SEE THE TWO WARNINGS BELOW.
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64   # NOT the default JDK -- see below
-./gradlew :app:verifyPaparazziDebug                 # verify against the 57 goldens
+./gradlew :app:verifyPaparazziDebug                 # verify against the 58 goldens
 ./gradlew :app:recordPaparazziDebug                 # re-record, then READ the diff
 ./gradlew :app:testDebugUnitTest                    # goldens + geometry + ingest tests
 
@@ -328,11 +367,21 @@ Be explicit about this in any review that claims a change is verified.
 | Share targets | needs a real chooser | a physical device |
 | Room migration on real data | tests build fresh DBs | a device upgraded from v2 |
 | Anything sequential | goldens prove layout, never order | reading the composable top to bottom |
+| **Flow-emission timing** | `TestFakes` fakes every query with `flowOf(...)`, which emits **synchronously** on collection; Room emits asynchronously. Any bug that depends on "the query has not answered yet" is structurally invisible to every screenshot test | reading the hydration path, or a device |
 
-**`../screenshots/*.png` is not evidence.** 16 of its 44 PNGs match a current
+**The `flowOf` gap is not hypothetical** — it hid a dead feature for months.
+`BrewSessionScreen`'s recipe reuse read `previous` off `collectAsState`'s
+*initial* value and set `hydrated = true` regardless, so on a real device the
+pre-fill never ran and every new brew opened blank; under Paparazzi the fake
+emitted before the effect body and it always looked correct. When you write a
+`LaunchedEffect` that consumes collected state, ask what that state holds on the
+frame the effect first runs, and treat "empty" and "not loaded" as different
+values — `collectAsState(initial = null)` is how you keep them apart.
+
+**`screenshots/*.png` is not evidence.** 16 of its 44 PNGs match a current
 golden; 28 have drifted, several of them still labelled real captures in
 `REAL_CAPTURES.md`. Trust, in order: `../../v1/app/src/test/snapshots/images/`
-(57, always current with the last run) → `../../../docs/screenshots/` (device)
+(58, always current with the last run) → `../../../docs/screenshots/` (device)
 → that directory last. Never validate a design claim against it.
 
 ---
@@ -350,6 +399,6 @@ faster than the code it describes.
 - Prefer making a coupling *structural* (route it through a chokepoint in §1)
   over documenting it here. A row in this table is the fallback for coupling
   that could not be designed away — not the goal.
-- When a count in this document changes (319/317 strings, 57 goldens, Room
+- When a count in this document changes (322/320 strings, 58 goldens, Room
   version 3, `disclosureVersion` 1), update it in the same commit. Those
   numbers are the tripwires; a wrong one is worse than none.

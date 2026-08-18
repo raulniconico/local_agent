@@ -444,7 +444,7 @@ carries; no endpoint is involved in either direction.
 > note. The wireframe's segmented "This bean / This brew" switch is not built
 > either — each page shares its own subject, which is what the share disc being
 > *on* that page already means — and neither is "Save to photos", since the
-> system sheet lists Photos and Files itself. See AUDIT.md §5.10 item 1 for the
+> system sheet lists Photos and Files itself. See v1/AUDIT.md §5.10 item 1 for the
 > full record, including the two knowing divergences (no profile header, and
 > the desktop's decorative green kept behind white text).
 

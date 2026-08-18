@@ -93,7 +93,7 @@ nothing else. It does.
   different sentence rather than one generic failure toast.
 
 **One structural consequence worth stating plainly.** `SERVER_BASE_URL` is
-`https://api.coffeecan.app/`, the Network Security Config refuses cleartext with
+the configured gateway host, the Network Security Config refuses cleartext with
 no domain exceptions, and `legal-accounts.md` §2.6 records the deployed gateway
 as **plain HTTP on :8000**. So this build cannot reach the current deployment at
 all. That is the correct posture — rules 13/27/101 make shipping the alternative
@@ -276,7 +276,7 @@ died before the splash could hand off.
 no Data safety row, and it reports whether *this device* has a network, not
 anything about the user). Verified on an SM-S908U: the `SecurityException` is
 gone, the app survives launch, and the `-1` page now renders the *accurate*
-failure -- "You're offline", because `api.coffeecan.app` genuinely does not
+failure -- "You're offline", because the gateway host genuinely does not
 resolve yet (B4) -- instead of the generic catch-all.
 
 **Three hardening changes stay**, because each was a real defect the crash only

@@ -20,7 +20,7 @@ Three checks, in the order they would have caught that:
                  drawing chrome or copy the app does not have.
 
 What this deliberately does NOT check: layout, density, component choice,
-illustration. Those need eyes on a rendered deck page (`plan/screenshots/
+illustration. Those need eyes on a rendered deck page (`../screenshots/
 scheme-e/*.svg`) next to the matching `screenshots/*.png`, and no assertion
 here substitutes for doing that.
 
@@ -31,7 +31,7 @@ overrides the size at individual call sites (`00_home`'s bean name is
 `wf.text(..., "titleMedium", size=14)` against a 16sp role; its meta line is
 `"bodyMedium", size=11` against 14), and a screen that renders those two lines
 at the theme's sizes is visibly not the deck page while every assertion here
-still reports green. Grepping `size=` in `plan/scheme_e.py` lists them; each
+still reports green. Grepping `size=` in `../scheme_e.py` lists them; each
 one has to be carried over by hand at the matching Compose call site, as a
 `style = ...typography.X.copy(fontSize = N.sp)`.
 """
@@ -42,11 +42,15 @@ import pathlib
 import re
 import sys
 
-HERE = pathlib.Path(__file__).resolve().parent
-PLAN = HERE.parent / "plan"
-THEME = HERE / "app/src/main/java/app/coffeecan/ui/theme/Theme.kt"
-SRC = HERE / "app/src/main"
-SERVER = HERE.parent.parent / "coffee_server"
+# This script lives in `coffee_android/plan/v1/` (the audit side) and reads
+# `coffee_android/v1/` (the shipped Gradle module). Nothing here writes into
+# APP -- the audit side never modifies what it audits.
+HERE = pathlib.Path(__file__).resolve().parent          # coffee_android/plan/v1
+PLAN = HERE.parent                                      # coffee_android/plan
+APP = HERE.parent.parent / "v1"                         # coffee_android/v1
+THEME = APP / "app/src/main/java/app/coffeecan/ui/theme/Theme.kt"
+SRC = APP / "app/src/main"
+SERVER = HERE.parent.parent.parent / "coffee_server"
 
 sys.path.insert(0, str(PLAN))
 import variants as V           # noqa: E402
@@ -205,8 +209,8 @@ report("shape tokens", bad, len(SHAPE_MAP) + 1)
 # read: `values-fr/` and `values-zh/` are translations of these same strings,
 # and the deck is drawn in English.
 kt = "\n".join(p.read_text() for p in SRC.rglob("*.kt"))
-kt += (HERE / "app/build.gradle.kts").read_text()
-strings_xml = HERE / "app/src/main/res/values/strings.xml"
+kt += (APP / "app/build.gradle.kts").read_text()
+strings_xml = APP / "app/src/main/res/values/strings.xml"
 if strings_xml.exists():
     # Unescape the XML-and-Android escaping so a resource reads as the sentence
     # it renders as: \' and \" are Android's, &amp;/&lt;/&gt;/&#39; are XML's.

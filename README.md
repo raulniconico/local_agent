@@ -23,7 +23,7 @@ phone, and in the hands of an assistant that can fill them in for you.
 
 <div align="center">
 
-<img src="coffee_android/v1/screenshots/mascot_pour_over.png" width="96" alt="The Coffee Can mascot brewing a pour-over">
+<img src="coffee_android/plan/v1/screenshots/mascot_pour_over.png" width="96" alt="The Coffee Can mascot brewing a pour-over">
 
 # Coffee Can for Android
 
@@ -113,7 +113,7 @@ nothing is kept at the other end.</p>
 
 Not a re-skin. The colour ramp, the eleven type roles and the shape set are
 ported from the desktop app's own design deck token-for-token, and a checked-in
-script (`coffee_android/v1/check_design.py`) fails the build if any of them
+script (`coffee_android/plan/v1/check_design.py`) fails the build if any of them
 drift.
 
 - **Three greens, never one.** `#34C759` is decorative only — the mark, the
@@ -169,7 +169,7 @@ ships as is already decided:
 
 <div align="center">
 
-<img src="coffee_android/v1/screenshots/mascot_shutter_flash.png" width="96" alt="The Coffee Can mascot holding a camera">
+<img src="coffee_android/plan/v1/screenshots/mascot_shutter_flash.png" width="96" alt="The Coffee Can mascot holding a camera">
 
 # coffee_agent
 
