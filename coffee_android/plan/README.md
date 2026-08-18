@@ -13,16 +13,16 @@ binding, this one as the proposal built on top of it.
 > specification of the build.**
 >
 > The app moved a long way between 2026-08-14 and 2026-08-17, and several
-> decisions recorded below were overtaken by the code. **[design-spec.md](design-spec.md)
+> decisions recorded below were overtaken by the code. **[v1/design-spec.md](v1/design-spec.md)
 > is the standardised specification of what v1 actually is** — written by
 > reading every source file and checking it against a running install on a
 > physical device. Read that first; read this one for the *reasoning* and the
 > review history that produced it.
 >
 > Statements below that the code has since overtaken are marked **[SUPERSEDED]**
-> inline, and design-spec.md §12.3 lists every one of them in a table.
+> inline, and v1/design-spec.md §12.3 lists every one of them in a table.
 
-- [design-spec.md](design-spec.md) — **the current, binding v1 design
+- [v1/design-spec.md](v1/design-spec.md) — **the current, binding v1 design
   specification**: colour, type, shape, components, navigation, every screen,
   data model, API contract, localisation, accessibility, verification
 - [README.md](README.md) — this file: architecture, phasing, open decisions,
@@ -237,7 +237,7 @@ in `screens.md` so they aren't missed during specialist review.
   `Canvas` has zero accessibility-tree presence by default (resolution #11).
   Save confirmation uses Material3 `Snackbar`, not a bespoke flash-bar
   composable (resolution #10).
-- **Theme:** **[SUPERSEDED in every number — see design-spec.md §2–§4.]** The
+- **Theme:** **[SUPERSEDED in every number — see v1/design-spec.md §2–§4.]** The
   shipped theme is Material3 built from `variants.py`'s `PURE_GREEN` +
   `FREDOKA_STYLE`, not `theme.py`. Resolution #5's substance held — the bright
   green never carries text — but there are **three** greens, not two:
@@ -280,7 +280,7 @@ strongest signal in the whole review.
 | 16 | (UI) No delete affordance specified for sessions or stages anywhere in the plan, despite Home documenting bean deletion. | **Accepted — plain gap, fixed.** | Added swipe/destructive-action delete to Brew Session Detail's session list and to each stage row. |
 | 17 | (Engineering) No Room migration strategy named, despite the desktop schema's real history of additive and one genuinely hard migration (splitting a retired flavor axis). | **Accepted.** | Named `Migration` objects tested with `MigrationTestHelper` from the first schema change onward; `fallbackToDestructiveMigration()` explicitly banned in `api.md`. |
 | 18 | (App-dev) Missing engineering surface a real submission needs: adaptive icon, splash screen, a stated ProGuard/R8 decision, a stated crash-reporting decision, `FileProvider` (required for Share Card's `ACTION_SEND` and CameraX's capture handoff — not optional polish), OSS license attribution, an About/Legal home beyond a bare Profile row. | **Accepted.** | All added to scope explicitly (see Phasing) rather than left implicit: ship unminified for v1 (defer R8 rule-writing), explicitly no crash reporter for v1 (revisit v1.1 — adding one later needs its own Data Safety disclosure update), `FileProvider` configured from the start since Share Card literally cannot function without it. |
-| 19 | (UI) Bottom navigation bar vs. push-only navigation for the three top-level surfaces (Home/Catalogue/Profile) — raised as a genuine option. | **Not adopted for v1**, revisit if/when Catalogue returns in v1.1 and there are three real top-level destinations again worth flattening the back-stack for. | **Superseded.** This debate had two options and the answer was a third one that neither side raised: `scheme_e.py`'s module docstring had already defined the deck as a **horizontal swipe axis** centred on Home (`-2 … 00 … +2`, with `0.x` meaning off-axis), and every page number in the deck encodes it. #19 resolved bottom-nav-vs-push without noticing, so its "no change" was a decision about the wrong question. The axis is now what the app implements — one `HorizontalPager` over `[-1 News, 00 Home, +1 Sessions, +2 Profile]` with every `0.x` page pushed on top of it (`v1/app/src/main/java/app/coffeecan/ui/Axis.kt`). **[SUPERSEDED again, 2026-08-17: bottom nav is no longer declined.]** A `NavigationBar` ships *over* the pager and drives it — selection follows `pagerState.currentPage`, so swiping moves the bar and tapping animates the pager. It was added because the axis created the defect open item 1 below describes: once Home's profile icon and "Every brew you've logged" row were removed, nothing *visible* pointed to `+1` or `+2`. See design-spec.md §7.1. |
+| 19 | (UI) Bottom navigation bar vs. push-only navigation for the three top-level surfaces (Home/Catalogue/Profile) — raised as a genuine option. | **Not adopted for v1**, revisit if/when Catalogue returns in v1.1 and there are three real top-level destinations again worth flattening the back-stack for. | **Superseded.** This debate had two options and the answer was a third one that neither side raised: `scheme_e.py`'s module docstring had already defined the deck as a **horizontal swipe axis** centred on Home (`-2 … 00 … +2`, with `0.x` meaning off-axis), and every page number in the deck encodes it. #19 resolved bottom-nav-vs-push without noticing, so its "no change" was a decision about the wrong question. The axis is now what the app implements — one `HorizontalPager` over `[-1 News, 00 Home, +1 Sessions, +2 Profile]` with every `0.x` page pushed on top of it (`v1/app/src/main/java/app/coffeecan/ui/Axis.kt`). **[SUPERSEDED again, 2026-08-17: bottom nav is no longer declined.]** A `NavigationBar` ships *over* the pager and drives it — selection follows `pagerState.currentPage`, so swiping moves the bar and tapping animates the pager. It was added because the axis created the defect open item 1 below describes: once Home's profile icon and "Every brew you've logged" row were removed, nothing *visible* pointed to `+1` or `+2`. See v1/design-spec.md §7.1. |
 | 20 | (UI) Sort control / "new" badge for the merged catalogue screen, so "browse one roaster's latest" (the old "What's New" use case) isn't lost inside the merge. | **Accepted in principle, deferred with the screen itself to v1.1.** | Noted in the v1.1 catalogue spec so it isn't lost by the time that work resumes. |
 
 ## Phasing (revised after specialist review)
@@ -341,7 +341,7 @@ weekend port.
    the pager's accessibility actions named the destinations for a screen reader
    and drew nothing for anyone else) was fixed by adding a `NavigationBar` that
    drives the pager rather than replacing it. Both the gesture and a visible
-   affordance now exist. See design-spec.md §7.1.
+   affordance now exist. See v1/design-spec.md §7.1.
 2. Sort/new-badge for the catalogue screen — carry into the v1.1 catalogue
    spec when that work resumes (#20).
 3. Tester recruitment for the closed-testing gate has no owner yet (#14) —

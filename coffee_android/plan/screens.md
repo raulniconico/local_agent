@@ -2,7 +2,7 @@
 
 > **⚠️ Design proposal, not the built spec.** Most of this document describes
 > the app as planned in early August 2026. The screens now exist in code;
-> **[design-spec.md](design-spec.md) §8 is the specification of what each one
+> **[v1/design-spec.md](v1/design-spec.md) §8 is the specification of what each one
 > actually is**, and §12.3 there lists the specific statements below that the
 > code has overtaken. Read this for intent and per-screen reasoning.
 

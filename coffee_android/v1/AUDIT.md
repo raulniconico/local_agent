@@ -13,7 +13,7 @@
 > B5's permission and B1's age affirmation are all built; Scan Review, the
 > welcome splash, News, the Share Card and the contribution calendar all exist.
 >
-> **For what v1 currently is, read [`../plan/design-spec.md`](../plan/design-spec.md).**
+> **For what v1 currently is, read [`../plan/v1/design-spec.md`](../plan/v1/design-spec.md).**
 > Its §12.3 also lists the statements in this file that are now false.
 
 **Date:** 2026-08-14 · **Scope:** every file under `v1/`, read against

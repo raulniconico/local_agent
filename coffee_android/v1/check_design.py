@@ -298,7 +298,7 @@ if deviations:
     print()
 if failures:
     print("DRIFT: " + "; ".join(failures))
-    print("See plan/design-spec.md §12. Layout and component choice are NOT "
+    print("See plan/v1/design-spec.md §12. Layout and component choice are NOT "
           "covered here — render plan/screenshots/scheme-e/*.svg and compare "
           "by eye.")
     sys.exit(1)

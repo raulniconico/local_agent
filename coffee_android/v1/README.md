@@ -15,7 +15,7 @@ v1/
   AUDIT.md              HISTORICAL conformance review (2026-08-14)
 ```
 
-**Start with [`../plan/design-spec.md`](../plan/design-spec.md)** — the
+**Start with [`../plan/v1/design-spec.md`](../plan/v1/design-spec.md)** — the
 standardised specification of what this build is: colour, type, shape,
 components, navigation, every screen, the data model and the API contract.
 `../plan/README.md`, `screens.md` and `api.md` are the design *proposal* that
@@ -113,7 +113,7 @@ check — a wall of false positives is how a real drift stops being noticed.
 **Closed since the scheme E pass:** the in-app brand mark, the can-boy mascot,
 the dripper glyphs, Home's contribution heatmap, `0.2`'s photo hero and Images
 strip, the Share Card, and `+1.1`'s three-choice menu are all built.
-`AUDIT.md` is historical — see `../plan/design-spec.md` for what v1 is now.
+`AUDIT.md` is historical — see `../plan/v1/design-spec.md` for what v1 is now.
 
 **What it cannot check is layout, density, component choice and illustration.**
 For those, render a deck page and put it next to the matching frame:

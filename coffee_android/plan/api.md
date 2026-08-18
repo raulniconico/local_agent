@@ -3,7 +3,7 @@
 > **Status, 2026-08-17.** §3's "endpoints that don't exist yet" now all exist
 > and are called. For the built contract in one place — the seven endpoints, the
 > `AiGateway` chokepoint's check order, the Room schema at `version = 3`, and
-> the wire shapes — see **[design-spec.md](design-spec.md) §9–§10**. This
+> the wire shapes — see **[v1/design-spec.md](v1/design-spec.md) §9–§10**. This
 > document retains the per-endpoint design reasoning and the request/response
 > detail behind each one.
 
