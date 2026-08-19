@@ -73,6 +73,7 @@ question "what depends on this behaviour?" answerable at all.
 | `ui/AppLocale.kt` | Locale resolution, via `attachBaseContext` | `CoffeeCanApp.kt:33` |
 | `consent/ConsentStore.kt` | Per-operation consent and its version | `AiGateway.kt:35` |
 | `data/SyncBundle.kt` | The entire on-disk bundle format | `SyncBundle.kt:68` |
+| `data/FlavorNoteSelection.kt` | The encoding of `sessions.flavorNotes`, and the five-per-axis cap | `FlavorNoteSelection.kt` |
 
 **The rule.** Editing a chokepoint's *behaviour* obliges you to audit every
 caller. Editing a caller obliges you to audit nothing — **unless** you
@@ -136,10 +137,15 @@ both values on every run. Today it holds exactly one entry (`surface`).
 | A string the mock deck also draws | `screenshots.py` — `check_design.py` diffs 88 strings against it | `V1` |
 | Added a new string | All three locales; goldens; `LocaleScreenshotTest` renders all three | `V2`, `V3` |
 
-Current parity: **322** keys in `values/`, **320** in each of `values-fr/` and
-`values-zh/`. The two deliberate gaps are `app_name` and `app_title_home` —
-brand, untranslated on purpose. **Any third gap is a bug.** 320 distinct
-`R.string.*` symbols are referenced from Kotlin.
+Current parity: **444** keys in `values/`, **442** in each of `values-fr/` and
+`values-zh/`. 122 of those were added on 2026-08-19 with the flavour-note
+catalogue — 110 note names plus 12 for the picker — which is why the count
+jumped from 322. The two deliberate gaps are `app_name` and `app_title_home` —
+brand, untranslated on purpose. **Any third gap is a bug.**
+
+The 110 note names are generated-shaped but hand-authored, and the three locales
+were emitted from **one table** so a translation cannot go missing from one file
+only. Adding a note means adding it to all three, in the same order.
 
 Never hard-code a user-facing string in a composable. `check_design.py`'s copy
 check reads `res/values/strings.xml`; a literal in Kotlin is invisible to it,
@@ -149,13 +155,24 @@ and invisible to two thirds of the users.
 
 | You changed | Also move | Verify |
 | --- | --- | --- |
-| `data/Entities.kt` — added/renamed a column | Room `version` (currently **3**) + a new `Migration`; `data/Daos.kt`; **`data/SyncBundle.kt`** export *and* import; `../../../coffee_agent/sync_tools.py` `_BEAN_FIELDS`/`_SESSION_FIELDS`; `coffee/src/coffee_can/db.py` schema; `design-spec.md` §9 | `V4`, `V5` |
+| `data/Entities.kt` — added/renamed a column | Room `version` (currently **4**) + a new `Migration`; `data/Daos.kt`; **`data/SyncBundle.kt`** export *and* import; `../../../coffee_agent/sync_tools.py` `_BEAN_FIELDS`/`_SESSION_FIELDS`; `coffee/src/coffee_can/db.py` schema; `design-spec.md` §9 | `V4`, `V5` |
 | The bundle format | `SyncBundle.VERSION` **and** `sync_tools.BUNDLE_VERSION` — they must stay equal | `V5` |
 | A DAO query | Whether `CoffeeRepository` should expose it at all; whether `TestFakes.kt` needs the new method | `V2` |
+| A flavour note's key, or the per-axis cap | `ui/components/FlavorNotes.kt` (catalogue), `FlavorNoteSelection` (codec + cap), all three `strings.xml`, and **anything already stored** — a renamed key is silently dropped on decode, which reads to the user as their selection vanishing | `V2`, `V3` |
+| `RadarChart`'s drawing geometry | `share/ShareCard.kt` draws through the same `drawRadar`; its `RadarStyle` is a second instance of the same data class, so a new field needs a default or the share card stops compiling | `V2` |
 
 Migrations are **additive only** (see `CoffeeDatabase.kt:59`). A destructive
 migration drops a user's brew log, and there is no server-side copy to restore
 from — that is the direct consequence of `specs/legal-accounts.md` §3.8.
+
+A **fourth** cross-language hop was added on 2026-08-19 and is easy to miss:
+`sessions.flavorNotes` is carried by `SyncBundle` as `flavor_notes`, listed in
+`sync_tools._SESSION_FIELDS`, whitelisted in `repo.SESSION_FIELDS`, and given a
+column by `db.py`'s migration — **four files in three languages for one field**,
+and the desktop renders none of it. The column exists there so a
+phone → desktop → phone round trip does not quietly lose what the phone put
+there; `_write_bean` swallows unknown fields, so omitting any one of those four
+would have failed silently rather than loudly.
 
 Two bundle invariants that fail silently rather than loudly:
 

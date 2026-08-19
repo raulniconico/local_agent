@@ -72,6 +72,10 @@ SESSION_FIELDS = (
     "score",
     "extraction",
     "note",
+    # Carried, not interpreted: no desktop screen renders these, and the
+    # column exists so a sync round trip through this database does not lose
+    # what the phone put there. See db.py's migration note.
+    "flavor_notes",
 ) + FLAVOR_FIELDS
 
 

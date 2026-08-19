@@ -266,6 +266,18 @@ inset, because `NavigationBar` consumes that inset internally. A page that also
 claims the bottom applies it twice and leaves a dead band above the bar,
 measured at 37dp with three-button navigation.
 
+**A full-screen `Dialog` is a second, unrelated case of the same rule, and it
+is worse.** Inside a `Dialog`, `WindowInsets.safeDrawing` reads **zero** —
+the dialog gets its own window and Compose does not propagate the activity's
+insets into it. `Modifier.safeDrawingPadding()` on the dialog's content
+therefore pads by nothing while the content still draws behind the bars,
+because the activity is `enableEdgeToEdge()`. Setting
+`DialogProperties(decorFitsSystemWindows = false)` does not fix it either.
+**Read the insets outside the dialog and pass them in** — that is what
+`FlavorNoteSheet` does (§5.6). Measured on a real S22 before the fix: the
+heading rendered under the status bar and Confirm under the navigation bar,
+with 61px of screen left below a button that wanted 90 for its own margin.
+
 **Every inset is zero under Paparazzi**, so the goldens render correctly either
 way. Only a real device shows this. It is the standing argument for keeping at
 least one physical-device pass in the loop.
@@ -301,7 +313,8 @@ else.
 
 | Component | Shape | Notes |
 | --- | --- | --- |
-| `RadarChart` | 11-axis Canvas polygon | `TextMeasurer`-based label layout, not guessed offsets. Two label sets (§5.3) and two ink styles — in-app on white, and white-on-green at 4× for the Share Card, one drawing routine |
+| `RadarChart` | 11-axis Canvas polygon | `TextMeasurer`-based label layout, not guessed offsets. Two label sets (§5.3) and two ink styles — in-app on white, and white-on-green at 4× for the Share Card, one drawing routine. Optionally **interactive** (§5.6): pinch-zoom, pan, double-tap reset, tap-an-axis, and a ring of tasting notes hung off the labels |
+| `FlavorNoteSheet` | full-screen picker | Ten note bubbles for one axis, at most five chosen. See §5.6 |
 | `ExtractionBar` | −1…+1 axis, three zones | under / well extracted / over, with `VizBand` + `VizBandEdge` + `VizDeviation` |
 | `ValueBar` | slide bar | Score and all eleven flavour axes. Draggable — a 2026-08-17 change: dragging directly on what had been a read-only meter proved the better control, and the palette was copied across so a slider stops looking like an unrelated second widget |
 | `ContributionCalendar` | heatmap grid | `ActivityWeeks = 21`; selected cell enlarges ×1.3 |
@@ -330,6 +343,140 @@ string differs; the column (`flavor_green_vegetative`) is the same, which is
 what the bundle carries. Worth closing for consistency the next time either
 side's labels are touched — but it is not a data defect, and changing the
 column name to match would be.
+
+### 5.6 The interactive radar and its tasting notes
+
+`RadarChart` draws a static chart by default and every older call site leaves it
+that way — Home draws four inside a scrolling list, where a chart that swallowed
+drags would be a chart you cannot scroll past. **The brew form (§8.8) is the one
+screen that turns the interaction on.**
+
+Four opt-in parameters, all defaulting to off:
+
+| Parameter | Does |
+| --- | --- |
+| `zoomable` | pinch to zoom (1×–5×, about the pinch centroid), drag to pan, double-tap to reset |
+| `onAxisTap` | fires for a tap in an axis's wedge — the outer half of the spoke plus its label ring, **not** the label's text box, which is a 12px touch target |
+| `focusedAxis` | animates scale and pan so that axis's label lands mid-box, magnified 2× |
+| `noteLabels` | per axis, notes to hang under the label as (name, colour) |
+
+**A tier below the eleven scores.** The axes say *how floral*; the notes say
+which florals. Eleven axes × ten notes, in `ui/components/FlavorNotes.kt`:
+Floral is Jasmine, Rose, Chamomile, Black tea, Hibiscus, Lavender, Honeysuckle,
+Orange blossom, Elderflower, Bergamot, and the other ten axes carry an
+equivalent set. **At most five per axis** (`FlavorNoteSelection.MAX_PER_AXIS`) —
+past five a selection stops describing and starts being the whole list, and five
+is also as many as the chart can stack under one label before neighbouring axes
+collide.
+
+**Each note carries its own colour**, the ingredient's own pulled up to a
+pastel, spread far enough round the hue wheel that ten stay distinguishable in
+one grid. All are light, so a single dark ink (`NoteInk`) reads on every one of
+them. **These are not design tokens**: they live beside the data rather than in
+`Theme.kt`, `check_design.py` does not check them, and `../variants.py` has no
+opinion about them. `VizSequential` set the precedent.
+
+**A bubble is drawn as a bubble, not as a disc.** The first attempt — one
+radial fill, one white gleam, a flat rim — was rejected as looking cheap, and it
+did: it had no *thin-film* behaviour at all, which is the thing the eye actually
+uses to tell a soap bubble from a coloured circle. The reference is Apple's
+iOS 15.4 🫧. `bubbleLayers` now draws eight layers, each answering for one
+optical effect, bottom to top:
+
+| # | Layer | The optics |
+| --- | --- | --- |
+| 1 | contact shadow, offset down-right, drawn *under* the bubble | a translucent shell shows its own shadow through itself, the way glass does |
+| 2 | body — radial ramp in the note's colour, nearly clear in the middle, dense at the edge | a film has constant thickness, but your line of sight crosses more of it the nearer the silhouette you look. That is why a bubble is a *ring* of colour, not a disc of one |
+| 3 | iridescence — five overlapping strokes of one sweep gradient at shrinking radii | interference colour lives where the film is optically thickest, so it belongs in the same annulus as the body's dense band |
+| 4 | the note's colour again, as a thin edge | so the palest notes have a contour at all |
+| 5 | transmitted-light crescent, low and *inside* the contour | light entering the top is refracted twice and leaves through the bottom, so the inside of the bottom rim is far brighter than the top. Set inside the edge, not on it — on the edge it just thickens the rim |
+| 6 | the bright rim, angled per bubble | |
+| 7 | specular highlight, up and left, **squashed and tilted** | it is a broad soft source reflected on a curved surface; a round highlight reads as a sticker |
+| 8 | a small secondary glint, up and right | a second reflection, and what stops the surface reading as a single smooth dome |
+
+Two findings worth keeping, both arrived at by rendering and looking:
+
+- **Only a four-hue window of the interference series is used per bubble**, never
+  the whole wheel. Sweeping all eight round every bubble came back as ten
+  identical rainbows. The alphas alternate strong and faint for the same
+  reason — a ring of eight hues at one strength is a CD, not a bubble; a real
+  film shows a couple of strong bands with washed-out arcs between them.
+- **A glaze of the note's colour goes back on top of the iridescence.** Without
+  it the sheen wins and every bubble in the grid is the same rainbow. A film's
+  interference colour is a *modulation* of what the wall already transmits, so
+  re-tinting on top is both the honest order of operations and what keeps Rose
+  telling apart from Lavender. **The note colour is load-bearing** — it is what
+  identifies the note — so any future change to this stack has to be checked
+  against that first.
+
+The contour is still `bubbleOutline`: nine radii round the circle each knocked
+off true by up to 9%, joined by quadratics whose controls are the samples and
+whose endpoints are the midpoints between them — that construction is what keeps
+it smooth, since curving through the sample points themselves leaves a corner at
+each one. Seeded from the note key, so a note is the same bubble every time and
+does not reshape when it moves in the grid. Radii are normalised so the widest
+lobe is exactly the box; an outline that overflowed would be clipped square and
+come back with flat sides.
+
+**Drift**: per-bubble infinite transitions on x, y and scale, periods
+`2600/3350/2900 ms + index × 190/230/170`. Three periods that differ from each
+other *and* from the neighbours', so a bubble traces a slow open loop rather
+than a line and ten of them never fall into step — ten circles rising together
+reads as a machine. Measured on a real S22, three frames two seconds apart:
+Jasmine moved 30px vertically and 14 horizontally, Hibiscus 27 and 14, Bergamot
+18 and 7.
+
+**The shader stack renders identically under layoutlib and on hardware** —
+checked on the S22, because gradients and blend modes are exactly where the two
+are entitled to disagree.
+
+**An axis sets its own name in bold when it carries notes _or_ is the focused
+one.** The stack beneath a scored axis is already a visual claim on that part of
+the ring, and a label at the same weight as its nine silent neighbours reads as
+though the notes belong to no one in particular. Weight is the only cue left:
+colour is spoken for (the dots carry note identity) and size is spoken for (the
+note tier is deliberately smaller).
+
+The **focused** half of that rule is why `drawRadar` takes `emphasisedAxis`
+separately from `noteLabels`. Bolding only on the first note chosen made the
+label look like it was reacting to the choice; the focused axis is the *subject*
+of the picker and has to read as its heading from the first frame, before
+anything is selected.
+
+**The chart's labels are Fredoka**, like everything else in the app. They were
+the one text in the build still setting in the platform sans — the Share Card's
+copy of the same chart had always passed `Fredoka` + `FontWeight.Bold`
+explicitly, and the in-app chart was simply never given a family. `RadarStyle`
+now defaults to it, so the two agree by construction rather than by memory.
+
+Three layout rules that were each a bug first:
+
+- **Note stacks radiate away from the centre** — up on the top half, down on the
+  bottom. Always stacking downwards ran the notes of every upper axis back over
+  the chart and into the next label clockwise.
+- **Notes cost radius.** A chart carrying any pulls its net in from 0.66 to 0.48
+  of the half-box to pay for the margin, and the Box is `clipToBounds()` —
+  a `DrawScope` is not clipped to its layout bounds by default.
+- **A focused axis with notes is framed off-centre**, biased a fifth of the box
+  in the direction its stack grows. Centring the label exactly — which is what
+  "centre the label" literally asks for — hangs five notes off the edge.
+
+**Zoom and pan take two fingers, and that is load-bearing.**
+`detectTransformGestures` treats a *single*-finger drag as a pan and consumes
+it. This chart sits in the middle of a vertically scrolling form, so with that
+gesture installed a swipe to scroll the page instead dragged the chart: the page
+did not move, and the radar slid out of its own box leaving a blank rectangle —
+which then also made every axis tap miss. The gesture handler ignores
+single-pointer events entirely so they fall through to the scroll container, and
+user pans are clamped so the chart can never be pushed somewhere there is
+nothing left to double-tap. **No golden can catch this**; it took a device.
+
+**Selection is a screenshot-testable resting state, not an animation.**
+Paparazzi never advances its frame clock and its `offsetMillis` overload takes a
+`View`, not a composable, so bubbles that animate in from zero photograph as an
+empty rectangle. Both the bubble entrance and the focus zoom check
+`LocalInspectionMode` and snap to the resting state; `FlavorNoteSheetScreenshotTest`
+provides it, because Paparazzi does not set it itself.
 
 ### 5.4 Imagery
 
@@ -456,10 +603,14 @@ The largest screen in the app (1400 lines). One bean, created or edited.
   consent-blocked variants.
 - **Fields** — name as an outlined box; origin, variety, altitude, roaster,
   producer, process, roast date as capsules two to a row; note free-text.
+- **Sessions list** (`0.2`/`0.2b` only — an unsaved `0.1` bean has none yet),
+  delete-with-cascade confirm, discard-draft confirm, share disc.
 - **Flavour** — radar plus a manual-override sheet. `flavorSource` is `auto`
-  (averaged from this bean's sessions) or `manual`.
-- **Sessions list**, delete-with-cascade confirm, discard-draft confirm, share
-  disc.
+  (averaged from this bean's sessions) or `manual`. On `0.2`/`0.2b` this sits
+  below the sessions list, not above it — the radar reflects those sessions,
+  so it reads as their summary rather than a caption ahead of them. On `0.1`
+  it stays directly under Fields since there is no sessions list yet to
+  follow.
 
 **New beans are held as in-memory draft state** (`rememberSaveable`) until the
 first real edit or explicit save — `status` is `draft` until then. A screen the
@@ -492,6 +643,17 @@ stages** with its own editor sheet, then **How was it?** — Score `ValueBar`,
 `ExtractionBar`, note — then **Flavor**: the radar over eleven `ValueBar`
 sliders.
 
+**The radar here is the interactive one** (§5.6). Tapping an axis zooms the
+chart onto that label and opens `FlavorNoteSheet`, a full-screen picker of ten
+tasting-note bubbles for that axis; confirming hangs the chosen notes off the
+label. Zoom and pan stay available whether or not the form is unlocked —
+*reading* five notes stacked under each of eleven labels is what the zoom is for
+— but taps only open the picker while `editing`, the same condition every field
+answers to. Each slider row also carries the axis's notes as a trailing button,
+which is the reachable way in: a `Canvas` has no accessibility nodes, so a
+chart-only affordance would put the feature out of reach of anyone not using
+their eyes to find it.
+
 Drafts, discard confirm and delete confirm are all built. Ask-AI opens as a
 sheet over the form.
 
@@ -502,6 +664,23 @@ carrying those over would be the app recording an opinion the user has not
 formed. Pour stages are *not* carried; the pour plan is what changes between
 brews of the same bag. The pre-filled values become the dirty-check baseline,
 so a reused form does not open asking to be saved.
+
+**Modify shows a disabled Save, and this reverses a 2026-08-17 decision.** The
+third button state used to render *nothing* until the form was dirty, on the
+reasoning that a greyed button on a form you have just been told to edit reads
+as a fault while an empty slot reads as "not yet". In use it did not: pressing
+Modify appeared to do nothing, because the one control that had been there
+vanished, and the only evidence the form had unlocked was the fields going live
+further up the page — off screen, since the button is at the bottom. Save now
+appears the moment Modify is pressed, disabled until something differs. The
+guard the empty slot used to encode survives in `enabled`, so a write that would
+do nothing but bump `updatedAt` is still impossible.
+
+**The per-axis Notes affordance exists only while editing.** On a locked form a
+disabled "Notes" button on all eleven rows is eleven invitations to press
+something that cannot be pressed. Read-only rows keep the *answer* — the chosen
+note names, as plain text — and drop the control; an axis with nothing chosen
+shows nothing at all rather than greying out.
 
 **The stage sheet's `At (time)` is a picker, not a typed field** — a trailing
 clock icon, tapping anywhere on the field opens `DurationPickerDialog`. It
@@ -547,8 +726,9 @@ Complete and unwired — see §1.
 ## 9. Data model
 
 Room, mirroring `coffee-can`'s SQLite schema column-for-column.
-**`version = 3`, `exportSchema = true`**, with named `MIGRATION_1_2` and
-`MIGRATION_2_3`. `fallbackToDestructiveMigration()` is banned.
+**`version = 4`, `exportSchema = true`**, with named `MIGRATION_1_2`,
+`MIGRATION_2_3` and `MIGRATION_3_4`. `fallbackToDestructiveMigration()` is
+banned.
 
 Six entities:
 
@@ -556,7 +736,7 @@ Six entities:
 | --- | --- |
 | `beans` | identity + provenance, `status` (`draft`/`saved`), `flavorSource` (`auto`/`manual`), and **eleven flavour columns** |
 | `bean_images` | `position`, `filePath`, `rotation` |
-| `sessions` | brew parameters, `score`, `extraction`, note, and **the same eleven flavour columns** |
+| `sessions` | brew parameters, `score`, `extraction`, note, **the same eleven flavour columns**, and `flavorNotes` |
 | `session_stages` | one pour each |
 | `catalogue_items` | crawler cache |
 | `news_items` | feed cache — four fields, no snippet column |
@@ -565,6 +745,21 @@ Six entities:
 is what makes `auto` work**: a bean with `flavorSource = auto` derives its radar
 by averaging its sessions. A sync bundle carrying only the bean columns imports
 beans that can never recompute one.
+
+**`sessions.flavorNotes` holds the tasting notes under each axis** (§5.6), as
+one nullable TEXT column keyed by axis *slug* — `{"floral":["jasmine","rose"]}`,
+never by index, so the desktop reads a name it already has a column for instead
+of both sides agreeing about list order forever. `FlavorNoteSelection` owns the
+format and is the only thing that should read the string. Note *keys* are
+stored, never names: the app ships in three languages and a bundle written on a
+French phone has to import as the same notes on an English one.
+
+It is a column and not a join table because it is a small closed list per row
+that nothing queries *by* — no screen asks which sessions taste of jasmine, they
+all ask what this session tastes of, which is the row already loaded.
+
+Sessions carry it and **beans do not**: a bean's radar is the average of its
+sessions and there is no average of "jasmine" and "bergamot".
 
 `CoffeeRepository` is the single point through which the rest of the app talks
 to storage.

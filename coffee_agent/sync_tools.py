@@ -59,7 +59,14 @@ from coffee_can.repo import FLAVOR_FIELDS  # noqa: E402
 #: writes the same number; an importer that meets a higher one refuses rather
 #: than guessing, because a partial understanding of someone's coffee log is
 #: worse than a clear "this bundle is newer than I am".
-BUNDLE_VERSION = 1
+#:
+#: v1 -> v2 adds ``flavor_notes`` on sessions: the tasting notes picked under
+#: each radar axis on the phone, carried as the JSON string the Android column
+#: stores (``{"floral": ["jasmine", "rose"]}``, axis slug -> note keys). This
+#: side stores and forwards it verbatim and never interprets it -- the desktop
+#: app has no UI for these yet, and re-encoding a format you do not render is
+#: how a round trip starts losing keys it did not recognise.
+BUNDLE_VERSION = 2
 
 _MANIFEST = "manifest.json"
 _BEANS = "beans.json"
@@ -82,9 +89,12 @@ _BEAN_FIELDS = (
 #: sessions (`repo.get_bean_average_flavor_scores`). Carry the bean columns
 #: alone and an imported auto bean shows an empty radar with no way to
 #: recompute it.
+#:
+#: ``flavor_notes`` is the tier under those axes -- which florals, not how
+#: floral. See :data:`BUNDLE_VERSION`.
 _SESSION_FIELDS = (
     "brew_date", "dripper", "filter_paper", "grinder", "grind_size",
-    "water_ppm", "dose_g", "score", "extraction", "note",
+    "water_ppm", "dose_g", "score", "extraction", "note", "flavor_notes",
 ) + FLAVOR_FIELDS
 
 

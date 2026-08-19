@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS brew_sessions (
     score        REAL,
     extraction   REAL,
     note         TEXT,
+    flavor_notes TEXT,
     status       TEXT NOT NULL DEFAULT 'draft',
     created_at   TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
@@ -102,6 +103,15 @@ def _migrate(conn: sqlite3.Connection) -> None:
         # INTEGER when the conversion is lossless, so fractional values
         # still round-trip intact.
         conn.execute("ALTER TABLE brew_sessions ADD COLUMN extraction REAL")
+        conn.commit()
+    if "flavor_notes" not in session_columns:
+        # The tasting notes picked under each flavour axis on the phone --
+        # {"floral": ["jasmine", "rose"]}, axis slug to note keys. Stored as
+        # the JSON string the Android side writes and read back out unchanged:
+        # no desktop screen renders these yet, and the column exists so that a
+        # phone -> desktop -> phone round trip does not quietly lose them.
+        # See coffee_agent/sync_tools.BUNDLE_VERSION.
+        conn.execute("ALTER TABLE brew_sessions ADD COLUMN flavor_notes TEXT")
         conn.commit()
     for field in FLAVOR_FIELDS:
         if field not in session_columns:
