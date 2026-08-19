@@ -123,7 +123,7 @@ Keyed by what you edited. "Verify" columns are commands in §6.
 | --- | --- | --- |
 | A colour / type / shape value in `ui/theme/Theme.kt` | Nothing — **`../variants.py` `PURE_GREEN` is the source of truth**, not Theme.kt. Change the deck first, or record the divergence in `check_design.py`'s `ACCEPTED_DEVIATIONS` *with a rationale written into `Theme.kt`* | `V1`, then `V2` |
 | A token in `../variants.py` | `Theme.kt`, and re-render the deck (`python3 ../scheme_e.py`) | `V1`, `V2` |
-| Anything visual at all | 58 Paparazzi goldens re-record | `V2` |
+| Anything visual at all | 72 Paparazzi goldens re-record | `V2` |
 
 `ACCEPTED_DEVIATIONS` is **not** a suppression list: an entry without a
 decision recorded in `Theme.kt` is drift wearing a disguise. It still prints
@@ -134,11 +134,13 @@ both values on every run. Today it holds exactly one entry (`surface`).
 | You changed | Also move | Verify |
 | --- | --- | --- |
 | Any user-facing string | `res/values/strings.xml` **and** `values-fr/` **and** `values-zh/` | `V3` |
-| A string the mock deck also draws | `screenshots.py` — `check_design.py` diffs 88 strings against it | `V1` |
+| A string the mock deck also draws | `screenshots.py` — `check_design.py` diffs 91 strings against it | `V1` |
 | Added a new string | All three locales; goldens; `LocaleScreenshotTest` renders all three | `V2`, `V3` |
 
-Current parity: **444** keys in `values/`, **442** in each of `values-fr/` and
-`values-zh/`. 122 of those were added on 2026-08-19 with the flavour-note
+Current parity: **496** keys in `values/`, **494** in each of `values-fr/` and
+`values-zh/` (measured, 2026-08-19; the 444/442 recorded here before that was
+already stale by 28 keys, which is the argument for measuring rather than
+trusting this line). 122 of those were added on 2026-08-19 with the flavour-note
 catalogue — 110 note names plus 12 for the picker — which is why the count
 jumped from 322. The two deliberate gaps are `app_name` and `app_title_home` —
 brand, untranslated on purpose. **Any third gap is a bug.**
@@ -155,11 +157,17 @@ and invisible to two thirds of the users.
 
 | You changed | Also move | Verify |
 | --- | --- | --- |
-| `data/Entities.kt` — added/renamed a column | Room `version` (currently **4**) + a new `Migration`; `data/Daos.kt`; **`data/SyncBundle.kt`** export *and* import; `../../../coffee_agent/sync_tools.py` `_BEAN_FIELDS`/`_SESSION_FIELDS`; `coffee/src/coffee_can/db.py` schema; `design-spec.md` §9 | `V4`, `V5` |
+| `data/Entities.kt` — added/renamed a column | Room `version` (currently **5**) + a new `Migration`; `data/Daos.kt`; **`data/SyncBundle.kt`** export *and* import; `../../../coffee_agent/sync_tools.py` `_BEAN_FIELDS`/`_SESSION_FIELDS`; `coffee/src/coffee_can/db.py` schema; `design-spec.md` §9 | `V4`, `V5` |
 | The bundle format | `SyncBundle.VERSION` **and** `sync_tools.BUNDLE_VERSION` — they must stay equal | `V5` |
 | A DAO query | Whether `CoffeeRepository` should expose it at all; whether `TestFakes.kt` needs the new method | `V2` |
+| An `AxisPage`, or which screen sits in a `+n` slot | **The number of every screen under it.** A deck number states *how a screen is reached*, so a screen that leaves the axis has to be renumbered into `0.x` and everything beneath it with it — routes in `ui/Nav.kt`, the frame names and `Canvas` titles in `screenshots.py`, `design-spec.md` §7.1's table and §8's headings, and any docstring quoting the old number (`grep -rn '+1\.' --include=*.kt`). A screen that becomes a push also gains a back arrow and **loses `AxisPageInsets`**, which nothing will fail on — Paparazzi renders every inset as zero | `V1`, `V1b`, `V2` |
+| Which act a FAB performs | The other FAB, if they are meant to match. Home's and `0.3` Sessions' raise one sheet hoisted in `Nav.kt`; that hoisting is what makes "the same +" possible at all, and a screen that opened its own copy would drift silently | `V2` |
+| A `HeroPhoto` implementation, or `PhotoHeroPage`'s image type | Both `BeanImageEntity` and `JourneyImageEntity` implement it, so a new member is a new **column** on two tables and a new migration, not just an interface change | `V2`, `V4` |
+| Anything in `CanBoyEiffel` | `screenshots.py`'s `can_boy_eiffel()`, **by hand**. This is the one figure where the Kotlin is the original and the simulator is the copy — every other mascot is read out of `res/drawable/ic_mascot_*.xml` by `_vector()`, so it cannot drift. Nothing checks this one | `V1b` |
 | A flavour note's key, or the per-axis cap | `ui/components/FlavorNotes.kt` (catalogue), `FlavorNoteSelection` (codec + cap), all three `strings.xml`, and **anything already stored** — a renamed key is silently dropped on decode, which reads to the user as their selection vanishing | `V2`, `V3` |
 | `RadarChart`'s drawing geometry | `share/ShareCard.kt` draws through the same `drawRadar`; its `RadarStyle` is a second instance of the same data class, so a new field needs a default or the share card stops compiling | `V2` |
+| `RadarChartSize`, or a radar's `size`/`labels` at a call site | The **three** in-app charts are one size and one label set by design (`design-spec.md` §5.3a): `HomeScreen` (inside `minOf(maxWidth, …)`), `BeanDetailScreen.RadarSection`, `BrewSessionScreen`. Also `plan/v1/screenshots.py` — `home`, `bean_new`, `bean_detail_lower`, `bean_detail_lower_empty`, `bean_detail_lower_background`, `brew_lower` all draw the number by hand | `V1b`, `V2` |
+| An axis label, or a translation of one | `RadarChart` sizes its net from the **measured** labels, so a longer word shrinks every chart rather than clipping — re-record and *look at* `RadarChartLabelFitScreenshotTest`'s three locales, which is the only place that shrinkage is visible | `V2`, `V3` |
 
 Migrations are **additive only** (see `CoffeeDatabase.kt:59`). A destructive
 migration drops a user's brew log, and there is no server-side copy to restore
@@ -305,9 +313,9 @@ python3 screenshots.py             # -> screenshots/*.png
 
 # ============ from coffee_android/v1/  (the module) ============
 
-# V2 — Paparazzi goldens (58).  SEE THE TWO WARNINGS BELOW.
+# V2 — Paparazzi goldens (72).  SEE THE TWO WARNINGS BELOW.
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64   # NOT the default JDK -- see below
-./gradlew :app:verifyPaparazziDebug                 # verify against the 58 goldens
+./gradlew :app:verifyPaparazziDebug                 # verify against the 72 goldens
 ./gradlew :app:recordPaparazziDebug                 # re-record, then READ the diff
 ./gradlew :app:testDebugUnitTest                    # goldens + geometry + ingest tests
 
@@ -398,7 +406,7 @@ values — `collectAsState(initial = null)` is how you keep them apart.
 **`screenshots/*.png` is not evidence.** 16 of its 44 PNGs match a current
 golden; 28 have drifted, several of them still labelled real captures in
 `REAL_CAPTURES.md`. Trust, in order: `../../v1/app/src/test/snapshots/images/`
-(58, always current with the last run) → `../../../docs/screenshots/` (device)
+(72, always current with the last run) → `../../../docs/screenshots/` (device)
 → that directory last. Never validate a design claim against it.
 
 ---
@@ -416,6 +424,6 @@ faster than the code it describes.
 - Prefer making a coupling *structural* (route it through a chokepoint in §1)
   over documenting it here. A row in this table is the fallback for coupling
   that could not be designed away — not the goal.
-- When a count in this document changes (322/320 strings, 58 goldens, Room
+- When a count in this document changes (496/494 strings, 72 goldens, Room
   version 3, `disclosureVersion` 1), update it in the same commit. Those
   numbers are the tripwires; a wrong one is worse than none.

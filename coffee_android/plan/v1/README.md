@@ -29,7 +29,7 @@ passes the design spec and fails the coupling spec.
 
 ```bash
 python3 check_design.py      # exit 0 = no drift.  36 colour + 11 type + 5 shape
-                             # tokens against ../variants.py, and 88 strings
+                             # tokens against ../variants.py, and 91 strings
                              # against the module's Kotlin/strings.xml/coffee_server
 python3 screenshots.py       # redraw the simulator frames -> screenshots/*.png
 python3 screenshots.py --svg # keep the vector source alongside
@@ -43,7 +43,7 @@ as `APP = ../../v1` and read it read-only.
 | --- | --- |
 | `check_design.py` | The drift checker. Its `ACCEPTED_DEVIATIONS` is **not** a suppression list — an entry needs a decision recorded in `Theme.kt`, and both values still print on every run |
 | `screenshots.py` | Draws the simulator frames *from the Kotlin*. When a screen changes, change its function here in the same commit, the way `../scheme_e.py` is kept in step with the deck |
-| `screenshots/` | 44 simulated PNGs + `REAL_CAPTURES.md`. **Not evidence** — see `coupling-spec.md` §8 |
+| `screenshots/` | 49 simulated PNGs + `REAL_CAPTURES.md`. **Not evidence** — see `coupling-spec.md` §8 |
 | `AUDIT.md` | The 2026-08-14 conformance review. **Historical**, not current state — but it is the `AUDIT.md` that ~40 comments across `../../v1/app/src/` cite by bare name, so it stays readable and stays here |
 
 ## What stayed in `../` and why

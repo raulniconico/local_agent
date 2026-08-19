@@ -1,5 +1,13 @@
 # coffee_android v1 — conformance audit
 
+> **Two things in this document have since been renumbered or replaced, and
+> the text below still uses the old names.** `+1` was Sessions when this was
+> written; on 2026-08-19 it became **Can travel** (journeys) and Sessions moved
+> to a pushed `0.3`, taking `+1.1`…`+1.6` with it to `0.31`…`0.35`.
+> `design-spec.md` §7.1 holds the was/is table. Read every `+1.x` below as the
+> screen it names, not as a route that still exists.
+
+
 > **⚠️ HISTORICAL. This audit is dated 2026-08-14 and much of it has been
 > fixed.** It is kept because the *reasoning* per finding is still the best
 > record of why the code looks the way it does — but do not read its headline
@@ -1131,7 +1139,15 @@ What shipped:
   unbuilt. **"Add bean" stays** — the deck's `00` page draws no action, but the
   same axis note says `0.1` is "reached by tapping Add bean from Home". The
   deck contradicts itself there and the note is the half that describes a
-  reachable screen.
+  reachable screen. **Superseded, 2026-08-19: the bar action is now "History"**
+  (direct product request). It went to `+1` Sessions for a few hours and then
+  became a **push** to `0.3` on the same day, when Can travel took the `+1`
+  slot and the whole Sessions family was renumbered into `0.x` — see
+  `design-spec.md` §7.1, which holds the was/is table. The axis note's concern
+  is unaffected: `0.1` is still reached by tapping, now from the "which bean?"
+  sheet the FAB raises and from the empty shelf's CTA. The reasoning below
+  about `+1` having no visible door is answered twice over, by `AxisBottomBar`
+  and by this action.
 - `screenshots.py` moved with it: no person glyph in `top_bar`'s vocabulary at
   all now, and Home's bar draws one action.
 
@@ -1206,7 +1222,7 @@ instead of stopping 34dp short of it; nothing the deck shows is off screen.
 
 | Deck page | Divergence | Called out in code? |
 | --- | --- | --- |
-| `00_home` | ~~top bar carries "Add bean" + a person icon~~ — the person icon is gone with the axis (§5.11b); "Add bean" stays, on the deck's own axis note. ~~The brand mark in the bar is still missing (§5.6)~~ — **stale, 2026-08-15: not a real gap, see §5.6b's status note — the deck's own `top_bar(..., brand=True)` never draws a mark, only a bigger title style, which the build already has** | yes |
+| `00_home` | ~~top bar carries "Add bean" + a person icon~~ — the person icon is gone with the axis (§5.11b); ~~"Add bean" stays, on the deck's own axis note~~ — **stale, 2026-08-19: the one action is "History", pushing `0.3` Sessions; the FAB logs a brew, and adding a bean is one tap further, inside the sheet it raises.** ~~The brand mark in the bar is still missing (§5.6)~~ — **stale, 2026-08-15: not a real gap, see §5.6b's status note — the deck's own `top_bar(..., brand=True)` never draws a mark, only a bigger title style, which the build already has** | yes |
 | ~~`00_home`~~ | ~~no **Search** action on "Your beans"~~ — **stale, 2026-08-15: built**, confirmed against a real render | no |
 | ~~`00_home`~~ | ~~all beans render; the deck shows three plus "See all N beans"~~ — **stale, 2026-08-15: built** (§5.8's sixth pass), confirmed against a real render | no |
 | ~~`00_home`~~ | ~~brew count is plain coloured text; the deck uses a `primaryContainer` **pill**~~ — **stale, 2026-08-15: built**, confirmed against a real render | no |

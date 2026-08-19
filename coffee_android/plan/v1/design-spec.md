@@ -45,7 +45,7 @@ Kotlin + Jetpack Compose for Google Play. Package `app.coffeecan`,
 `versionName` 1.0.0, one `Activity`, Compose-only, no XML layouts and no
 Fragments.
 
-**Built and shipping in v1:** the four axis pages (News, Home, Sessions,
+**Built and shipping in v1:** the four axis pages (News, Home, Can travel,
 Profile), Bean Detail with full CRUD and label scan, Brew Session Detail with
 the stage editor and Ask-AI, Scan Review, Share Card export, Welcome, Pick
 Bean, Privacy, AI disclosure and consent, account controls, desktop sync, and
@@ -324,14 +324,26 @@ else.
 
 Same eleven axes, same fixed order, two spellings:
 
-- **Full** (`BeanEntity.FLAVOR_AXES`) — Fruity, Floral, Tea-like, Sweet,
-  Nutty/Cocoa, Spices, Roasted, Cereal, Green/Veg, Sour, Fermented. Used on
-  full-size charts and every slider.
-- **Short** (`ShortFlavorAxes`) — Fruity, Floral, Tea, Sweet, Nutty, Spices,
-  Roasted, Cereal, Green, Sour, Ferment. Used at small radii.
+- **Full** (`BeanEntity.FLAVOR_AXES` / `localizedFlavorAxes()`) — Fruity,
+  Floral, Tea-like, Sweet, Nutty/Cocoa, Spices, Roasted, Cereal,
+  Green/Vegetative, Sour, Fermented. Used on **every slider row** and by the
+  Share Card, both of which have the width of the screen.
+- **Short** (`ShortFlavorAxes` / `localizedShortFlavorAxes()`) — Fruity,
+  Floral, Tea, Sweet, Nutty, Spices, Roasted, Cereal, Green, Sour, Ferment.
+  Used on **all three in-app radars**.
 
 Measured label placement stops "Nutty/Cocoa" being *clipped*; it does not stop
 it being the widest thing on a small card. Hence two sets.
+
+**No radar draws the full set, since 2026-08-19.** The bean profile did, on the
+reasoning that a 260dp chart had the room. It did not, and the shortfall was
+not marginal: "Green/Vegetative" sits at 171.8° — nine o'clock to within a
+degree — so the arm out to its anchor spends 99.8dp of the box's 130dp
+half-width before its own 74dp of text begins, and the last 44dp were being
+clipped against the box edge by `RadarChart`'s `clipToBounds`. Fitting the full
+name at that radius needs a 348dp-wide chart, which no phone card provides, so
+the choice was the short name or a radar at half size. Reported directly; see
+§5.3a.
 
 **Order is part of the format.** It matches `repo.FLAVOR_AXES` on the desktop,
 and the sync bundle writes the eleven `flavor_*` **column names** in that order
@@ -343,6 +355,32 @@ string differs; the column (`flavor_green_vegetative`) is the same, which is
 what the bundle carries. Worth closing for consistency the next time either
 side's labels are touched — but it is not a data defect, and changing the
 column name to match would be.
+
+### 5.3a One radar size, and a measured label ring
+
+**All three in-app radars draw at `RadarChartSize` = 260dp** — Home's shelf
+average (§8.3), a bean's own profile (§8.4) and the brew form's live preview
+(§8.8). They were 307dp, 260dp and 240dp until 2026-08-19, so the same eleven
+axes changed scale as the reader moved between the screens that show them. The
+constant lives in `ui/components/RadarChart.kt` and is that composable's
+default `size`; a call site that hard-codes a Dp is drift.
+
+`size` is the composable's **box**, not the polygon. The label ring is reserved
+out of it, so the drawn radius is `size/2 × 0.66` — 85.8dp — or `× 0.48` when
+the chart carries tasting notes, which reach further out than a label alone.
+
+**The fraction is a ceiling, not a guarantee, and `labelRingRadius` is the
+floor under it.** A proportion cannot know how wide a word is: 34% of the
+half-box holds "Green" and does not hold its French "Végétal", and what an
+under-reservation produces is a clipped word rather than a smaller chart.
+`RadarChart` therefore also solves `drawRadar`'s own placement arithmetic for
+the radius — `(radius + gap)·|cos θ| + labelWidth ≤ half` per axis, and the
+matching sine form for a note stack — and draws at whichever of the two is
+smaller. In English at the default text size the fraction wins and the
+measurement costs nothing; in French it pulls the net in by about 2dp. The
+Share Card already sized itself this way (`widestLabel`); this closes the same
+gap on the in-app chart. Covered by `RadarChartLabelFitScreenshotTest` in three
+locales.
 
 ### 5.6 The interactive radar and its tasting notes
 
@@ -524,12 +562,28 @@ The deck defines the whole app as one horizontal axis centred on Home, which is
 why every page is numbered rather than named:
 
 ```
-   -1            00           +1            +2
-  News    ←→   HOME    ←→  Sessions   ←→  Profile
+   -1            00            +1             +2
+  News    ←→   HOME    ←→  Can travel  ←→  Profile
 ```
 
 Implemented as one `HorizontalPager` over those four pages (`ui/Axis.kt`), with
 every `0.x` page pushed on top of it.
+
+**`+1` changed hands on 2026-08-19.** It was Sessions, the brew log; it is now
+Can travel, the journeys page (§8.6). Sessions was not removed — it became a
+pushed `0.3`, reached from Home's History action — and its whole family was
+renumbered with it, because in this scheme a number states *how a screen is
+reached*, not what it contains:
+
+| was | is | screen |
+| --- | --- | --- |
+| `+1` | `0.3` | Sessions |
+| `+1.1` | `0.31` | Brew Session Detail |
+| `+1.1a` | `0.31a` | Pick Bean |
+| `+1.2`…`+1.6` | `0.32`…`0.35` | the brew form's sheets and dialogs |
+
+`+1.1` now means the journey profile (§8.6b), under the new `+1`. This is the
+second slot to change hands: `-1` was Can Drink before it was News.
 
 **The bottom bar is an addition to the deck, on a product decision.** The deck
 draws no such bar. What makes it the right addition is a defect the axis
@@ -554,10 +608,13 @@ Named for the deck's page numbers so a screen can be found from a wireframe
 | --- | --- |
 | `Welcome` | `00w_welcome` |
 | `Axis` | `axis` |
-| `PickBean` | `+1.1a_pick_bean` |
+| `PickBean` | `0.31a_pick_bean` |
 | `NewBean` | `0.1_bean_profile` |
 | `BeanDetail` | `0.2_bean_detail/{beanId}` |
-| `BrewSession` | `+1.1_log_brew/{beanId}/{sessionId}` |
+| `Sessions` | `0.3_sessions` |
+| `BrewSession` | `0.31_log_brew/{beanId}/{sessionId}` |
+| `NewJourney` | `+1.1_journey` |
+| `JourneyDetail` | `+1.1_journey/{journeyId}` |
 | `Privacy` | `+2.2a_privacy` |
 | `AiDisclosure` | `+2.2b_ai` |
 
@@ -590,8 +647,23 @@ chevron), "See all N beans", **Brewing activity** contribution calendar, and
 **My flavor** — an eleven-axis radar averaged across every session, labelled
 with the session count.
 
-Empty state: the pour-over mascot with an idle wiggle (1000ms shake, 4000ms
-rest). Search is a top-level action. FAB logs a brew.
+Empty state: the **pour-over mascot** at 160dp — the same figure `0.3`'s empty
+state uses, replacing the brand lockup on 2026-08-19 (the lockup opens the
+splash and the sign-in page, so a third appearance here made the first screen
+after the splash look like the splash again) — over the headline, one
+sentence and a CTA carrying the deck's idle wiggle (1000ms shake, 4000ms rest).
+Search is the shelf heading's action.
+
+**The top bar carries one worded action, "History"**, and it **pushes** `0.3`
+Sessions (2026-08-19, direct product request). It was a pager move for as long
+as Sessions was `+1`; when Can travel took that slot the action stayed and its
+mechanism changed, which is the same fact the renumbering in §7.1 records.
+
+**The FAB logs a brew** — it raises the same hoisted "which bean?" sheet
+`0.3` Sessions' FAB does, so a "+" means one thing wherever it appears. It has
+been both things twice; the current call is 2026-08-19. Adding a bean did not
+lose its door: that sheet offers "Add a new bean", and an empty shelf shows its
+own CTA.
 
 ### 8.4 `0.1` / `0.2` / `0.2b` Bean Detail
 
@@ -624,18 +696,53 @@ what would change, an empty-read state, and a report control.
 
 Nothing reaches the form until the user accepts.
 
-### 8.6 `+1` Sessions
+### 8.6 `+1` Can travel
+
+The cafés you have been to, as a stack of Polaroids — square photo, 10dp
+surround, a deep chin carrying the café's name and `city · date`. One column,
+288dp wide and centred, each print at a tilt of up to ±1.6° seeded by its own
+row id (`PolaroidCard`). Empty state: `MascotEiffel`, this app's **only piece
+of original mascot artwork** — every other pose is exported from the design
+deck, so this is the one figure whose Kotlin is the original and whose
+`screenshots.py` twin is the copy.
+
+The FAB goes straight to a blank `+1.1`. There is no "which one?" sheet in
+front of it, unlike the brew FAB, because a journey belongs to nothing.
+
+### 8.6a `0.3` Sessions
 
 Every brew across every bean, newest first, with the dripper glyph at 64dp,
 dose, score and extraction verdict. Header states the count. Empty state and
-delete are both built.
+delete are both built. A **pushed** destination since 2026-08-19, reached from
+Home's History action — so it carries a real back arrow again, and it no
+longer claims `AxisPageInsets` (there is no axis Scaffold above a push, so
+claiming only top and sides would leave its last row under the system bar).
 
-### 8.7 `+1.1` Which bean? → `+1.1a` Pick Bean
+### 8.6b `+1.1` Journey Profile
+
+One café: name, visit date, city, latitude/longitude, note, photos.
+Structurally `0.1`/`0.2` one size down — a blank journey is a plain form under
+an app bar, a saved one is a photo hero with the panel pulled over it and
+delete on the pulled disc. No scan card (a café has no label), no radar (a
+journey has no flavour), no sessions list (a brew belongs to a bean).
+
+**There is no embedded map, by decision.** An "Open in Maps" card fires a
+`geo:` intent carrying the pin or the address to whatever maps app the user
+has. Embedding the Maps SDK would put a second network destination inside an
+app whose "talks to `coffee_server` and nothing else" property is what lets
+`legal-accounts.md` §3.8 say what it says, and would add an API key, a tile
+fetch and a Data safety change — for a feature whose job is to answer "where
+was this?". **The coordinates are typed, never sensed**: the app holds no
+location permission and asks for none.
+
+### 8.7 `0.31a` Which bean? → Pick Bean
 
 The FAB opens a sheet with three choices: pick an existing bean, add a bean, or
-vibe-brew (log now, name it later). Pick Bean is its own screen.
+vibe-brew (log now, name it later). Pick Bean is its own screen. It is raised
+by Home's FAB **and** by `0.3` Sessions', through one sheet hoisted in
+`Nav.kt` — which is what let Home's FAB take over Sessions' job.
 
-### 8.8 `+1.1` Brew Session Detail
+### 8.8 `0.31` Brew Session Detail
 
 One brew, created or edited (1001 lines). Brew fields (dripper, grinder, grind
 size, filter, dose, water, temperature, ppm, humidity, total time), **Pour
@@ -725,12 +832,13 @@ Complete and unwired — see §1.
 
 ## 9. Data model
 
-Room, mirroring `coffee-can`'s SQLite schema column-for-column.
-**`version = 4`, `exportSchema = true`**, with named `MIGRATION_1_2`,
-`MIGRATION_2_3` and `MIGRATION_3_4`. `fallbackToDestructiveMigration()` is
-banned.
+Room, mirroring `coffee-can`'s SQLite schema column-for-column — **except the
+last two tables, which have no desktop counterpart at all**.
+**`version = 5`, `exportSchema = true`**, with named `MIGRATION_1_2`,
+`MIGRATION_2_3`, `MIGRATION_3_4` and `MIGRATION_4_5`.
+`fallbackToDestructiveMigration()` is banned.
 
-Six entities:
+Eight entities:
 
 | Table | Notes |
 | --- | --- |
@@ -740,6 +848,21 @@ Six entities:
 | `session_stages` | one pour each |
 | `catalogue_items` | crawler cache |
 | `news_items` | feed cache — four fields, no snippet column |
+| `journeys` | `+1`'s cafés: name, `location`, nullable `latitude`/`longitude`, `visitedAt`, note |
+| `journey_images` | `position`, `filePath`, `rotation` — the same contract as `bean_images`, in its own tree under `filesDir/journey_images/` |
+
+**`journeys` is the first table whose shape is ours to choose**, and two
+consequences follow that are easier to state than to rediscover. The sync
+bundle does **not** carry journeys — `coffee_agent/sync_tools.py` has nothing
+to write them into, and inventing a bean-side column for them would be exactly
+the drift the column-for-column rule exists to prevent. And `journey_images/`
+had to be added to `data_extraction_rules.xml` by hand: the Auto Backup
+exclusion names `bean_images/` by path, so a second image tree is *not*
+covered by inheritance.
+
+`BeanImageEntity` and `JourneyImageEntity` both implement `HeroPhoto`
+(`position` + `filePath`), which is what lets `PhotoHeroPage` draw either
+without a second copy of itself and without the two tables sharing rows.
 
 **The eleven flavour columns exist on `sessions` as well as `beans`, and that
 is what makes `auto` work**: a bean with `flavorSource = auto` derives its radar
@@ -872,7 +995,7 @@ the vision endpoint wanted anyway. Covered by instrumented tests.
 | Layer | Tool | Covers |
 | --- | --- | --- |
 | Design tokens | `check_design.py` | 36 colour, 11 type, 5 shape tokens against `../variants.py` |
-| Rendering | Paparazzi, `app/src/test/…/screenshot/` | 58 goldens in `app/src/test/snapshots/images/` — real compiled Compose through layoutlib, no emulator |
+| Rendering | Paparazzi, `app/src/test/…/screenshot/` | 68 goldens in `app/src/test/snapshots/images/` — real compiled Compose through layoutlib, no emulator |
 | Geometry | `ContributionCalendarGeometryTest`, `CropToFitTest` | layout maths |
 | Ingest | `ImageIngestTest`, `ImageIngestOrientationTest` | EXIF strip, orientation |
 | Insets, gesture, share targets | **a physical device only** | §4.3 |
@@ -902,7 +1025,7 @@ worth knowing about:
 Still true, and not fixable by a script: **`screenshots/*.png` is a mix.** Of
 its 44 PNGs, 16 are byte-identical to a current Paparazzi golden and 28 have
 drifted — including several that `REAL_CAPTURES.md` still lists as real. Trust,
-in order: the goldens in `../../v1/app/src/test/snapshots/images/` (58, always
+in order: the goldens in `../../v1/app/src/test/snapshots/images/` (68, always
 current with the last test run), then the physical-device captures in
 `../../../docs/screenshots/`, then `screenshots/` in this folder.
 

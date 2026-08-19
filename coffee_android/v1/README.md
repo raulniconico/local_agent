@@ -107,7 +107,7 @@ The tests that *do* live here are the ones Gradle owns:
 
 ```bash
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-./gradlew :app:verifyPaparazziDebug   # 57 goldens
+./gradlew :app:verifyPaparazziDebug   # 72 goldens
 ./gradlew :app:recordPaparazziDebug   # re-record, then read the diff
 ```
 

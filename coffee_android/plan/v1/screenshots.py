@@ -99,6 +99,28 @@ TYPE = {
     "labelLarge": (14, 600), "labelMedium": (12, 600), "labelSmall": (11, 500),
 }
 
+# +1 Can travel's sample cafés, and the tilts `PolaroidCard.polaroidTilt` gives
+# ids 1..3 -- computed with the composable's own hash rather than eyeballed, so
+# a frame here cannot show a lean the build would not produce.
+JOURNEYS = [
+    ("Belleville Br\u00fblerie", "Paris 11e", "16 Aug 2026"),
+    ("Lomi", "Paris 20e", "9 Aug 2026"),
+    ("Coutume Caf\u00e9", "Paris 7e", "2 Aug 2026"),
+]
+POLAROID_TILTS = [
+    (((i * 2654435761) >> 16) % 2000 / 1000.0 - 1.0) * 1.6 for i in (1, 2, 3)
+]
+
+JOURNEY = {
+    "name": "Belleville Br\u00fblerie",
+    "city": "Paris 11e",
+    "day": "16 Aug 2026",
+    "lat": "48.8721",
+    "lng": "2.3782",
+    "note": "Sat by the window. The Kenyan on filter was the one.",
+}
+
+
 GUTTER = 16          # theme/Theme.kt's `Gutter`, in every screen's Column
 TOPBAR_H = 64
 STATUS_H = 28
@@ -106,9 +128,13 @@ BAR_BOTTOM = STATUS_H + TOPBAR_H     # first free y under the app bar
 
 AXES = ["Fruity", "Floral", "Tea-like", "Sweet", "Nutty/Cocoa", "Spices",
         "Roasted", "Cereal", "Green/Veg", "Sour", "Fermented"]
-# components/RadarChart.kt ShortFlavorAxes -- passed at Home's 200dp chart and
-# the brew form's 240dp preview, where the full names are the loudest thing on
-# the card. The 260dp bean chart keeps the full set.
+# components/RadarChart.kt ShortFlavorAxes -- passed at all three in-app charts
+# since 2026-08-19, now that they are one size (`RadarChartSize`, 260dp). The
+# bean chart used to pass the full names on the reasoning that the full-size
+# chart had the room; it did not. "Green/Vegetative" sits at nine o'clock, so
+# it spends the whole 130dp half-width on its own arm before its 74dp of text
+# starts, and the overflow was clipped against the box edge. AXES stays for the
+# share card and for the slider rows, which have the width of the screen.
 SHORT_AXES = ["Fruity", "Floral", "Tea", "Sweet", "Nutty", "Spices",
               "Roasted", "Cereal", "Green", "Sour", "Ferment"]
 
@@ -239,7 +265,7 @@ def top_bar(c: Canvas, title, back=False, title_style="titleMedium",
     """Material3 TopAppBar, containerColor = background (every screen sets it).
 
     `actions` is a list of glyph names drawn right-to-left from the edge;
-    `action_text` is a worded action (Home's "Add bean", Profile's "Log out").
+    `action_text` is a worded action (Home's "History", Profile's "Log out").
 
     There is no "person" glyph in this vocabulary any more: Home's profile
     icon was the push model's door to +2, and +2 is a swipe now (ui/Axis.kt).
@@ -561,6 +587,106 @@ def radar(c: Canvas, cx, cy, size, values, labels=None):
         c.text(ax, ay + 3, label, "labelSmall", ink, anchor, size=8)
 
 
+# ------------------------------------------------------------ can-boy travel ---
+# The tower and the figure, in the 100-unit space `CanBoy.kt`'s `figure {}` sets
+# up. Every `d` string below is copied out of `CanBoyEiffel`.
+_EIFFEL = [
+    # base legs, first platform, mid section, cross-brace, upper section
+    ("M18 86 C 25 66, 33 48, 39 38", 3.4),
+    ("M82 86 C 75 66, 67 48, 61 38", 3.4),
+    ("M34 38 L66 38", 3.0),
+    ("M39 38 C 41 30, 43 25, 44.5 20", 2.8),
+    ("M61 38 C 59 30, 57 25, 55.5 20", 2.8),
+    ("M40.5 36 L59.5 23", 1.6),
+    ("M59.5 36 L40.5 23", 1.6),
+    ("M43 20 L57 20", 2.6),
+    ("M44.5 20 L50 7 L55.5 20", 2.6),
+    ("M50 7 L50 3", 2.0),
+]
+
+# can_boy()'s own limbs, in his own frame. The raised arm is drawn at rest
+# (wave = 0); the composable rolls it about the shoulder and this does not,
+# because a still frame of a wave is a raised arm.
+_CAN_BOY_LIMBS = [
+    ("M30 40 Q19 44 17 55", 4.2),
+    ("M41 75 L37 90", 4.2),
+    ("M59 75 L63 90", 4.2),
+    ("M70 38 Q81 29 79 16", 4.2),
+]
+
+_CAN_BODY = "M33 27 C 29 41, 29 60, 33 74 C 40 78, 60 78, 67 74 C 71 60, 71 41, 67 27"
+
+
+def can_boy_eiffel(c: Canvas, cx, cy, size):
+    """`ui/components/CanBoyEiffel` -- the `+1` empty state's mascot.
+
+    THE DIRECTION OF AUTHORITY IS REVERSED FOR THIS ONE FIGURE, and it is the
+    only one in this file that works that way. Every other mascot here is read
+    out of `res/drawable/ic_mascot_*.xml` by `_vector()` precisely so the
+    simulation cannot draw something the build does not have. There is no
+    drawable for this one: it is original artwork that exists only as Compose
+    draw calls (`CanBoy.kt` explains why -- there is no deck figure to export
+    from, because `+1` Can travel was added long after the deck was drawn). So
+    this function is a **copy**, and the Kotlin is the original. Change the
+    Kotlin and this has to follow by hand; there is no export step that would
+    do it, and no check that would notice.
+    """
+    s = size / 100.0
+    c.circle(cx, cy, size / 2, C["brand"])
+    c.parts.append(f'<g transform="translate({cx - size / 2:.2f} '
+                   f'{cy - size / 2:.2f}) scale({s:.5f})">')
+
+    def stroke(d, sw):
+        c.parts.append(f'<path d="{d}" fill="none" stroke="#FFFFFF" '
+                       f'stroke-width="{sw}" stroke-linecap="round" '
+                       f'stroke-linejoin="round"/>')
+
+    for d, sw in _EIFFEL:
+        stroke(d, sw)
+
+    # can-boy: translate(50 88) scale(0.48) translate(-50 -90), the composable's
+    # own placement.
+    c.parts.append('<g transform="translate(50 88) scale(0.48) translate(-50 -90)">')
+    for d, sw in _CAN_BOY_LIMBS:
+        stroke(d, sw)
+    # canTorso(): body, lid ellipse, and the pull tab in its own rotated frame.
+    stroke(_CAN_BODY, 5.2)
+    c.parts.append('<ellipse cx="50" cy="24" rx="19" ry="6.5" fill="none" '
+                   'stroke="#FFFFFF" stroke-width="5.2"/>')
+    c.parts.append('<g transform="translate(58 12) rotate(-12)">')
+    c.parts.append('<ellipse cx="0" cy="0" rx="5.4" ry="3.6" fill="none" '
+                   'stroke="#FFFFFF" stroke-width="3"/>')
+    stroke("M0 3.6 L-0.8 7.6", 3)
+    c.parts.append('</g>')
+    # bellyWordmark(): ic_brand_wordmark's 128 box centred on (50, 57) at 0.5.
+    box, paths = _vector("ic_brand_wordmark")
+    c.parts.append(f'<g transform="translate(50 57) scale(0.5) '
+                   f'translate(-63.54 -57.33) scale({128 / box:.5f})">')
+    for d, a in paths:
+        c.parts.append(f'<path d="{d}" fill="{a.get("fillColor", "none")}"/>')
+    c.parts.append('</g></g></g>')
+
+
+def polaroid(c: Canvas, x, y, w, title, caption, tilt=0.0):
+    """`ui/components/PolaroidCard.kt`: square frame, 10dp surround, 54dp chin.
+
+    The photo is drawn as the unexposed emulsion rather than as a stand-in
+    picture -- the deck invents bean names and dates, but inventing a
+    *photograph* would make this frame prove something about a layout it has
+    not actually been shown."""
+    border, chin = 10, 54
+    img = w - 2 * border
+    h = border + img + chin
+    c.parts.append(f'<g transform="rotate({tilt:.2f} {x + w / 2:.1f} {y + h / 2:.1f})">')
+    c.rect(x, y, w, h, "#FDFDFA", 4)
+    c.rect(x + border, y + border, img, img, "#E8E9E4", 1)
+    ty = y + border + img + 10
+    c.text(x + border, ty + 12, title, "titleMedium", "#1B2A1C", size=15)
+    c.text(x + border, ty + 29, caption, "bodyMedium", "#6B776C", size=12)
+    c.parts.append('</g>')
+    return y + h
+
+
 def heatmap(c: Canvas, x, y, w, days, today, weeks=21):
     """ui/components/ContributionCalendar.kt, drawn in the card's own
     coordinates: the component takes the whole 140dp card interior and insets
@@ -734,23 +860,30 @@ def home():
     """00 -- HomeScreen.kt, populated.
 
     Three cards of the four on the shelf, then a "See all N beans" row: the
-    list is capped so both summary panes clear the fold. Cards are 72dp (a 64dp
-    tile with 4dp of air, not 12), the second line is process + roast date at
-    the deck's own 11sp override, the name is its 14sp one, and the brew count
-    is a filled pill rather than a coloured word.
+    list is capped at three. That cap used to be enough to land both summary
+    panes above the fold and no longer is -- at the shared 260dp chart the
+    flavour card starts near the bottom of an 800dp frame and finishes below
+    it, which is what a phone with three bags on the shelf actually shows.
+    Home is a `verticalScroll` column, so this is the top of a scroll rather
+    than a clipped screen. Cards are 72dp (a 64dp tile with 4dp of air, not
+    12), the second line is process + roast date at the deck's own 11sp
+    override, the name is its 14sp one, and the brew count is a filled pill
+    rather than a coloured word.
 
     Under the list, the two panes coffee-can's desktop shows side by side:
-    the 140dp Brewing-activity calendar and the 178dp My-flavor radar.
+    the 140dp Brewing-activity calendar and the My-flavor radar, now at the
+    260dp every chart in the app shares (`RadarChartSize`).
 
-    THE BAR HAS ONE ACTION NOW. The profile icon is gone and so is the
+    THE BAR HAS ONE ACTION NOW, AND IT IS "History" -- +1 Sessions, which is
+    the page immediately right of this one, tapped rather than swiped
+    (2026-08-19). It used to be "Add bean"; the FAB below opens that same
+    screen, so nothing was lost. The profile icon is gone and so is the
     "Every brew you've logged" row that used to close the scroll: both were
-    doors push navigation needed, and +1 and +2 are a swipe right from here
-    (ui/Axis.kt). Still missing against the deck: the brand mark in the bar,
-    and "Add bean" itself, which the deck's 00 page does not draw but its own
-    axis note requires (see HomeScreen.kt)."""
+    doors push navigation needed (ui/Axis.kt). Still missing against the
+    deck: the brand mark in the bar."""
     c = Canvas("00 Home")
     status_bar(c)
-    y = top_bar(c, "Coffee Can", action_text="Add bean")
+    y = top_bar(c, "Coffee Can", action_text="History")
     y = section(c, y, "Your beans", action="Search")
 
     for name, roaster, origin, brews, process, roast in BEANS[:3]:
@@ -788,10 +921,12 @@ def home():
 
     y = section(c, y, "My flavor",
                 caption=f"Average across {len(SESSIONS)} sessions")
-    card(c, y, 178)
+    card(c, y, 260)
     # `size` is the composable's box; RadarChart's own radius is half of it
-    # times 0.66, so 178 draws r=58.7 against the deck's r=60.
-    radar(c, W / 2, y + 89, 178, MY_FLAVOR, labels=SHORT_AXES)
+    # times 0.66, so 260 draws r=85.8. Bigger than the deck's r=60 on this
+    # page, deliberately: one size across the three screens beat matching the
+    # deck's per-page figures (2026-08-19).
+    radar(c, W / 2, y + 130, 260, MY_FLAVOR, labels=SHORT_AXES)
     fab(c)
     gesture_bar(c)
     return c
@@ -803,11 +938,14 @@ def home_empty():
     shipped icon.svg's own lettering on the Brand disc)."""
     c = Canvas("00 Home, first run")
     status_bar(c)
-    top_bar(c, "Coffee Can", action_text="Add bean")
-    # Arrangement.Center over a taller stack than before: the 100dp mark and
-    # its 24dp spacer push the headline's baseline down by half of 124.
-    cy = (BAR_BOTTOM + H) / 2 - 40 + 62
-    illustration(c, "ic_brand_lockup", W / 2, cy - 100, 100)
+    top_bar(c, "Coffee Can", action_text="History")
+    # THE BREWING MASCOT, NOT THE LOCKUP (2026-08-19). The wordmark opens the
+    # splash and the sign-in page, so repeating it here made the first screen
+    # after the splash look like the splash again; the pour-over pose is what
+    # `0.3`'s own empty state uses, one size up. Arrangement.Center over the
+    # 160dp figure and its 16dp spacer.
+    cy = (BAR_BOTTOM + H) / 2 - 40 + 78
+    illustration(c, "ic_mascot_pour_over", W / 2, cy - 96, 160)
     c.text(W / 2, cy, "No beans yet", "headlineMedium", anchor="middle")
     c.wrap(W / 2, cy + 34, "Add the bag you're brewing this week and start "
            "keeping the log.", W - 80, "bodyLarge", C["onSurfaceVariant"],
@@ -856,7 +994,7 @@ def bean_new():
     y = field(c, y, "Note", h=96) + 24
     y = section(c, y, "Radar", action="Set manually")
     card(c, y, 300)
-    radar(c, W / 2, y + 140, 260, None)
+    radar(c, W / 2, y + 140, 260, None, labels=SHORT_AXES)
     gesture_bar(c)
     return c
 
@@ -912,7 +1050,7 @@ def bean_detail_lower():
     y = field(c, y, "Note", BEAN["note"].split("\n")[0], h=96) + 24
     y = section(c, y, "Radar", action="Set manually")
     card(c, y, 300)
-    radar(c, W / 2, y + 140, 260, BEAN_FLAVOR)
+    radar(c, W / 2, y + 140, 260, BEAN_FLAVOR, labels=SHORT_AXES)
     c.text(W / 2, y + 288, "Averaged from 4 sessions · fixed axis order, 0–5 scale",
            "labelSmall", C["onSurfaceVariant"], "middle", size=9)
     y += 300 + 24
@@ -944,7 +1082,7 @@ def bean_detail_lower_empty():
     y = field(c, y, "Note", "", h=96) + 24
     y = section(c, y, "Radar", action="Set manually")
     card(c, y, 300)
-    radar(c, W / 2, y + 140, 260, None)
+    radar(c, W / 2, y + 140, 260, None, labels=SHORT_AXES)
     c.text(W / 2, y + 288, "Log a brew to start building this bean's flavor profile",
            "labelSmall", C["onSurfaceVariant"], "middle", size=9)
     y += 300 + 24
@@ -988,7 +1126,7 @@ def bean_detail_lower_background(c: Canvas):
     y = top_bar(c, BEAN["name"], back=True, actions=["delete"])
     y = section(c, y + 120, "Radar", action="Set manually")
     card(c, y, 300)
-    radar(c, W / 2, y + 140, 260, BEAN_FLAVOR)
+    radar(c, W / 2, y + 140, 260, BEAN_FLAVOR, labels=SHORT_AXES)
 
 
 def photo_source_sheet():
@@ -1227,9 +1365,14 @@ def bean_detail_background(c: Canvas):
 
 
 def sessions():
-    """+1 -- SessionsScreen. Dense rows with a hairline divider and no card
-    chrome, unlike Home: a log is more numerous than a shelf."""
-    c = Canvas("+1 Sessions")
+    """0.3 -- SessionsScreen. Dense rows with a hairline divider and no card
+    chrome, unlike Home: a log is more numerous than a shelf.
+
+    `0.3`, NOT `+1`, SINCE 2026-08-19. Can travel took the `+1` slot on the
+    axis and this went back to being a pushed destination, reached from Home's
+    History action -- so the back arrow it kept drawing all along is finally
+    honest again. See `ui/Nav.kt` for the whole renumbering."""
+    c = Canvas("0.3 Sessions")
     status_bar(c)
     y = top_bar(c, "Sessions", back=True)
     c.text(GUTTER, y + 20, f"Newest first · {len(SESSIONS)} sessions",
@@ -1247,9 +1390,11 @@ def sessions():
 
 
 def sessions_empty():
-    """+1_sessions_empty -- SessionsScreen.SessionsEmpty, with the pour-over
-    mascot at 184dp above the headline. Nothing else is on this page."""
-    c = Canvas("+1 Sessions, empty")
+    """0.3_sessions_empty -- SessionsScreen.SessionsEmpty, with the pour-over
+    mascot at 184dp above the headline. Nothing else is on this page.
+
+    The same pose now opens Home's empty state too, one size down."""
+    c = Canvas("0.3 Sessions, empty")
     status_bar(c)
     top_bar(c, "Sessions", back=True)
     cy = (BAR_BOTTOM + H) / 2 - 20 + 100
@@ -1289,7 +1434,7 @@ def which_bean_empty():
     still works, and the copy says so."""
     c = Canvas("+1.1 Which bean?, no beans")
     status_bar(c)
-    top_bar(c, "Coffee Can", action_text="Add bean")
+    top_bar(c, "Coffee Can", action_text="History")
     scrim(c)
     y = sheet(c, 528)
     c.text(24, y + 26, "Which bean is in the cup?", "headlineSmall")
@@ -1390,17 +1535,91 @@ def brew_lower():
     y += 300 + 20
 
     y = section(c, y, "Flavor")
-    card(c, y, 320)
-    radar(c, W / 2, y + 128, 240, SESSION_FLAVOR, labels=SHORT_AXES)
-    ry = y + 246
+    card(c, y, 340)
+    radar(c, W / 2, y + 142, 260, SESSION_FLAVOR, labels=SHORT_AXES)
+    ry = y + 266
     for i in range(3):
         c.text(GUTTER + 12, ry + 12, AXES[i], "labelLarge")
         slider(c, ry + 8, GUTTER + 116, 132, SESSION_FLAVOR[i])
         c.text(W - GUTTER - 12, ry + 12, f"{SESSION_FLAVOR[i]:.1f}", "labelSmall",
                C["onSurfaceVariant"], "end")
         ry += 24
-    y += 320 + 24
+    y += 340 + 24
     button(c, y, "Log this brew")
+    gesture_bar(c)
+    return c
+
+
+def can_travel():
+    """+1 -- JourneysScreen, populated: one Polaroid per café, 288dp wide and
+    centred, each at its own seeded tilt."""
+    c = Canvas("+1 Can travel")
+    status_bar(c)
+    y = top_bar(c, "Can travel")
+    c.text(GUTTER, y + 20, f"Newest first · {len(JOURNEYS)} journeys",
+           "labelMedium", C["onSurfaceVariant"])
+    y += 32
+    pw = 288
+    for i, (name, city, day) in enumerate(JOURNEYS):
+        # The tilts are `polaroidTilt(id)` evaluated for ids 1..3 -- the
+        # composable's own hash, not a look-alike wobble.
+        y = polaroid(c, (W - pw) / 2, y, pw, name, f"{city} · {day}",
+                     tilt=POLAROID_TILTS[i]) + 20
+        if y > H:
+            break
+    fab(c)
+    gesture_bar(c)
+    return c
+
+
+def can_travel_empty():
+    """+1_can_travel_empty -- JourneysScreen.JourneysEmpty. The one frame that
+    shows this app's only original mascot; see `can_boy_eiffel`."""
+    c = Canvas("+1 Can travel, empty")
+    status_bar(c)
+    top_bar(c, "Can travel")
+    cy = (BAR_BOTTOM + H) / 2 - 20 + 100
+    can_boy_eiffel(c, W / 2, cy - 134, 184)
+    c.text(W / 2, cy, "No journeys yet", "headlineMedium", anchor="middle")
+    c.wrap(W / 2, cy + 34, "Log the caf\u00e9s you go to. Tap + to add the "
+           "first one.", W - 80, "bodyLarge", C["onSurfaceVariant"],
+           anchor="middle")
+    fab(c)
+    gesture_bar(c)
+    return c
+
+
+def journey_profile():
+    """+1.1 -- JourneyDetailScreen, saved: `0.2`'s photo hero and panel over a
+    much shorter form. The Open-in-Maps row is a card, not a map -- the app
+    ships no map SDK, deliberately (see the screen's own note)."""
+    c = Canvas("+1.1 Journey profile")
+    status_bar(c)
+    hero = 224
+    c.parts.append(f'<defs><linearGradient id="jhero" x1="0" y1="0" x2="0" y2="1">'
+                   f'<stop offset="0" stop-color="#DCEFDD"/>'
+                   f'<stop offset="1" stop-color="#4C9A5B"/></linearGradient></defs>')
+    c.rect(0, 0, W, hero, "url(#jhero)")
+    c.circle(GUTTER + 16, STATUS_H + 20, 20, "#00000055")
+    c.path(f"M{GUTTER + 22} {STATUS_H + 20} l8 -7 m-8 7 l8 7 m-8 -7 h14",
+           stroke="#FFFFFF", sw=2)
+    y = sheet(c, hero - 16)
+    c.text(GUTTER, y + 34, JOURNEY["name"], "headlineSmall", size=26)
+    y += 56
+    y = field(c, y, "Caf\u00e9 name", JOURNEY["name"]) + 14
+    y = capsule_pair(c, y, ("Visited on", JOURNEY["day"]), ("City", JOURNEY["city"])) + 14
+    y = capsule_pair(c, y, ("Latitude", JOURNEY["lat"]), ("Longitude", JOURNEY["lng"])) + 16
+    card(c, y, 56)
+    c.circle(GUTTER + 26, y + 28, 5, C["primary"])
+    c.path(f"M{GUTTER + 26} {y + 33} l0 8", stroke=C["primary"], sw=2)
+    c.text(GUTTER + 44, y + 24, "Open in Maps", "titleMedium")
+    c.text(GUTTER + 44, y + 42, f"{JOURNEY['lat']}, {JOURNEY['lng']}",
+           "bodyMedium", C["onSurfaceVariant"])
+    y += 56 + 16
+    y = field(c, y, "Note", JOURNEY["note"], h=72) + 24
+    y = section(c, y, "Photos")
+    c.rect(GUTTER, y, 88, 88, C["primaryContainer"], 16)
+    c.path(f"M{GUTTER + 36} {y + 44} h16 m-8 -8 v16", stroke=C["onPrimaryContainer"], sw=2)
     gesture_bar(c)
     return c
 
@@ -1818,16 +2037,19 @@ PAGES = [
     ("0.12c_scan_blocked.png", scan_blocked),
     ("0.13_scan_review.png", scan_review),
     ("0.13b_scan_review_empty.png", scan_review_empty),
-    ("+1_sessions.png", sessions),
-    ("+1_sessions_empty.png", sessions_empty),
-    ("+1.1_which_bean.png", which_bean),
-    ("+1.1b_which_bean_empty.png", which_bean_empty),
-    ("+1.2_log_brew.png", brew),
-    ("+1.2b_log_brew_lower.png", brew_lower),
-    ("+1.3_stage_editor.png", stage_editor),
-    ("+1.4_ai_disclosure_suggest.png", ai_disclosure_suggest),
-    ("+1.5_suggestion.png", suggestion),
-    ("+1.6_delete_brew.png", delete_brew),
+    ("0.3_sessions.png", sessions),
+    ("0.3_sessions_empty.png", sessions_empty),
+    ("0.31a_which_bean.png", which_bean),
+    ("0.31b_which_bean_empty.png", which_bean_empty),
+    ("0.31_log_brew.png", brew),
+    ("0.31b_log_brew_lower.png", brew_lower),
+    ("0.32_stage_editor.png", stage_editor),
+    ("0.33_ai_disclosure_suggest.png", ai_disclosure_suggest),
+    ("0.34_suggestion.png", suggestion),
+    ("0.35_delete_brew.png", delete_brew),
+    ("+1_can_travel.png", can_travel),
+    ("+1_can_travel_empty.png", can_travel_empty),
+    ("+1.1_journey_profile.png", journey_profile),
     ("+2_profile.png", profile),
     ("+2_profile_empty.png", profile_empty),
     ("+2.2a_privacy.png", privacy),
