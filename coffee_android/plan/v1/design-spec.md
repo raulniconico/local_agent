@@ -282,6 +282,41 @@ with 61px of screen left below a button that wanted 90 for its own margin.
 way. Only a real device shows this. It is the standing argument for keeping at
 least one physical-device pass in the loop.
 
+### 4.4 The 8192px clip ceiling — the other rule Paparazzi cannot catch
+
+**Never wrap a whole scrolling page in something that clips.** A `Surface`, a
+`Card`, `Modifier.clip(…)` and `clipToBounds()` all come out as a
+`graphicsLayer` with `clip = true`, which is a platform `RenderNode` carrying
+`clipToBounds`. Compose answers "did this touch land inside that layer?" in
+`RenderNodeLayer.isInLayer`, and for a bounds-clipped layer the answer is
+literally `y < renderNode.height` — **and a RenderNode's height saturates at
+8192px (2^13)**. Every touch below that line inside the node is answered
+"outside the layer", and the control under the finger never hears about it.
+
+Nothing *looks* wrong, which is why this survived two bug reports. The display
+list is not cut at the same number, so the page draws to its true end and
+merely stops responding. Measured on an S22 (1440×3088, density 3.75) with
+`PhotoHeroPage`'s panel at 9823px: a drag at panel-local y **8191** sets its
+slider, the identical drag at **8192** does nothing.
+
+8192px is not far away. The brew form's panel is 8242px with no pour stages at
+all and gains 274px per stage, so it crossed the line at the *third* stage —
+which is exactly how it was reported ("once I add more than 2 stages … sour,
+fermented bar and log this brew don't work anymore"). It arrives sooner on a
+phone set to a larger Display size: that S22 renders at density 3.75 rather
+than its native 2.8125, so the same page is a third taller in pixels.
+
+The fix is to **paint rather than clip** — `Modifier.background(color, shape)`
+draws the same rounded top without creating a layer, and hit testing falls back
+to plain node bounds, which are exact at any height. Provide `LocalContentColor`
+by hand when replacing a `Surface`, which is the one other thing it was doing.
+If something genuinely needs clipping, clip a *child*: no card, chart or
+thumbnail here is anywhere near 8192px tall.
+
+Paparazzi misses this twice over — it never dispatches a touch, and at its
+360×800 config the panel is a quarter of the height it reaches on a real dense
+phone. Only a device shows it, which is §4.3's argument again.
+
 ---
 
 ## 5. Component library
@@ -522,7 +557,7 @@ provides it, because Paparazzi does not set it itself.
 | --- | --- |
 | `BeanIcon` | a bean's mark on the shelf — its own first photo, or a generated stand-in |
 | `BagTile` | that stand-in: initials on a tinted bag silhouette |
-| `PhotoHeroPage` | the bean-detail hero. `HeroHeight` 224dp, `PanelPeek` 96dp, `UnknownAspectFraction` 0.62, drag-to-settle at 700f |
+| `PhotoHeroPage` | the bean-detail hero. `HeroHeight` 224dp, `PanelPeek` 96dp, `UnknownAspectFraction` 0.62, drag-to-settle at 700f. The panel under the photo is a **painted background, deliberately not a `Surface`** — §4.4 |
 | `ZoomableImageViewer` | pinch/double-tap, `MaxScale` 4× |
 | `TopBarDivider` | the hairline rule under every app bar |
 
