@@ -271,6 +271,11 @@ COMPOSED = {
     # SuggestionSheet: "Written by AI (${result.provider}). Check it before
     # you brew." -- provider is a server response field
     "Written by AI (anthropic). Check it before you brew.",
+    # JourneyDetailScreen's MapRow: journey_map_search ("Search for %1$s")
+    # filled with JourneyDraft.mapSubtitle(), which joins the address and the
+    # city. Replaced a coordinate pair, which the DATA regex used to exempt as
+    # a bare run of digits.
+    "Search for 10 rue Pradier, Paris 11e",
 }
 
 bad, checked = [], 0

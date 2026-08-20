@@ -157,7 +157,8 @@ and invisible to two thirds of the users.
 
 | You changed | Also move | Verify |
 | --- | --- | --- |
-| `data/Entities.kt` — added/renamed a column | Room `version` (currently **5**) + a new `Migration`; `data/Daos.kt`; **`data/SyncBundle.kt`** export *and* import; `../../../coffee_agent/sync_tools.py` `_BEAN_FIELDS`/`_SESSION_FIELDS`; `coffee/src/coffee_can/db.py` schema; `design-spec.md` §9 | `V4`, `V5` |
+| `data/Entities.kt` — added/renamed a column | Room `version` (currently **6**) + a new `Migration`; `data/Daos.kt`; **`data/SyncBundle.kt`** export *and* import; `../../../coffee_agent/sync_tools.py` `_BEAN_FIELDS`/`_SESSION_FIELDS`; `coffee/src/coffee_can/db.py` schema; `design-spec.md` §9 | `V4`, `V5` |
+| …but a column on **`journeys`** | only the first three. `journeys` has no desktop counterpart and is **not** in the sync bundle, so the two Python legs of that row do not apply — `address`/`barista` (v6) touched Room, the entity and the screen and nothing else | `V4` |
 | The bundle format | `SyncBundle.VERSION` **and** `sync_tools.BUNDLE_VERSION` — they must stay equal | `V5` |
 | A DAO query | Whether `CoffeeRepository` should expose it at all; whether `TestFakes.kt` needs the new method | `V2` |
 | An `AxisPage`, or which screen sits in a `+n` slot | **The number of every screen under it.** A deck number states *how a screen is reached*, so a screen that leaves the axis has to be renumbered into `0.x` and everything beneath it with it — routes in `ui/Nav.kt`, the frame names and `Canvas` titles in `screenshots.py`, `design-spec.md` §7.1's table and §8's headings, and any docstring quoting the old number (`grep -rn '+1\.' --include=*.kt`). A screen that becomes a push also gains a back arrow and **loses `AxisPageInsets`**, which nothing will fail on — Paparazzi renders every inset as zero | `V1`, `V1b`, `V2` |

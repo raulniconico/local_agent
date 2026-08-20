@@ -115,8 +115,8 @@ JOURNEY = {
     "name": "Belleville Br\u00fblerie",
     "city": "Paris 11e",
     "day": "16 Aug 2026",
-    "lat": "48.8721",
-    "lng": "2.3782",
+    "address": "10 rue Pradier",
+    "barista": "Camille",
     "note": "Sat by the window. The Kenyan on filter was the one.",
 }
 
@@ -590,28 +590,65 @@ def radar(c: Canvas, cx, cy, size, values, labels=None):
 # ------------------------------------------------------------ can-boy travel ---
 # The tower and the figure, in the 100-unit space `CanBoy.kt`'s `figure {}` sets
 # up. Every `d` string below is copied out of `CanBoyEiffel`.
+#
+# REDRAWN AGAIN 2026-08-20, second pass, alongside the Kotlin. The first
+# 2026-08-20 pass was rejected outright ("the lines are granulate, it just
+# doesn't like EIffel, and the can boy also don't know what it is doing") --
+# `CanBoyEiffel`'s docstring carries the full three-fault analysis and is the
+# authority; this file only mirrors the geometry it landed on.
+#
+# The one thing worth restating here, because it is what the list below looks
+# like rather than what it says: the tower's OUTLINE IS A SINGLE PATH now,
+# ground -> spire -> ground. It used to be eight segments meeting end to end,
+# and every one of those joints stacked two round caps into a visible lump --
+# which is what "granulate" was. Do not split it back up, and do not hand-edit
+# the numbers: the profile is w(h) = 15.8*exp(-2.3195*h) fitted with
+# C1-continuous cubics, so an eyeballed tweak reintroduces a kink.
 _EIFFEL = [
-    # base legs, first platform, mid section, cross-brace, upper section
-    ("M18 86 C 25 66, 33 48, 39 38", 3.4),
-    ("M82 86 C 75 66, 67 48, 61 38", 3.4),
-    ("M34 38 L66 38", 3.0),
-    ("M39 38 C 41 30, 43 25, 44.5 20", 2.8),
-    ("M61 38 C 59 30, 57 25, 55.5 20", 2.8),
-    ("M40.5 36 L59.5 23", 1.6),
-    ("M59.5 36 L40.5 23", 1.6),
-    ("M43 20 L57 20", 2.6),
-    ("M44.5 20 L50 7 L55.5 20", 2.6),
-    ("M50 7 L50 3", 2.0),
+    # the great arch under the first platform, drawn first
+    ("M47.93 83.83 C 48.43 74.02, 75.57 74.02, 76.07 83.83", 2.2),
+    # the whole silhouette, one path
+    ("M46.20 88.00 C 48.40 82.99, 50.14 77.98, 51.59 72.97 "
+     "C 52.96 68.24, 54.06 63.51, 54.98 58.78 "
+     "C 56.34 51.82, 57.31 44.86, 58.07 37.90 "
+     "C 58.83 30.94, 59.37 23.98, 59.80 17.03 "
+     "C 59.94 14.80, 60.06 12.57, 60.17 10.34 "
+     "L 62.00 4.50 L 63.83 10.34 "
+     "C 63.94 12.57, 64.06 14.80, 64.20 17.03 "
+     "C 64.63 23.98, 65.17 30.94, 65.93 37.90 "
+     "C 66.69 44.86, 67.66 51.82, 69.02 58.78 "
+     "C 69.94 63.51, 71.04 68.24, 72.41 72.97 "
+     "C 73.86 77.98, 75.60 82.99, 77.80 88.00", 2.4),
+    # the legs again, heavier -- the same curve, capped under platform 1
+    ("M46.20 88.00 C 48.40 82.99, 50.14 77.98, 51.59 72.97", 3.5),
+    ("M77.80 88.00 C 75.60 82.99, 73.86 77.98, 72.41 72.97", 3.5),
+    # one cross-brace across the mid-section
+    ("M52.66 71.30 L68.75 60.45", 1.6),
+    ("M71.34 71.30 L55.25 60.45", 1.6),
+    # platforms at 18% / 35% / 85% of the height
+    ("M50.19 72.97 L73.81 72.97", 3.0),
+    ("M53.88 58.78 L70.12 58.78", 2.6),
+    ("M59.30 17.03 L64.70 17.03", 2.0),
 ]
 
 # can_boy()'s own limbs, in his own frame. The raised arm is drawn at rest
 # (wave = 0); the composable rolls it about the shoulder and this does not,
 # because a still frame of a wave is a raised arm.
-_CAN_BOY_LIMBS = [
-    ("M30 40 Q19 44 17 55", 4.2),
+#
+# THE LEGS ARE DRAWN OUTSIDE THE WAIST ROTATION and the rest inside it, so
+# they are split into two lists rather than one -- he leans back from the hip
+# with both feet planted, not from the feet with one shoe off the ground.
+_CAN_BOY_LEGS = [
     ("M41 75 L37 90", 4.2),
     ("M59 75 L63 90", 4.2),
-    ("M70 38 Q81 29 79 16", 4.2),
+]
+# AKIMBO since 2026-08-20 (direct product request). The right arm is the
+# shared hip arm mirrored about the figure's centreline (x=50), so both
+# elbows are the same curve. The raised arm that used to be here is gone,
+# and `MascotEiffel`'s knob went with it -- see `CanBoyEiffel`.
+_CAN_BOY_ARMS = [
+    ("M30 40 Q19 44 17 55", 4.2),   # hip arm, shared with every other pose
+    ("M70 40 Q81 44 83 55", 4.2),   # ... mirrored
 ]
 
 _CAN_BODY = "M33 27 C 29 41, 29 60, 33 74 C 40 78, 60 78, 67 74 C 71 60, 71 41, 67 27"
@@ -630,6 +667,12 @@ def can_boy_eiffel(c: Canvas, cx, cy, size):
     this function is a **copy**, and the Kotlin is the original. Change the
     Kotlin and this has to follow by hand; there is no export step that would
     do it, and no check that would notice.
+
+    REDRAWN TWICE ON 2026-08-20 to match `CanBoyEiffel`. The first pass was
+    rejected on all three of its parts ("the lines are granulate, it just
+    doesn't like EIffel, and the can boy also don't know what it is doing");
+    that function's docstring carries the fault-by-fault reasoning and is the
+    authority. This one only carries the geometry it arrived at.
     """
     s = size / 100.0
     c.circle(cx, cy, size / 2, C["brand"])
@@ -644,27 +687,36 @@ def can_boy_eiffel(c: Canvas, cx, cy, size):
     for d, sw in _EIFFEL:
         stroke(d, sw)
 
-    # can-boy: translate(50 88) scale(0.48) translate(-50 -90), the composable's
-    # own placement.
-    c.parts.append('<g transform="translate(50 88) scale(0.48) translate(-50 -90)">')
-    for d, sw in _CAN_BOY_LIMBS:
+    # can-boy: translate(28 88) scale(0.43) translate(-50 -90), the
+    # composable's own placement -- beside the tower, and smaller than the
+    # first pass had him, because the scale gap is half of what makes the
+    # tower read as enormous.
+    c.parts.append('<g transform="translate(28 88) scale(0.43) translate(-50 -90)">')
+    for d, sw in _CAN_BOY_LEGS:          # outside the waist rotation: planted
         stroke(d, sw)
-    # canTorso(): body, lid ellipse, and the pull tab in its own rotated frame.
+    c.parts.append('<g transform="rotate(-13 50 74)">')   # lean back from the hip
+    for d, sw in _CAN_BOY_ARMS:
+        stroke(d, sw)
     stroke(_CAN_BODY, 5.2)
+    # The head -- lid and pull tab -- cocked +24 about its own base against
+    # the torso's -13, which is what keeps the pull tab (the only asymmetric
+    # feature on a figure with no face) aimed up at the tower. Not the flat
+    # canTorso() every other pose draws undivided.
+    c.parts.append('<g transform="rotate(24 50 30)">')
     c.parts.append('<ellipse cx="50" cy="24" rx="19" ry="6.5" fill="none" '
                    'stroke="#FFFFFF" stroke-width="5.2"/>')
     c.parts.append('<g transform="translate(58 12) rotate(-12)">')
     c.parts.append('<ellipse cx="0" cy="0" rx="5.4" ry="3.6" fill="none" '
                    'stroke="#FFFFFF" stroke-width="3"/>')
     stroke("M0 3.6 L-0.8 7.6", 3)
-    c.parts.append('</g>')
+    c.parts.append('</g></g>')
     # bellyWordmark(): ic_brand_wordmark's 128 box centred on (50, 57) at 0.5.
     box, paths = _vector("ic_brand_wordmark")
     c.parts.append(f'<g transform="translate(50 57) scale(0.5) '
                    f'translate(-63.54 -57.33) scale({128 / box:.5f})">')
     for d, a in paths:
         c.parts.append(f'<path d="{d}" fill="{a.get("fillColor", "none")}"/>')
-    c.parts.append('</g></g></g>')
+    c.parts.append('</g></g></g></g>')
 
 
 def polaroid(c: Canvas, x, y, w, title, caption, tilt=0.0):
@@ -1567,7 +1619,7 @@ def can_travel():
                      tilt=POLAROID_TILTS[i]) + 20
         if y > H:
             break
-    fab(c)
+    polaroid_fab(c)
     gesture_bar(c)
     return c
 
@@ -1584,42 +1636,87 @@ def can_travel_empty():
     c.wrap(W / 2, cy + 34, "Log the caf\u00e9s you go to. Tap + to add the "
            "first one.", W - 80, "bodyLarge", C["onSurfaceVariant"],
            anchor="middle")
-    fab(c)
+    polaroid_fab(c)
     gesture_bar(c)
     return c
 
 
+def polaroid_fab(c: Canvas, cy=H - 16 - 28 - 16):
+    """`ui/components/PolaroidAddButton` -- the `+1` FAB, as a print rather
+    than a disc (2026-08-20, direct product request). Same FAB slot, same
+    16dp inset, same elevation; only the shape changed. See the composable
+    for why a Material FAB is the wrong affordance on a wall of Polaroids."""
+    border, frame, chin = 6, 34, 12
+    w = frame + 2 * border
+    h = border + frame + chin
+    x, y = W - 16 - w, cy + 28 - h
+    c.parts.append(f'<g transform="rotate(-3.2 {x + w / 2:.1f} {y + h / 2:.1f})">')
+    c.rect(x, y, w, h, "#FDFDFA", 3)
+    c.rect(x + border, y + border, frame, frame, "#E8E9E4", 1)
+    cx_, cy_ = x + border + frame / 2, y + border + frame / 2
+    c.path(f"M{cx_ - 7} {cy_} h14 M{cx_} {cy_ - 7} v14", stroke="#6B776C", sw=2)
+    c.parts.append('</g>')
+
+
+def polaroid_stack(c: Canvas, cy, width=240):
+    """`ui/components/PolaroidStack` -- three sheets of film, the front one
+    square-on and the two behind it splayed. Drawn back-to-front, which is the
+    same order the composable composes them in and for the same reason: the
+    front sheet has to end up on top.
+
+    The sheets are unexposed here, as they are on a journey with no pictures
+    yet -- and `screenshots.py` does not invent photographs (see `polaroid`)."""
+    border, chin = 10, 30
+    img = width - 2 * border
+    h = border + img + chin
+    x = (W - width) / 2
+    for depth in (2, 1, 0):
+        tilt = 0 if depth == 0 else (3.2 if depth % 2 else -3.2)
+        step = depth * 9
+        cx_, cy_ = x + step + width / 2, cy + step + h / 2
+        c.parts.append(f'<g transform="rotate({tilt:.2f} {cx_:.1f} {cy_:.1f})">')
+        c.rect(x + step, cy + step, width, h, "#FDFDFA", 4)
+        c.rect(x + step + border, cy + step + border, img, img, "#E8E9E4", 1)
+        c.parts.append('</g>')
+    return cy + h
+
+
 def journey_profile():
-    """+1.1 -- JourneyDetailScreen, saved: `0.2`'s photo hero and panel over a
-    much shorter form. The Open-in-Maps row is a card, not a map -- the app
-    ships no map SDK, deliberately (see the screen's own note)."""
+    """+1.1 -- JourneyDetailScreen, saved.
+
+    NO PHOTO HERO SINCE 2026-08-20 (direct product request). This page used to
+    open as `0.2`'s hero-and-panel, inherited because a journey is
+    structurally the same kind of object as a bean. The Polaroid stack replaced
+    it, and with the hero gone the blank and saved states stopped being
+    different layouts -- so this is now a plain app bar over one column, and
+    Delete sits beside Save instead of on the hero's pulled disc.
+
+    The Open-in-Maps row is still a card, not a map -- the app ships no map
+    SDK, deliberately (see the screen's own note) -- but it now searches the
+    address rather than centring a pin, because the coordinates are gone."""
     c = Canvas("+1.1 Journey profile")
     status_bar(c)
-    hero = 224
-    c.parts.append(f'<defs><linearGradient id="jhero" x1="0" y1="0" x2="0" y2="1">'
-                   f'<stop offset="0" stop-color="#DCEFDD"/>'
-                   f'<stop offset="1" stop-color="#4C9A5B"/></linearGradient></defs>')
-    c.rect(0, 0, W, hero, "url(#jhero)")
-    c.circle(GUTTER + 16, STATUS_H + 20, 20, "#00000055")
-    c.path(f"M{GUTTER + 22} {STATUS_H + 20} l8 -7 m-8 7 l8 7 m-8 -7 h14",
-           stroke="#FFFFFF", sw=2)
-    y = sheet(c, hero - 16)
-    c.text(GUTTER, y + 34, JOURNEY["name"], "headlineSmall", size=26)
-    y += 56
+    y = top_bar(c, JOURNEY["name"], back=True)
+    y = polaroid_stack(c, y + 20) + 18 + 12
+    c.text(W / 2, y, "Tap a print to add a photo", "labelMedium",
+           C["onSurfaceVariant"], anchor="middle")
+    y += 24
     y = field(c, y, "Caf\u00e9 name", JOURNEY["name"]) + 14
     y = capsule_pair(c, y, ("Visited on", JOURNEY["day"]), ("City", JOURNEY["city"])) + 14
-    y = capsule_pair(c, y, ("Latitude", JOURNEY["lat"]), ("Longitude", JOURNEY["lng"])) + 16
+    y = field(c, y, "Address", JOURNEY["address"]) + 14
+    y = field(c, y, "Barista", JOURNEY["barista"]) + 16
     card(c, y, 56)
     c.circle(GUTTER + 26, y + 28, 5, C["primary"])
     c.path(f"M{GUTTER + 26} {y + 33} l0 8", stroke=C["primary"], sw=2)
     c.text(GUTTER + 44, y + 24, "Open in Maps", "titleMedium")
-    c.text(GUTTER + 44, y + 42, f"{JOURNEY['lat']}, {JOURNEY['lng']}",
+    c.text(GUTTER + 44, y + 42, f"Search for {JOURNEY['address']}, {JOURNEY['city']}",
            "bodyMedium", C["onSurfaceVariant"])
     y += 56 + 16
     y = field(c, y, "Note", JOURNEY["note"], h=72) + 24
-    y = section(c, y, "Photos")
-    c.rect(GUTTER, y, 88, 88, C["primaryContainer"], 16)
-    c.path(f"M{GUTTER + 36} {y + 44} h16 m-8 -8 v16", stroke=C["onPrimaryContainer"], sw=2)
+    button(c, y, "Save changes", x=GUTTER, w=W - 2 * GUTTER - 128)
+    dx, dw = W - GUTTER - 116, 116
+    c.rect(dx, y, dw, 40, "none", 20, stroke=C["error"])
+    c.text(dx + dw / 2, y + 25, "Delete", "labelLarge", C["error"], "middle")
     gesture_bar(c)
     return c
 

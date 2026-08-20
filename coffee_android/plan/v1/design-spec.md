@@ -353,7 +353,7 @@ else.
 | `ExtractionBar` | −1…+1 axis, three zones | under / well extracted / over, with `VizBand` + `VizBandEdge` + `VizDeviation` |
 | `ValueBar` | slide bar | Score and all eleven flavour axes. Draggable — a 2026-08-17 change: dragging directly on what had been a read-only meter proved the better control, and the palette was copied across so a slider stops looking like an unrelated second widget |
 | `ContributionCalendar` | heatmap grid | `ActivityWeeks = 21`; selected cell enlarges ×1.3 |
-| `DurationPickerDialog` | two snapping wheels | Pour-stage elapsed time, `m` 0–29 and `ss` 0–59, in a standard `AlertDialog`. **Not** M3 `TimePicker`: that dials an hour and a minute on a 24-hour clock and labels itself so, which is the wrong question in the wrong units for an offset from the start of a brew |
+| `DurationPickerDialog` | two snapping wheels | Pour-stage elapsed time, `m` 0–29 (1-row gap) and `ss` 0, 5, …, 55 (5-row gap, 2026-08-20 — 60 rows to dial a second nobody times a pour to was the friction), in a standard `AlertDialog`. **Not** M3 `TimePicker`: that dials an hour and a minute on a 24-hour clock and labels itself so, which is the wrong question in the wrong units for an offset from the start of a brew |
 
 ### 5.3 Two flavour-axis label sets
 
@@ -491,13 +491,21 @@ does not reshape when it moves in the grid. Radii are normalised so the widest
 lobe is exactly the box; an outline that overflowed would be clipped square and
 come back with flat sides.
 
-**Drift**: per-bubble infinite transitions on x, y and scale, periods
-`2600/3350/2900 ms + index × 190/230/170`. Three periods that differ from each
-other *and* from the neighbours', so a bubble traces a slow open loop rather
-than a line and ten of them never fall into step — ten circles rising together
-reads as a machine. Measured on a real S22, three frames two seconds apart:
-Jasmine moved 30px vertically and 14 horizontally, Hibiscus 27 and 14, Bergamot
-18 and 7.
+**Drift**: per-bubble infinite transitions on x and y, periods
+`2600/3350 ms + index × 190/230`. Two periods that differ from each other *and*
+from the neighbours', so a bubble traces a slow open loop rather than a line
+and ten of them never fall into step — ten circles rising together reads as a
+machine. Measured on a real S22, three frames two seconds apart: Jasmine moved
+30px vertically and 14 horizontally, Hibiscus 27 and 14, Bergamot 18 and 7.
+
+**Size carries no drift.** An earlier build gave scale the same unsynced-period
+treatment as x/y (a ±1.5% "breathe"), on the reasoning that a living thing
+doesn't hold perfectly still. But size here is not decoration — 108dp *is*
+"selected", 84dp *is* "not" — and two bubbles breathing on different periods
+meant two simultaneously-selected notes were almost never exactly the same
+size at any instant you looked. Reported directly against Fruity's Grape +
+Blueberry. Removed; drift and the sheen's slow turn stay unsynced, since
+neither carries a meaning that two must agree on.
 
 **The shader stack renders identically under layoutlib and on hardware** —
 checked on the S22, because gradients and blend modes are exactly where the two
@@ -533,6 +541,15 @@ Three layout rules that were each a bug first:
 - **A focused axis with notes is framed off-centre**, biased a fifth of the box
   in the direction its stack grows. Centring the label exactly — which is what
   "centre the label" literally asks for — hangs five notes off the edge.
+
+**Every note stack is left-justified as a block** (2026-08-20, direct product
+request) — one shared left edge, taken from the widest line, not one edge per
+line. The old rule hung each note off its own width, which on the left half
+(where the stack grows away from centre by keeping its edge *nearest* the axis
+fixed) gave every line a different starting x with nothing to read down. The
+shared edge is anchored at the widest line's own old position, so the stack's
+outward reach — what the radius budget above accounts for — is unchanged; only
+the ragged edge moves from the inside of the column to the outside.
 
 **Zoom and pan take two fingers, and that is load-bearing.**
 `detectTransformGestures` treats a *single*-finger drag as a pan and consumes
@@ -712,6 +729,13 @@ The largest screen in the app (1400 lines). One bean, created or edited.
   producer, process, roast date as capsules two to a row; note free-text.
 - **Sessions list** (`0.2`/`0.2b` only — an unsaved `0.1` bean has none yet),
   delete-with-cascade confirm, discard-draft confirm, share disc.
+- **Delete** (`0.2`/`0.2b` only) sits beside Save at the foot of the panel
+  (`RemoveButton`), not as `PhotoHeroPage`'s pulled disc — that placement
+  moved here 2026-08-20, direct product request. `DeleteBeanDialog` still
+  gates the actual delete; only the reach changed. Share stays the photo's
+  top-right disc. Save carries the row's weight (`Modifier.weight(1f)`) and
+  Delete wraps its own icon+label — the row's primary action, not a coin
+  flip between two equal buttons.
 - **Flavour** — radar plus a manual-override sheet. `flavorSource` is `auto`
   (averaged from this bean's sessions) or `manual`. On `0.2`/`0.2b` this sits
   below the sessions list, not above it — the radar reflects those sessions,
@@ -741,6 +765,33 @@ of original mascot artwork** — every other pose is exported from the design
 deck, so this is the one figure whose Kotlin is the original and whose
 `screenshots.py` twin is the copy.
 
+**Redrawn twice on 2026-08-20**, both times on direct product rejection —
+first for standing can-boy wedged between the tower's legs, then for
+*"the lines are granulate, it just doesn't like EIffel, and the can boy also
+don't know what it is doing"*. Three things came out of the second pass, and
+they are the ones worth not undoing:
+
+- **The tower's outline is a single path**, ground → spire → ground. It used
+  to be eight strokes meeting end to end, and each joint stacked two round
+  caps into a visible lump. That was "granulate", and it is why the outline
+  must not be split back up for per-section stroke weights.
+- **The profile is generated, not eyeballed** — `w(h) = 15.8·exp(−2.3195·h)`,
+  sampled at the real platform heights (18% / 35% / 85%) and fitted with
+  C1-continuous cubics from the analytic tangent. The concave flare is the
+  Eiffel's signature; a straight taper is a pylon, which is what the first
+  pass drew. **The great arch is restored** — dropped in the original
+  2026-08-19 figure because can-boy stood inside the legs and white-on-white
+  cannot occlude, a constraint that died when he moved out from under it.
+  Of every change tried, adding the arch moved the read the furthest.
+- **He leans back from the waist, not the feet**, so both feet stay on the
+  tower's ground line, and his head cocks *toward* the tower (the first pass
+  tilted it away, which is what "doesn't know what it is doing" was). The
+  pull tab is the only asymmetric feature on a faceless figure, so keeping it
+  aimed up at the spire is the closest thing to a gaze direction available.
+
+Verified legible at 184dp, 96dp and 64dp. See `CanBoyEiffel`'s docstring for
+the fault-by-fault reasoning and what was tried and cut.
+
 The FAB goes straight to a blank `+1.1`. There is no "which one?" sheet in
 front of it, unlike the brew FAB, because a journey belongs to nothing.
 
@@ -755,20 +806,49 @@ claiming only top and sides would leave its last row under the system bar).
 
 ### 8.6b `+1.1` Journey Profile
 
-One café: name, visit date, city, latitude/longitude, note, photos.
-Structurally `0.1`/`0.2` one size down — a blank journey is a plain form under
-an app bar, a saved one is a photo hero with the panel pulled over it and
-delete on the pulled disc. No scan card (a café has no label), no radar (a
-journey has no flavour), no sessions list (a brew belongs to a bean).
+One café: name, visit date, city, **address**, **barista**, note, and up to
+three photographs. No scan card (a café has no label), no radar (a journey has
+no flavour), no sessions list (a brew belongs to a bean).
+
+**A Polaroid stack, not a photo hero** (2026-08-20, direct product request).
+The page opens on `PolaroidStack` — three sheets of film, the front one
+square-on and the two behind it splayed by 9dp and ±3.2°. Tapping the front
+sheet **adds** a photo when it is unexposed and **opens** it when it is not;
+tapping a back sheet brings that one forward. Tap targets fall out of z-order
+rather than being computed: the back sheets are composed first, so Compose's
+own hit testing gives the front sheet the overlap and leaves the back sheets
+only the slivers that are actually visible.
+
+**The stack is the capacity.** Three sheets is the cap (`PolaroidStackCapacity`)
+— there is no overflow row and no "+N", because the drawing *is* the limit.
+Empty sheets are drawn unexposed rather than as placeholder tiles, the same
+argument `PolaroidCard` makes for the list.
+
+**This collapsed the two states into one.** `+1.1` used to be two layouts: a
+blank journey as a plain form, a saved one as `PhotoHeroPage`'s hero-and-panel
+with delete on the pulled disc. The hero was the only structural difference,
+and a blank journey's stack is three unexposed sheets — a state the drawing
+already has. So there is now one app bar over one column, and delete sits
+beside Save (`RemoveButton`), the same relocation `0.2` and `0.31` took.
 
 **There is no embedded map, by decision.** An "Open in Maps" card fires a
-`geo:` intent carrying the pin or the address to whatever maps app the user
-has. Embedding the Maps SDK would put a second network destination inside an
-app whose "talks to `coffee_server` and nothing else" property is what lets
+`geo:` intent carrying the address to whatever maps app the user has.
+Embedding the Maps SDK would put a second network destination inside an app
+whose "talks to `coffee_server` and nothing else" property is what lets
 `legal-accounts.md` §3.8 say what it says, and would add an API key, a tile
 fetch and a Data safety change — for a feature whose job is to answer "where
-was this?". **The coordinates are typed, never sensed**: the app holds no
-location permission and asks for none.
+was this?".
+
+**Latitude and longitude are gone from the form** (same request). The card now
+always uses the search form, `geo:0,0?q=<address, city>`, rather than centring
+a pin. **The columns remain** on `journeys`: dropping them means rebuilding the
+table, which would destroy coordinates a user typed with no server-side copy to
+restore from, and §2's additive-only rule outranks tidiness. Nothing reads or
+writes them. **Nothing here is ever sensed** — the app holds no location
+permission and asks for none, and that was true of the coordinates too.
+
+**The barista is a person who is not the user.** Free text, optional, never
+required, never leaves the device, matched against nothing.
 
 ### 8.7 `0.31a` Which bean? → Pick Bean
 
@@ -798,6 +878,13 @@ their eyes to find it.
 
 Drafts, discard confirm and delete confirm are all built. Ask-AI opens as a
 sheet over the form.
+
+**Delete** (an already-saved brew only) sits beside Modify/Save changes at
+the form's foot (`RemoveButton`), the same relocation as Bean Detail's and
+for the same reason — moved off `PhotoHeroPage`'s pulled disc 2026-08-20,
+direct product request. `DeleteBrewDialog` still gates the actual delete.
+Modify/Save changes carries the row's weight; Delete wraps its own
+icon+label, same sizing rule as Bean Detail's.
 
 **A new brew pre-fills from the bean's last one** — dripper, grinder, grind
 size, filter, dose, water, temperature and ppm, i.e. the whole **Brew details**
@@ -883,7 +970,7 @@ Eight entities:
 | `session_stages` | one pour each |
 | `catalogue_items` | crawler cache |
 | `news_items` | feed cache — four fields, no snippet column |
-| `journeys` | `+1`'s cafés: name, `location`, nullable `latitude`/`longitude`, `visitedAt`, note |
+| `journeys` | `+1`'s cafés: name, `location` (city), `address`, `barista`, `visitedAt`, note — plus `latitude`/`longitude`, retained but no longer read or written (§8.6b) |
 | `journey_images` | `position`, `filePath`, `rotation` — the same contract as `bean_images`, in its own tree under `filesDir/journey_images/` |
 
 **`journeys` is the first table whose shape is ours to choose**, and two
