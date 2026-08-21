@@ -65,7 +65,17 @@ C = dict(
     secondaryContainer="#E3F6E3", onSecondaryContainer="#233524",
     tertiaryContainer="#9FECD1",
     error="#84241A", errorContainer="#FEDED7",
-    surface="#F2FAF2", onSurface="#1B241C", onSurfaceVariant="#515D51",
+    # #FFFFFF, NOT THE DECK'S #F2FAF2 -- corrected 2026-08-20. This dict is
+    # supposed to be Theme.kt token for token, and Theme.kt's `Surface` is
+    # plain white; the deck's pale green was left here by mistake, so every
+    # frame this script has ever produced drew white cards floating on a tinted
+    # page. On the device page and card are *both* #FFFFFF, which is precisely
+    # why design-spec.md §2.2 says nothing outlines a block and adjacent cards
+    # are separated by an inset rule or their own heading. The simulation was
+    # showing contrast the build does not have -- exactly the class of lie this
+    # file's header promises it does not tell. check_design.py already knew
+    # (ACCEPTED_DEVIATIONS["surface"]); this file never got the memo.
+    surface="#FFFFFF", onSurface="#1B241C", onSurfaceVariant="#515D51",
     card="#FFFFFF",
     surfaceContainerLow="#EAF5EA", surfaceContainer="#E0EFE1",
     surfaceContainerHigh="#D4E6D4", surfaceContainerHighest="#C9DCCA",
@@ -102,13 +112,27 @@ TYPE = {
 # +1 Can travel's sample cafés, and the tilts `PolaroidCard.polaroidTilt` gives
 # ids 1..3 -- computed with the composable's own hash rather than eyeballed, so
 # a frame here cannot show a lean the build would not produce.
+# The third visit is in July on purpose: `+1` groups by month now, and a
+# sample where every row falls in one month would draw one heading and prove
+# nothing about the grouping.
+# The trailing int is how many photographs the journey has -- the stack on
+# `+1` is that deep since 2026-08-20, so the sample deliberately covers 3, 1
+# and 0 rather than showing the same pile three times.
 JOURNEYS = [
-    ("Belleville Br\u00fblerie", "Paris 11e", "16 Aug 2026"),
-    ("Lomi", "Paris 20e", "9 Aug 2026"),
-    ("Coutume Caf\u00e9", "Paris 7e", "2 Aug 2026"),
+    ("Belleville Br\u00fblerie", "Paris 11e", "16 Aug 2026", "August 2026", 3),
+    ("Lomi", "Paris 20e", "9 Aug 2026", "August 2026", 1),
+    ("Coutume Caf\u00e9", "Paris 7e", "28 Jul 2026", "July 2026", 0),
 ]
 POLAROID_TILTS = [
     (((i * 2654435761) >> 16) % 2000 / 1000.0 - 1.0) * 1.6 for i in (1, 2, 3)
+]
+
+# What was drunk at the sample café -- each one a session carrying its
+# journeyId (see SessionEntity.journeyId), which is what also puts it in
+# History with a green row.
+CUPS = [
+    ("Ethiopia Guji Natural", "4.5"),
+    ("Kenya Nyeri AA", "3.5"),
 ]
 
 JOURNEY = {
@@ -1602,39 +1626,101 @@ def brew_lower():
     return c
 
 
+def polaroid_stack_card(c: Canvas, x, y, w, title, caption, tilt=0.0, sheets=3):
+    """`ui/components/PolaroidStackCard` -- one journey on `+1`, as a pile of
+    its three prints. Only the front sheet carries the chin caption; the two
+    behind it are blank paper.
+
+    The sheets take 0.88 of the cell so the two 9dp splay steps still land
+    inside the lane -- see the composable, which owns that arithmetic."""
+    sw = w * 0.88
+    border, chin = 6, 46
+    img = sw - 2 * border
+    h = border + img + chin
+    # As deep as the journey has photographs, floored at one: a café with no
+    # pictures is still one unexposed sheet, never nothing. See the composable.
+    sheets = max(1, min(3, sheets))
+    c.parts.append(f'<g transform="rotate({tilt:.2f} {x + w / 2:.1f} {y + h / 2:.1f})">')
+    for depth in range(sheets - 1, 0, -1):
+        s = depth * 9
+        st = 3.2 if depth % 2 else -3.2
+        cx_, cy_ = x + s + sw / 2, y + s + h / 2
+        c.parts.append(f'<g transform="rotate({st} {cx_:.1f} {cy_:.1f})">')
+        c.rect(x + s, y + s, sw, h, "#FDFDFA", 4)
+        c.rect(x + s + border, y + s + border, img, img, "#E8E9E4", 1)
+        c.parts.append('</g>')
+    c.rect(x, y, sw, h, "#FDFDFA", 4)
+    c.rect(x + border, y + border, img, img, "#E8E9E4", 1)
+    ty = y + border + img + 6
+    c.text(x + border, ty + 11, title, "titleMedium", "#1B2A1C", size=13)
+    c.text(x + border, ty + 27, caption, "bodyMedium", "#6B776C", size=11)
+    c.parts.append('</g>')
+    return y + h + 2 * 9
+
+
 def can_travel():
-    """+1 -- JourneysScreen, populated: one Polaroid per café, 288dp wide and
-    centred, each at its own seeded tilt."""
+    """+1 -- JourneysScreen, populated.
+
+    REDESIGNED 2026-08-20. Three things changed and each is argued in the
+    composable's own docstring: the page draws on `surfaceContainerLow`
+    because every object on it is white paper and `surface` is #FFFFFF; the
+    subtitle was replaced by month headings, which say the same thing
+    structurally and add the axis a travel log actually has; and each journey
+    became a *stack* of three prints, two lanes to a row (2026-08-20, direct
+    product request), which is what let the cell halve in width without
+    becoming a thumbnail."""
     c = Canvas("+1 Can travel")
+    c.rect(0, 0, W, H, C["surfaceContainerLow"])
     status_bar(c)
-    y = top_bar(c, "Can travel")
-    c.text(GUTTER, y + 20, f"Newest first · {len(JOURNEYS)} journeys",
-           "labelMedium", C["onSurfaceVariant"])
-    y += 32
-    pw = 288
-    for i, (name, city, day) in enumerate(JOURNEYS):
-        # The tilts are `polaroidTilt(id)` evaluated for ids 1..3 -- the
-        # composable's own hash, not a look-alike wobble.
-        y = polaroid(c, (W - pw) / 2, y, pw, name, f"{city} · {day}",
-                     tilt=POLAROID_TILTS[i]) + 20
-        if y > H:
-            break
+    y = top_bar(c, "Can travel") + 4
+    gap = 12
+    lane = (W - 2 * GUTTER - gap) / 2
+    # Grouped by month, then paired inside the month -- never the other way
+    # round, or a month ending on an odd count puts its last journey in the
+    # next month's row. `JourneysScreen` carries the same note.
+    by_month = {}
+    for i, (name, city, day, month, shots) in enumerate(JOURNEYS):
+        by_month.setdefault(month, []).append((i, name, city, day, shots))
+    for month, rows in by_month.items():
+        y = month_heading(c, y)
+        c.text(GUTTER, y - 8, month, "titleSmall")
+        for pair_start in range(0, len(rows), 2):
+            pair = rows[pair_start:pair_start + 2]
+            bottom = y
+            for lane_i, (i, name, city, day, shots) in enumerate(pair):
+                x = GUTTER + lane_i * (lane + gap)
+                bottom = polaroid_stack_card(
+                    c, x, y, lane, name, f"{city} · {day}",
+                    tilt=POLAROID_TILTS[i], sheets=shots)
+            y = bottom + 16
+            if y > H:
+                break
     polaroid_fab(c)
     gesture_bar(c)
     return c
+
+
+def month_heading(c: Canvas, y):
+    """`JourneysScreen.MonthHeading` -- the month, then a hairline to the page
+    edge. The caller writes the label; this owns the metrics and the rule.
+    The rule is what ties a four-word heading to the full page width, so it
+    reads as dividing the column rather than as a caption that drifted."""
+    c.line(GUTTER + 78, y + 14 + 7, W - GUTTER, y + 14 + 7, C["outlineVariant"], 1)
+    return y + 14 + 20 + 2
 
 
 def can_travel_empty():
     """+1_can_travel_empty -- JourneysScreen.JourneysEmpty. The one frame that
     shows this app's only original mascot; see `can_boy_eiffel`."""
     c = Canvas("+1 Can travel, empty")
+    c.rect(0, 0, W, H, C["surfaceContainerLow"])
     status_bar(c)
     top_bar(c, "Can travel")
     cy = (BAR_BOTTOM + H) / 2 - 20 + 100
     can_boy_eiffel(c, W / 2, cy - 134, 184)
     c.text(W / 2, cy, "No journeys yet", "headlineMedium", anchor="middle")
-    c.wrap(W / 2, cy + 34, "Log the caf\u00e9s you go to. Tap + to add the "
-           "first one.", W - 80, "bodyLarge", C["onSurfaceVariant"],
+    c.wrap(W / 2, cy + 34, "Log the caf\u00e9s you go to. Tap the camera to "
+           "add the first one.", W - 80, "bodyLarge", C["onSurfaceVariant"],
            anchor="middle")
     polaroid_fab(c)
     gesture_bar(c)
@@ -1642,23 +1728,68 @@ def can_travel_empty():
 
 
 def polaroid_fab(c: Canvas, cy=H - 16 - 28 - 16):
-    """`ui/components/PolaroidAddButton` -- the `+1` FAB, as a print rather
-    than a disc (2026-08-20, direct product request). Same FAB slot, same
-    16dp inset, same elevation; only the shape changed. See the composable
-    for why a Material FAB is the wrong affordance on a wall of Polaroids."""
-    border, frame, chin = 6, 34, 12
-    w = frame + 2 * border
-    h = border + frame + chin
-    x, y = W - 16 - w, cy + 28 - h
-    c.parts.append(f'<g transform="rotate(-3.2 {x + w / 2:.1f} {y + h / 2:.1f})">')
-    c.rect(x, y, w, h, "#FDFDFA", 3)
-    c.rect(x + border, y + border, frame, frame, "#E8E9E4", 1)
-    cx_, cy_ = x + border + frame / 2, y + border + frame / 2
-    c.path(f"M{cx_ - 7} {cy_} h14 M{cx_} {cy_ - 7} v14", stroke="#6B776C", sw=2)
-    c.parts.append('</g>')
+    """`ui/components/PolaroidCameraButton` -- the `+1` FAB, as the camera
+    rather than a disc (2026-08-20, direct product request). The same drawing
+    `+1.1` uses at a third the size, so the button that starts a journey and
+    the control that photographs it are visibly one object. Same FAB slot,
+    same 16dp inset."""
+    w = 60
+    h = w * 162 / 200
+    polaroid_camera(c, W - 16 - w / 2, cy + 28 - h, w)
 
 
-def polaroid_stack(c: Canvas, cy, width=240):
+def polaroid_camera(c: Canvas, cx, y, w=180, tap_me=False):
+    """`ui/components/PolaroidCamera` -- the shutter, and the thing the prints
+    below it came out of. Laid out in the composable's own 200x162 space and
+    scaled, so the proportions are the same arithmetic on both sides.
+
+    The five livery colours are the object's own, not palette -- see the
+    composable, and `FlavorNotes.kt` for the precedent."""
+    s = w / 200.0
+    x = cx - w / 2
+    X = lambda v: x + v * s
+    Y = lambda v: y + v * s
+    ink, paper = "#1B2A1C", "#FDFDFA"
+    c.rect(X(8), Y(26), 184 * s, 128 * s, paper, 12 * s, stroke=ink, sw=3 * s)
+    # hood: rounded at the top, square where it meets the front face
+    c.parts.append(f'<path d="M{X(8)} {Y(38)} a{12*s} {12*s} 0 0 1 {12*s} -{12*s} '
+                   f'h{160*s} a{12*s} {12*s} 0 0 1 {12*s} {12*s} v{22*s} h-{184*s} z" fill="{ink}"/>')
+    c.circle(X(36), Y(46), 7 * s, "#FFFFFF")
+    c.parts.append(f'<circle cx="{X(36)}" cy="{Y(46)}" r="{7*s}" fill="none" '
+                   f'stroke="{ink}" stroke-width="{2*s}"/>')
+    c.rect(X(132), Y(40), 40 * s, 12 * s, "#FFFFFF", 3 * s)
+    for i, col in enumerate(("#E0503A", "#EE8B3C", "#F0C548", "#5FAE5A", "#3E8DC4")):
+        c.rect(X(26), Y(84 + i * 8), 46 * s, 8 * s, col)
+    c.rect(X(26), Y(84), 46 * s, 40 * s, "none", 0, stroke=ink, sw=2 * s)
+    c.circle(X(140), Y(100), 30 * s, paper)
+    c.parts.append(f'<circle cx="{X(140)}" cy="{Y(100)}" r="{30*s}" fill="none" '
+                   f'stroke="{ink}" stroke-width="{3*s}"/>')
+    c.circle(X(140), Y(100), 20 * s, ink)
+    c.circle(X(133), Y(93), 5 * s, "#FFFFFF")
+    c.rect(X(30), Y(146), 140 * s, 7 * s, ink, 3.5 * s)
+    if tap_me:
+        # `PolaroidCard.TapMeGlyphs` -- hand-lettered strokes on the hood, the
+        # one dark field where white is legible. Drawn at rest; the composable
+        # swings it +/-5 local units.
+        glyphs = [
+            "M4 8 L16 8 M10 8 L10 24",
+            "M27 15 C 22 13, 19 17, 20 21 C 21 25, 26 25, 27 21 L27 13 L27 24",
+            "M33 14 L33 31 M33 16 C 38 12, 43 16, 42 20 C 41 24, 36 25, 33 22",
+            "M55 24 L55 14 M55 17 C 57 13, 61 13, 62 17 L62 24 M62 17 C 64 13, 68 13, 69 17 L69 24",
+            "M74 20 L84 19 C 84 14, 77 13, 75 17 C 73 21, 76 25, 82 24",
+            "M6 30 C 26 34, 60 34, 86 29",
+        ]
+        gs = 72.0 / 100.0 * s
+        c.parts.append(f'<g transform="translate({X(50):.2f} {Y(30.8):.2f}) scale({gs:.4f})">')
+        for i, d in enumerate(glyphs):
+            sw = (2.1 if i == len(glyphs) - 1 else 2.6)
+            c.parts.append(f'<path d="{d}" fill="none" stroke="#FFFFFF" stroke-width="{sw}" '
+                           f'stroke-linecap="round" stroke-linejoin="round"/>')
+        c.parts.append('</g>')
+    return y + 162 * s
+
+
+def polaroid_stack(c: Canvas, cy, width=132):
     """`ui/components/PolaroidStack` -- three sheets of film, the front one
     square-on and the two behind it splayed. Drawn back-to-front, which is the
     same order the composable composes them in and for the same reason: the
@@ -1681,38 +1812,84 @@ def polaroid_stack(c: Canvas, cy, width=240):
     return cy + h
 
 
+def polaroid_tiles(c: Canvas, y, gap=10):
+    """`ui/components/PolaroidTiles` -- `+1.1`'s three sheets, side by side.
+
+    Tiled and not stacked (2026-08-20, direct product request): on the detail
+    page the pictures are the content, so all three are shown at once. The
+    stack survives on `+1`, where a cell stands for a journey rather than
+    displaying it."""
+    lane = (W - 2 * GUTTER - 2 * gap) / 3
+    border, chin = 6, 14
+    img = lane - 2 * border
+    h = border + img + chin
+    for i in range(3):
+        x = GUTTER + i * (lane + gap)
+        tilt = 1.4 if i % 2 == 0 else -1.4
+        c.parts.append(f'<g transform="rotate({tilt} {x + lane / 2:.1f} {y + h / 2:.1f})">')
+        c.rect(x, y, lane, h, "#FDFDFA", 4)
+        c.rect(x + border, y + border, img, img, "#E8E9E4", 1)
+        c.parts.append('</g>')
+    return y + h
+
+
 def journey_profile():
     """+1.1 -- JourneyDetailScreen, saved.
 
     NO PHOTO HERO SINCE 2026-08-20 (direct product request). This page used to
-    open as `0.2`'s hero-and-panel, inherited because a journey is
-    structurally the same kind of object as a bean. The Polaroid stack replaced
-    it, and with the hero gone the blank and saved states stopped being
-    different layouts -- so this is now a plain app bar over one column, and
-    Delete sits beside Save instead of on the hero's pulled disc.
+    open as `0.2`'s hero-and-panel; the camera and its prints replaced it, and
+    with the hero gone the blank and saved states stopped being different
+    layouts -- so this is a plain app bar over one column, and Delete sits
+    beside Save.
 
-    The Open-in-Maps row is still a card, not a map -- the app ships no map
-    SDK, deliberately (see the screen's own note) -- but it now searches the
-    address rather than centring a pin, because the coordinates are gone."""
+    REDESIGNED the same day: it draws on `surfaceContainerLow` like `+1` (the
+    stack is white paper and the Open-in-Maps card is a #FFFFFF `CardColor`
+    card with no outline and no elevation -- on the white `background` it used
+    to use, that card was simply invisible); the camera block came in from
+    180/152 to 156/132; and the fields are sectioned, with Barista demoted
+    from a 56dp outlined box to a capsule per design-spec §5.1's own rule."""
     c = Canvas("+1.1 Journey profile")
+    c.rect(0, 0, W, H, C["surfaceContainerLow"])
     status_bar(c)
     y = top_bar(c, JOURNEY["name"], back=True)
-    y = polaroid_stack(c, y + 20) + 18 + 12
-    c.text(W / 2, y, "Tap a print to add a photo", "labelMedium",
+    # Camera, then its caption, then the film. The caption sits directly
+    # under the object it names rather than under both -- see the screen.
+    camw = 156
+    cam_top = y + 16
+    # "Tap me" rides on the camera's hood -- the arrow and the grey label that
+    # used to sit beside it are gone (2026-08-20: "tooo ugly").
+    y = polaroid_camera(c, W / 2, cam_top, camw, tap_me=True) + 10 + 12
+    c.text(W / 2, y, "Tap the camera to add a photo", "labelMedium",
            C["onSurfaceVariant"], anchor="middle")
-    y += 24
+    y = polaroid_tiles(c, y + 14) + 24
+    y = section(c, y, "Caf\u00e9")
     y = field(c, y, "Caf\u00e9 name", JOURNEY["name"]) + 14
-    y = capsule_pair(c, y, ("Visited on", JOURNEY["day"]), ("City", JOURNEY["city"])) + 14
-    y = field(c, y, "Address", JOURNEY["address"]) + 14
-    y = field(c, y, "Barista", JOURNEY["barista"]) + 16
+    # Address and city as a capsule pair. The address was a full-width field
+    # until 2026-08-20, which made the optional half of the location as heavy
+    # as the required café name above it.
+    y = capsule_pair(c, y, ("Address", JOURNEY["address"]),
+                     ("City", JOURNEY["city"])) + 4
+    y = section(c, y, "The visit")
+    y = capsule_pair(c, y, ("Visited on", JOURNEY["day"]),
+                     ("Barista", JOURNEY["barista"])) + 16
     card(c, y, 56)
     c.circle(GUTTER + 26, y + 28, 5, C["primary"])
     c.path(f"M{GUTTER + 26} {y + 33} l0 8", stroke=C["primary"], sw=2)
     c.text(GUTTER + 44, y + 24, "Open in Maps", "titleMedium")
     c.text(GUTTER + 44, y + 42, f"Search for {JOURNEY['address']}, {JOURNEY['city']}",
            "bodyMedium", C["onSurfaceVariant"])
-    y += 56 + 16
-    y = field(c, y, "Note", JOURNEY["note"], h=72) + 24
+    # The trailing chevron: the one row on this page that leaves the app.
+    c.path(f"M{W - GUTTER - 22} {y + 22} l6 6 l-6 6", stroke=C["onSurfaceVariant"], sw=1.8)
+    y += 56 + 4
+    # NO NOTES SECTION since 2026-08-20; the Cups block carries the "what was
+    # it actually like" half of a visit now.
+    y = section(c, y, "Cups", action="Add a cup")
+    for name, score in CUPS:
+        c.text(GUTTER, y + 14, name, "titleMedium")
+        c.text(W - GUTTER, y + 14, score, "labelLarge", C["onSurfaceVariant"], "end")
+        divider(c, y + 26)
+        y += 38
+    y += 8
     button(c, y, "Save changes", x=GUTTER, w=W - 2 * GUTTER - 128)
     dx, dw = W - GUTTER - 116, 116
     c.rect(dx, y, dw, 40, "none", 20, stroke=C["error"])
@@ -2116,6 +2293,41 @@ def welcome():
     return c
 
 
+def cup_profile():
+    """+1.2 -- CupDetailScreen: a coffee drunk at a café.
+
+    EVERY BLOCK ON THIS PAGE IS BORROWED, which is the point of the screen.
+    The identity fields and the images strip are `0.1`'s (`BeanFieldsGrid`,
+    `ImagesStrip`); Brew details, Pour stages, How was it and Flavor are the
+    four sections lifted out of `0.31` into `BrewFormSections` on 2026-08-20
+    so a cup could have them without a second copy. A cup saves as one bean
+    plus one session carrying the café's `journeyId`."""
+    c = Canvas("+1.2 Cup profile")
+    status_bar(c)
+    y = top_bar(c, BEAN["name"], back=True) + 8
+    y = field(c, y, "Bean name", BEAN["name"]) + 14
+    y = capsule_pair(c, y, ("Origin", BEAN["origin"]), ("Variety", BEAN["variety"])) + 14
+    y = capsule_pair(c, y, ("Roaster", BEAN["roaster"]), ("Process", BEAN["process"])) + 8
+    y = section(c, y, "Photos")
+    c.rect(GUTTER, y, 88, 88, C["primaryContainer"], R_THUMB)
+    c.path(f"M{GUTTER + 36} {y + 44} h16 m-8 -8 v16", stroke=C["onPrimaryContainer"], sw=2)
+    y += 88 + 12
+    y = section(c, y, "Brew details")
+    card(c, y, 128)
+    y2 = y + 16
+    capsule_pair(c, y2, ("Dripper", "Hario V60"), ("Grinder", "Comandante C40"),
+                 x=GUTTER + 16, w=W - 2 * GUTTER - 32)
+    capsule_pair(c, y2 + 52, ("Grind size", "24 clicks"), ("Dose", "18.0 g"),
+                 x=GUTTER + 16, w=W - 2 * GUTTER - 32)
+    y += 128 + 8
+    y = section(c, y, "Pour stages", action="Add stage")
+    c.text(GUTTER, y + 14, "Bloom", "titleMedium")
+    c.text(W - GUTTER, y + 14, "0:00", "bodyMedium", C["onSurfaceVariant"], "end")
+    divider(c, y + 26)
+    gesture_bar(c)
+    return c
+
+
 PAGES = [
     ("00w_welcome.png", welcome),
     ("00_home.png", home),
@@ -2139,6 +2351,7 @@ PAGES = [
     ("0.31a_which_bean.png", which_bean),
     ("0.31b_which_bean_empty.png", which_bean_empty),
     ("0.31_log_brew.png", brew),
+    ("+1.2_cup_profile.png", cup_profile),
     ("0.31b_log_brew_lower.png", brew_lower),
     ("0.32_stage_editor.png", stage_editor),
     ("0.33_ai_disclosure_suggest.png", ai_disclosure_suggest),

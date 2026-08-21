@@ -344,6 +344,18 @@ scrolling twice.
 Rule: outlined box for a required or free-text field, capsule for everything
 else.
 
+**The rule is enforced by reading, not by the type system, so it drifts.**
+`+1.1` shipped **Barista** — an optional one-word name — as a full 56dp
+outlined box, which gave it exactly the weight of the required café name
+above it. Corrected 2026-08-20 (§8.6b). When adding a field, the question is
+not "is it text?" but "is it required, or long?"
+
+**A `FieldPair` half may hang empty.** With an odd number of capsule fields
+one half is blank, and that is the shape `FieldPair` was built to allow —
+rendered, it reads as deliberate. Promoting the odd field back to a box to
+avoid the gap is the wrong trade; it breaks the rule above to fix a
+non-problem.
+
 ### 5.2 Charts and meters
 
 | Component | Shape | Notes |
@@ -577,6 +589,7 @@ provides it, because Paparazzi does not set it itself.
 | `PhotoHeroPage` | the bean-detail hero. `HeroHeight` 224dp, `PanelPeek` 96dp, `UnknownAspectFraction` 0.62, drag-to-settle at 700f. The panel under the photo is a **painted background, deliberately not a `Surface`** — §4.4 |
 | `ZoomableImageViewer` | pinch/double-tap, `MaxScale` 4× |
 | `TopBarDivider` | the hairline rule under every app bar |
+| `MonthHeading` | `+1`'s date grouping — the month in `titleSmall`, then a hairline to the page edge. Private to `JourneysScreen`; the rule is what ties a short heading to the full page width so it divides the column rather than captioning the print below it (§8.6) |
 
 ### 5.5 Compliance components
 
@@ -759,11 +772,45 @@ Nothing reaches the form until the user accepts.
 
 The cafés you have been to, as a stack of Polaroids — square photo, 10dp
 surround, a deep chin carrying the café's name and `city · date`. One column,
-288dp wide and centred, each print at a tilt of up to ±1.6° seeded by its own
-row id (`PolaroidCard`). Empty state: `MascotEiffel`, this app's **only piece
-of original mascot artwork** — every other pose is exported from the design
-deck, so this is the one figure whose Kotlin is the original and whose
-`screenshots.py` twin is the copy.
+**232dp** wide and centred, each print at a tilt of up to ±1.6° seeded by its
+own row id (`PolaroidCard`), **grouped under a month heading**. Empty state:
+`MascotEiffel`, this app's **only piece of original mascot artwork** — every
+other pose is exported from the design deck, so this is the one figure whose
+Kotlin is the original and whose `screenshots.py` twin is the copy.
+
+#### The ground, and why these two screens have one (2026-08-20)
+
+**`+1` and `+1.1` draw on `surfaceContainerLow`, not `background`.** This is
+the load-bearing change of the redesign and it is worth stating as a rule:
+*this app's one page of white objects needs something to be white against.*
+
+Everything on these two screens is `PolaroidPaper` (#FDFDFA) — the prints, the
+camera's body, the three sheets in the stack — and `surface`/`background` is
+`#FFFFFF` (§2.2's accepted deviation from the deck's `#F2FAF2`). Rendered
+honestly, the print **dissolved**: its grey emulsion square floated above two
+lines of text with no object around them, and `PolaroidCard`'s 3dp shadow was
+carrying the entire silhouette alone. §2.2's stated answer — "adjacent cards
+are separated by an inset rule and a standalone block by its own heading" —
+is an answer for *cards and text*, and does not reach content that is
+literally white paper.
+
+`surfaceContainerLow` is an existing token, ~4% off white, so swiping in from
+Home does not jar. Two things fall out of it for free:
+
+- the prints and the stack read as objects lying on a surface again, which is
+  the entire concept these screens were built on;
+- **`+1.1`'s "Open in Maps" card becomes visible.** It is `CardColor`
+  (#FFFFFF) with no outline and no elevation, so on a white page it rendered
+  as a pin glyph and two lines of text with no boundary and no affordance —
+  the one row on the page that fires an `Intent`, drawn as if it were static
+  copy. It now reads as a white card on a tinted ground, and carries a
+  trailing chevron as well.
+
+**This was invisible in the simulator until 2026-08-20**, because
+`screenshots.py` carried the deck's `#F2FAF2` for `surface` while claiming to
+be `Theme.kt` token-for-token — so every frame it had ever produced drew white
+cards on a tinted page, contrast the build did not have. `check_design.py`
+knew (`ACCEPTED_DEVIATIONS`); the simulator never got the memo. Corrected.
 
 **Redrawn twice on 2026-08-20**, both times on direct product rejection —
 first for standing can-boy wedged between the tower's legs, then for
@@ -792,10 +839,94 @@ they are the ones worth not undoing:
 Verified legible at 184dp, 96dp and 64dp. See `CanBoyEiffel`'s docstring for
 the fault-by-fault reasoning and what was tried and cut.
 
-The FAB goes straight to a blank `+1.1`. There is no "which one?" sheet in
+**Each journey is a stack of its three prints, two to a row**
+(`PolaroidStackCard`, 2026-08-20, direct product request: "the stack size will
+allow two stacks can be tile in the same line"). This page argued for a single
+column for a long time, on the grounds that a 2-up grid "halves the print" —
+true while a cell was *one* print whose picture had to be worth looking at. A
+cell now stands *for* a journey rather than displaying one, so it survives at
+half width where a lone photograph did not, and the page shows four cafés where
+it showed one and a half. **The pile is as deep as the journey has photographs** (2026-08-20, direct
+product request) — three sheets always told the same story about a café with
+one picture and a café with three, and the count is real information the
+drawing was throwing away. Floored at one: a café with no pictures is still a
+single unexposed sheet, because zero sheets leaves a caption floating with no
+object under it. The sheets behind carry their own photographs now rather than
+being blank paper, which is the evidence for the depth. Only the front sheet
+carries the chin caption. Its sheets take 0.88 of the lane so the 18dp
+splay lands inside it, and the chin is 46dp because two caption lines measure
+~41dp — 34dp sheared the date off along its baseline, which the golden caught.
+
+**Months group before journeys pair**, never the reverse: chunking the flat
+list into twos and reading the month off the first of each pair files a 31 July
+journey under August whenever a month ends on an odd count.
+
+**The FAB is the Polaroid camera** (`PolaroidCameraButton`, 2026-08-20, direct
+product request) — the same drawing `+1.1` uses at a third the size, 60dp of
+box putting its body at roughly a Material FAB's 56dp span. A Material FAB is
+this app's generic "make one of these": right on the shelf, wrong on a wall of
+Polaroids. A first pass drew a *print* with a `+` on it, which had it backwards
+— a print is what you end up with, the camera is what you press. Every detail
+survives the shrink; checked by rendering at 52/68/76dp before choosing 60.
+It flashes on the same 4.4s loop as `+1.1`'s — see §8.6b.
+
+**There is no arrow, and one was tried.** A bowed `DoodleArrow` swept from the
+empty state's copy down to the camera in the corner, on the reasoning that this
+FAB does not look like a FAB. Rejected the same day — "tooo ugly": it was the
+one grey diagram line on a screen whose whole register is white paper objects,
+and the heaviest mark in the empty state after the mascot. The component is
+deleted, not disabled. The copy names the camera and the camera flashes; the
+words and the motion do the pointing.
+
+It still goes straight to a blank `+1.1`. There is no "which one?" sheet in
 front of it, unlike the brew FAB, because a journey belongs to nothing.
 
-### 8.6a `0.3` Sessions
+#### Two prints fit, and months replaced the subtitle
+
+**232dp, down from 288.** A print is `width + 64dp` tall, so 288 gave 352dp
+and fitted one and a half on a 360×800 screen — a five-café trip was five
+screens of scrolling. 232 gives 296dp and fits two whole prints plus the next
+month's heading. The "big enough to actually look at" argument above is about
+not being a *thumbnail*; 232dp is not one.
+
+**`Newest first · N journeys` is gone**, replaced by `MonthHeading` — the
+month in `titleSmall`, then a hairline to the page edge. The subtitle was one
+line restating the sort order plus a number nobody needs; grouping says the
+same thing structurally (the order *is* visible once the months are) and adds
+the one axis a travel log actually has. The rule is not decoration: it ties a
+four-word heading to the full page width so it reads as dividing the column
+rather than as a caption that drifted above the print below it.
+
+Grouping is done **in the composable, not the repository** — the month is a
+property of how this page reads, not of a journey, and nothing else in the app
+asks. `observeJourneys()` already returns newest-first, so emitting a heading
+whenever the month changes is the whole algorithm. Headings are keyed on the
+month string so the list does not rebuild them all when one journey moves.
+
+**Month labels are `Locale.ENGLISH`, matching `PRINT_DAY`**, which has always
+formatted print captions in English regardless of app language. A localised
+heading would sit directly above an unlocalised caption — "août 2026" over
+"16 Aug 2026". Localising *both* is a separate change with its own goldens.
+
+**Tried and rejected, all by rendering them:**
+
+| Direction | Why not |
+| --- | --- |
+| Per-month count on the right of each heading | Duplicates the prints directly beneath it, and buys a plurals resource in three locales |
+| Keeping the subtitle above the first month heading | Two stacked headings; read as clutter immediately |
+| **Scatter** — prints alternating left/right at ±2.6° | The next print ran over the previous one's chin. The caption is the data on this page |
+| **Pile** — prints overlapping vertically | Buried every caption but the last. Good object, wrong content |
+| A hairline border on the print paper | Works, but reads as a bordered card rather than as paper. The ground solves it without touching the object |
+
+### 8.6a `0.3` Sessions / History
+
+**A cup's row is green** — `JourneyGround`, the exact ground `+1` and `+1.1`
+lie on (2026-08-20, direct product request). A cup is a session with a café
+attached, so it lands in this list beside brews made at home and without a cue
+the two are indistinguishable. Reusing the travel side's own token is the
+point: a green row reads as "one of those" rather than as a status this list
+invented. Nothing else changes — same height, same glyph, same divider —
+because a cup is not a different *kind* of record, just one drunk elsewhere.
 
 Every brew across every bean, newest first, with the dripper glyph at 64dp,
 dose, score and extraction verdict. Header states the count. Empty state and
@@ -810,16 +941,68 @@ One café: name, visit date, city, **address**, **barista**, note, and up to
 three photographs. No scan card (a café has no label), no radar (a journey has
 no flavour), no sessions list (a brew belongs to a bean).
 
-**A Polaroid stack, not a photo hero** (2026-08-20, direct product request).
-The page opens on `PolaroidStack` — three sheets of film, the front one
-square-on and the two behind it splayed by 9dp and ±3.2°. Tapping the front
-sheet **adds** a photo when it is unexposed and **opens** it when it is not;
-tapping a back sheet brings that one forward. Tap targets fall out of z-order
-rather than being computed: the back sheets are composed first, so Compose's
-own hit testing gives the front sheet the overlap and leaves the back sheets
-only the slivers that are actually visible.
+**A Polaroid camera and its prints, not a photo hero** (2026-08-20, direct
+product request). The page opens on a drawn Polaroid camera at 156dp, then its
+caption, then three sheets of film tiled across the gutter (`PolaroidTiles`).
+The block reads top to bottom as: press this, here is what it does, here is
+what came out. The first build shipped the film with no camera at all —
+"where is polaraid camera?" — having read "draw a Polaroid" as the print
+rather than the device.
 
-**The stack is the capacity.** Three sheets is the cap (`PolaroidStackCapacity`)
+**The camera is the shutter.** Tapping it opens the photo-source sheet — "tap
+on the polaroid to take picture or import form album" — which leaves the prints
+free to be prints: a tap on one opens it, and an empty sheet is simply empty
+rather than a second add button.
+
+**"Tap me", hand-lettered on the camera's hood** (2026-08-20, direct product
+request), replacing an arrow and a grey label that were rejected as "tooo
+ugly". It is **drawn as strokes, not set in a font** — the logo's white line,
+the register `CanBoy.kt` draws every mascot in — and it **swings left–right**
+on a 2.6s eased loop, deliberately not a multiple of the flash's 4.4s so the
+two drift in and out of phase rather than locking to one beat.
+
+**Its placement was decided by contrast, not by taste.** The request was white
+lettering upper-left of the camera; the page's ground is `surfaceContainerLow`,
+on which `#FFFFFF` measures ~1.1:1 — the exact failure that killed the arrow.
+Three renders were compared: white outside the camera (invisible, confirmed by
+eye), `onSurfaceVariant` outside it (legible, but no longer the white line that
+was asked for), and white **on the hood** — the only dark field on the screen,
+where white sings. So the mark rides on the camera. Its numbers are a
+clearance budget: the viewfinder ends at x=43 and the flash window starts at
+x=132 in the camera's 200-unit space, so the lettering runs 50→122 and reaches
+45→127 at full swing.
+
+**The "Tap the camera to add a photo" caption survives alongside it**, which
+looks redundant and is not: "Tap me" is a *label on the object* saying which
+thing is pressable, the sentence says what pressing it does. The mark vanishes
+once one photo exists; the caption stays until all three sheets are used.
+
+**TILED HERE, STACKED ON `+1`.** The sheets emerged from the camera's slot as
+an overlapping pile until 2026-08-20, when the request moved the caption under
+the camera and asked for the papers tiled below it. The pile had a real cost on
+*this* page: two of the three pictures were permanently a few millimetres of
+paper edge, reachable only by tapping a sliver to bring them forward. Tiling
+shows all three at once, which is what a page about one café's photographs
+should do — and it deleted the front/back state, the reordering tap and the
+z-order hit-testing rule with it. The stack survives where it is still right:
+`+1`'s list, where a cell stands *for* a journey rather than showing its
+contents.
+
+**The flash fires, then waits four seconds, forever.** Both cameras — this one
+and the `+1` FAB — loop a white burst out of the flash window: keyframes, not a
+reversing tween, because a flash is a hard spike and a slow decay rather than a
+wave (a reversing tween spends half its cycle un-flashing, which reads as a
+lamp on a dimmer). **The long dark tail is the effect**: at a 1s cycle this is a
+blinking light and therefore an error indicator; at 4s it reads as a camera
+someone is idly taking pictures with. Frozen at 0 under `LocalInspectionMode`,
+so the goldens capture the resting camera.
+
+**The camera's five livery colours are not palette and `check_design.py` does
+not check them.** They are the object's own identity, the single cue that says
+Polaroid rather than "a camera" — the same standing `FlavorNotes.kt`'s bubble
+fills have, and the one place in this app where a non-palette colour is right.
+
+**The film is the capacity.** Three sheets is the cap (`PolaroidStackCapacity`)
 — there is no overflow row and no "+N", because the drawing *is* the limit.
 Empty sheets are drawn unexposed rather than as placeholder tiles, the same
 argument `PolaroidCard` makes for the list.
@@ -827,7 +1010,7 @@ argument `PolaroidCard` makes for the list.
 **This collapsed the two states into one.** `+1.1` used to be two layouts: a
 blank journey as a plain form, a saved one as `PhotoHeroPage`'s hero-and-panel
 with delete on the pulled disc. The hero was the only structural difference,
-and a blank journey's stack is three unexposed sheets — a state the drawing
+and a blank journey's film is three unexposed sheets — a state the drawing
 already has. So there is now one app bar over one column, and delete sits
 beside Save (`RemoveButton`), the same relocation `0.2` and `0.31` took.
 
@@ -850,12 +1033,121 @@ permission and asks for none, and that was true of the coordinates too.
 **The barista is a person who is not the user.** Free text, optional, never
 required, never leaves the device, matched against nothing.
 
+#### The 2026-08-20 redesign
+
+**The page draws on `surfaceContainerLow`, like `+1`** — see §8.6's "The
+ground". That is what makes these two one place rather than a warm list
+followed by a plain Material form, and it is what makes the Open-in-Maps card
+visible at all.
+
+**The camera-and-stack block came in from 321dp to ~275dp** (camera 180→156,
+stack 152→132, scaled by the same factor so the camera stays wider than the
+print). On a *blank* journey that block is empty apparatus above an empty
+form, and 321dp of it landed before the first field. Rendered at both sizes,
+156 loses nothing: the hood, lens and livery all still read, and the camera
+remains the page's obvious first action rather than merely its largest object.
+
+**The form is sectioned** — *Café* (name, then address | city as a capsule
+pair), *The visit* (visited on | barista). **Address became a capsule**
+(2026-08-20, direct product request: it should match the date and barista
+boxes) — as a full-width field it made the optional half of the location as
+heavy as the required café name, the same §5.1 rule the barista was demoted
+for. **Notes is gone** (same request): its column survives unread, for the
+reason the coordinates do, and the Cups block now carries the "what was it
+actually like" half of a visit that a journey note stood in for. The first heading was *The place* and was
+renamed on request; city moved up into it, because a café's city does not
+change between visits where the date and the barista do, and moving it is what
+lets *The visit* be a genuine pair instead of a capsule with an empty half. Six fields, a map row and a note ran as
+one undifferentiated column, which on a blank journey is eight identical empty
+things to work down; three headings turn it into three short answerable
+questions for about 60dp.
+
+**Barista is a capsule now, not a 56dp outlined box** — this screen was
+breaking §5.1's own rule ("outlined box for a required or free-text field,
+capsule for everything else") by giving an optional one-word name exactly the
+weight of the required café name. The demotion is the point, not the ten
+pixels. It **hangs on a half-row**: there are three capsule-able fields and
+`FieldPair` lays out two, and a hanging half is the shape `FieldPair` was
+built to allow. Tried and rejected: promoting it back to a box (breaks the
+rule again) and pairing it with the address (a street line truncates badly in
+a 30dp half-width pill).
+
+**The map row gained a trailing chevron.** It is the one control on the page
+that leaves the app, and a `CardColor` card with no outline and no elevation
+is a very quiet boundary for that. The chevron is the platform's own "this
+goes somewhere" mark and costs one glyph.
+
+**The blank state was checked, not assumed.** The concern was that a new
+journey opens on a lot of empty apparatus. Rendered, it does not read that
+way: the camera is unmistakably the call to action and the three unexposed
+sheets read as film waiting, which is the state the drawing already has (see
+"The stack is the capacity"). No separate blank-state layout was added — that
+is the collapse this screen just made, and re-splitting it to save 275dp would
+trade a structural simplification for a cosmetic one.
+
+**The Cups block** sits below the fields on a *saved* journey: what you drank
+here, each row a cup, with an "Add a cup" action opening `+1.2`. Absent rather
+than disabled on a blank form — a cup needs a café to belong to, and offering
+the action before the café has a row would mean inventing one behind the
+user's back, the same rule `0.2`'s sessions list follows.
+
+### 8.6c `+1.2` Cup Profile
+
+One **cup**: a coffee you drank at a café. The page is, in order, `0.1`'s
+identity fields (`BeanFieldsGrid`), `0.1`'s images strip (`ImagesStrip`), then
+`0.31`'s **Brew details**, **Pour stages**, **How was it** and **Flavor**
+(`BrewFormSections`). Direct product request, 2026-08-20.
+
+**A cup is a bean plus a session, not a third kind of thing.** Saving writes
+one `BeanEntity` (what the coffee was) and one `SessionEntity` (how it tasted)
+whose `journeyId` points at the café. Nothing new was modelled, and two things
+fall out free: the cup appears in History because History lists sessions, and
+every section on the page is the real one rather than a lookalike.
+
+**Every block is borrowed, and that drove a refactor.** The four brew sections
+were inline in `BrewSessionScreen` and had to be lifted into
+`BrewFormSections` — ~230 lines carrying eleven flavour sliders, a radar, a
+stage editor and thirteen capsules, which is the largest block in the app a
+second copy could have happened to. The extracted composable is **stateless**:
+every mutation leaves through `onDraftChange`/`onStagesChange`, so two screens
+that keep their drafts in different places share one UI. Verified as a pure
+refactor — all 94 goldens passed unchanged immediately after the move.
+
+**What deliberately did not come along:** the Ask-AI action, the "asking…"
+spinner, the error line and the consent-blocked notice. Those are
+`AiGateHost`-gated and a cup's AI story is a decision nobody has taken, so
+`+1.2` has none; `detailsHeader` and `afterDetails` are the slots that let
+`0.31` inject them without the shared file knowing what an AI gate is.
+
+**`editing` is always true here.** A cup has no Modify/Save-changes mode:
+unlike a brew, you write it down once at the café rather than returning to a
+recipe you keep adjusting.
+
+**No scan card.** It is `0.1`'s, consent-gated, and unreasoned-about for a cup.
+
 ### 8.7 `0.31a` Which bean? → Pick Bean
 
-The FAB opens a sheet with three choices: pick an existing bean, add a bean, or
-vibe-brew (log now, name it later). Pick Bean is its own screen. It is raised
-by Home's FAB **and** by `0.3` Sessions', through one sheet hoisted in
-`Nav.kt` — which is what let Home's FAB take over Sessions' job.
+The FAB opens a sheet with three choices, in this order since 2026-08-21
+(direct product request): **Add a new bean**, **From Coffee Can**, **Vibe
+brewing** (log now, name it later). The deck drew *From Coffee Can* first,
+which was right while that row listed beans inline — the sheet opened on what
+you already had. It now pushes `+1.1a` like the others, so all three are
+equally a destination and the commonest reason to be here (a bag you have just
+opened) leads. Pick Bean is its own screen. The sheet is raised by Home's FAB
+**and** by `0.3` Sessions', through one hoisted in `Nav.kt` — which is what let
+Home's FAB take over Sessions' job.
+
+**Vibe brewing does not leave a bean behind if you back out.**
+`createBlankBean()` inserts a real row the moment the row is tapped, because a
+session needs a parent; backing out of the form used to strand a nameless,
+photoless, brewless bean on Home's shelf as "Unnamed bean" (Home does not
+filter on `status`, so marking it a draft would not have hidden it).
+`BrewSessionScreen.leaveWithoutSaving()` now deletes it. **The test is
+emptiness, not provenance** — nothing is threaded down to say "this came from
+vibe brewing", because a bean with no name, no photos and no brews contains
+nothing whatever its origin, and this is the only path that can produce one
+(Bean Detail refuses to save a nameless bean). Discarding counts as leaving
+without saving; an explicit save does not.
 
 ### 8.8 `0.31` Brew Session Detail
 
@@ -970,6 +1262,7 @@ Eight entities:
 | `session_stages` | one pour each |
 | `catalogue_items` | crawler cache |
 | `news_items` | feed cache — four fields, no snippet column |
+| `sessions.journeyId` | nullable, indexed — the café a brew was drunk at, which is what makes it a **cup** (§8.6c). **No foreign key, deliberately**: a cascade would delete a brew because the user tidied away a café, so deleting a journey orphans its cups back into ordinary brews. **Sync ignores it** — `sync_tools._SESSION_FIELDS` is an allowlist and `SyncBundle.toSessionEntity` builds by name, so neither side changed and a cup exported to the desktop arrives as an ordinary brew, which is honest since the desktop has no journeys table |
 | `journeys` | `+1`'s cafés: name, `location` (city), `address`, `barista`, `visitedAt`, note — plus `latitude`/`longitude`, retained but no longer read or written (§8.6b) |
 | `journey_images` | `position`, `filePath`, `rotation` — the same contract as `bean_images`, in its own tree under `filesDir/journey_images/` |
 
