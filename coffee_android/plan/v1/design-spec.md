@@ -680,6 +680,7 @@ Named for the deck's page numbers so a screen can be found from a wireframe
 | `BrewSession` | `0.31_log_brew/{beanId}/{sessionId}` |
 | `NewJourney` | `+1.1_journey` |
 | `JourneyDetail` | `+1.1_journey/{journeyId}` |
+| `Cup` | `+1.2_cup/{journeyId}/{sessionId}/{beanId}` — resolves to `BrewSessionScreen` (§8.6c) |
 | `Privacy` | `+2.2a_privacy` |
 | `AiDisclosure` | `+2.2b_ai` |
 
@@ -954,6 +955,15 @@ on the polaroid to take picture or import form album" — which leaves the print
 free to be prints: a tap on one opens it, and an empty sheet is simply empty
 rather than a second add button.
 
+**That sheet says "Take a memory of the café" here**, not "Take a photo of the
+bag" (2026-08-21, direct product request). `PhotoSourceSheet` takes the one
+line as a `@StringRes` parameter and defaults to the bean wording; the journey
+camera and a cup (§8.6c) pass `journey_photo_take` instead. Everything else on
+the sheet — the "Which photo?" title, "Choose one I already have", and the
+note that location data is stripped on the phone before anything is sent — is
+the same promise whatever the picture is of, which is why this is a parameter
+and not a second sheet.
+
 **"Tap me", hand-lettered on the camera's hood** (2026-08-20, direct product
 request), replacing an arrow and a grey label that were rejected as "tooo
 ugly". It is **drawn as strokes, not set in a font** — the logo's white line,
@@ -1093,10 +1103,37 @@ user's back, the same rule `0.2`'s sessions list follows.
 
 ### 8.6c `+1.2` Cup Profile
 
-One **cup**: a coffee you drank at a café. The page is, in order, `0.1`'s
-identity fields (`BeanFieldsGrid`), `0.1`'s images strip (`ImagesStrip`), then
-`0.31`'s **Brew details**, **Pour stages**, **How was it** and **Flavor**
-(`BrewFormSections`). Direct product request, 2026-08-20.
+One **cup**: a coffee you drank at a café.
+
+**It is `0.31` with a café behind it, and has no composable of its own**
+(2026-08-21, direct product request: a cup "will also use this vibe brewing
+page"). `CupDetailScreen` drew `0.1`'s bean fields above `0.31`'s four
+sections; `0.31` grew a **Bean details** block of its own that same day for
+vibe brewing (§8.8), which left the cup screen with nothing that was its own,
+so it was deleted and `Routes.Cup` now resolves to `BrewSessionScreen`. The
+route survives — the back stack has to tell a cup from a brew — and carries a
+`beanId` as well as the café's id, because that screen edits a bean row that
+already exists: `+1.1`'s "Add a cup" creates the blank one on the way out,
+exactly as the vibe-brewing row in `0.31a` does, and an abandoned cup takes it
+away again through the same `leaveWithoutSaving` sweep.
+
+Everything `journeyId` changes is a label or a column: **New cup** as the
+title fallback, **Save this cup** on the button, **Delete this cup?** on the
+delete prompt, "Take a memory of the café" on the photo sheet (§8.6b), the
+`journeyId` written onto the session, and no Ask AI. The form is the same
+form.
+
+**The save button waits for a name.** `+1.2`'s own rule, kept: a cup is a
+coffee you are recording because of what it was, and a nameless one is a row
+in a café's list with nothing in it. Vibe brewing makes the opposite promise —
+brew now, name the bean later — so it still saves blank.
+
+**A saved cup opens read-only, with Modify**, which is a change from the old
+screen: it inherits `0.31`'s view/modify mode along with everything else,
+rather than being permanently editable.
+
+The paragraphs below record how the page was built and why the shared blocks
+exist; they are still true of what it draws. Original request 2026-08-20.
 
 **A cup is a bean plus a session, not a third kind of thing.** Saving writes
 one `BeanEntity` (what the coffee was) and one `SessionEntity` (how it tasted)
@@ -1104,9 +1141,9 @@ whose `journeyId` points at the café. Nothing new was modelled, and two things
 fall out free: the cup appears in History because History lists sessions, and
 every section on the page is the real one rather than a lookalike.
 
-**Every block is borrowed, and that drove a refactor.** The four brew sections
-were inline in `BrewSessionScreen` and had to be lifted into
-`BrewFormSections` — ~230 lines carrying eleven flavour sliders, a radar, a
+**Every block is borrowed, and that drove a refactor** whose value outlasted
+the screen that prompted it. The four brew sections were inline in
+`BrewSessionScreen` and had to be lifted into `BrewFormSections` — ~230 lines carrying eleven flavour sliders, a radar, a
 stage editor and thirteen capsules, which is the largest block in the app a
 second copy could have happened to. The extracted composable is **stateless**:
 every mutation leaves through `onDraftChange`/`onStagesChange`, so two screens
@@ -1115,13 +1152,11 @@ refactor — all 94 goldens passed unchanged immediately after the move.
 
 **What deliberately did not come along:** the Ask-AI action, the "asking…"
 spinner, the error line and the consent-blocked notice. Those are
-`AiGateHost`-gated and a cup's AI story is a decision nobody has taken, so
-`+1.2` has none; `detailsHeader` and `afterDetails` are the slots that let
-`0.31` inject them without the shared file knowing what an AI gate is.
-
-**`editing` is always true here.** A cup has no Modify/Save-changes mode:
-unlike a brew, you write it down once at the café rather than returning to a
-recipe you keep adjusting.
+`AiGateHost`-gated, and a cup has no bean for `suggestBrew` to reason about;
+`detailsHeader` and `afterDetails` are the slots that keep them out of the
+shared file, and a cup passes a plain heading through the first and nothing
+through the second. Unchanged by the 2026-08-21 merge — the cup path simply
+sets the same condition false on the screen it now shares.
 
 **No scan card.** It is `0.1`'s, consent-gated, and unreasoned-about for a cup.
 
@@ -1151,11 +1186,44 @@ without saving; an explicit save does not.
 
 ### 8.8 `0.31` Brew Session Detail
 
-One brew, created or edited (1001 lines). Brew fields (dripper, grinder, grind
-size, filter, dose, water, temperature, ppm, humidity, total time), **Pour
-stages** with its own editor sheet, then **How was it?** — Score `ValueBar`,
-`ExtractionBar`, note — then **Flavor**: the radar over eleven `ValueBar`
-sliders.
+One brew, created or edited. **Bean details** (see below), then brew fields
+(dripper, grinder, grind size, filter, dose, water, temperature, ppm,
+humidity, total time), **Pour stages** with its own editor sheet, then **How
+was it?** — Score `ValueBar`, `ExtractionBar`, note — then **Flavor**: the
+radar over eleven `ValueBar` sliders.
+
+**Bean details sits above Brew details** (`BeanDetailsSection`, 2026-08-21,
+direct product request). It shows **one** input, the bean's name, and a
+**More details** text button; pressing that reveals `0.1`'s own
+`BeanFieldsGrid` (origin, variety, altitude, roaster, producer, process, roast
+date, note) and `ImagesStrip` beneath it, with the photo sheet and the
+roast-date picker wired exactly as on `0.1`.
+
+*Why a brew form edits a bean at all:* two of the ways in arrive on a bean with
+no name — vibe brewing creates a blank row so the session has something to
+belong to, and a cup (§8.6c) is a coffee this phone has never seen — and until
+this block existed neither could say what the coffee *was* without leaving the
+form. *Why it starts collapsed on every path,* including a bean whose fields
+are full: this is a brew form, the block is eight optional inputs plus a photo
+strip, and opening it pushes Brew details a screen and a half down for the
+commonest way in.
+
+The bean draft follows the same discipline as the session beside it — typing
+reaches Room only on Save, it counts towards `dirty`, and it locks with the
+rest of the form in view mode (`BeanFieldsGrid`/`ImagesStrip` take an
+`enabled` flag for this; while locked, "More details" and the "Add img" tile
+are absent rather than dead). The one exception is a photograph, which is a
+file plus a row and is attached immediately — the exception `0.1` and `+1.1`
+already make.
+
+**Ask AI is on this header only for a bean out of the can** (2026-08-21,
+direct product request: "in the vibe brewing, remove ask AI"). `suggestBrew`
+sends the *bean* — name, origin, roaster, process — and asks what to do with
+it; on the vibe-brewing and cup paths there is no such bean yet, only a blank
+row the form is in the middle of filling in, so the action offered a recipe
+derived from nothing. The condition is `bean.name.isNotBlank() && journeyId ==
+null`, evaluated on the stored row rather than the draft so the button cannot
+appear and disappear as someone types.
 
 **The radar here is the interactive one** (§5.6). Tapping an axis zooms the
 chart onto that label and opens `FlavorNoteSheet`, a full-screen picker of ten

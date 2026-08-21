@@ -134,11 +134,11 @@ both values on every run. Today it holds exactly one entry (`surface`).
 | You changed | Also move | Verify |
 | --- | --- | --- |
 | Any user-facing string | `res/values/strings.xml` **and** `values-fr/` **and** `values-zh/` | `V3` |
-| A string the mock deck also draws | `screenshots.py` — `check_design.py` diffs 91 strings against it | `V1` |
+| A string the mock deck also draws | `screenshots.py` — `check_design.py` diffs 93 strings against it | `V1` |
 | Added a new string | All three locales; goldens; `LocaleScreenshotTest` renders all three | `V2`, `V3` |
 
-Current parity: **496** keys in `values/`, **494** in each of `values-fr/` and
-`values-zh/` (measured, 2026-08-19; the 444/442 recorded here before that was
+Current parity: **498** keys in `values/`, **496** in each of `values-fr/` and
+`values-zh/` (measured, 2026-08-21; the 444/442 recorded here before that was
 already stale by 28 keys, which is the argument for measuring rather than
 trusting this line). 122 of those were added on 2026-08-19 with the flavour-note
 catalogue — 110 note names plus 12 for the picker — which is why the count
@@ -307,7 +307,7 @@ and the Gradle tasks must run inside the module because Gradle owns them.
 ```bash
 # ============ from coffee_android/plan/v1/  (the audit side) ============
 
-# V1 — design tokens + mock copy fidelity (36 colour, 11 type, 5 shape, 88 strings)
+# V1 — design tokens + mock copy fidelity (36 colour, 11 type, 5 shape, 93 strings)
 python3 check_design.py            # must exit 0
 
 # V1b — redraw the simulator frames after any copy or visual change
@@ -315,9 +315,9 @@ python3 screenshots.py             # -> screenshots/*.png
 
 # ============ from coffee_android/v1/  (the module) ============
 
-# V2 — Paparazzi goldens (72).  SEE THE TWO WARNINGS BELOW.
+# V2 — Paparazzi goldens (96).  SEE THE TWO WARNINGS BELOW.
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64   # NOT the default JDK -- see below
-./gradlew :app:verifyPaparazziDebug                 # verify against the 72 goldens
+./gradlew :app:verifyPaparazziDebug                 # verify against the 96 goldens
 ./gradlew :app:recordPaparazziDebug                 # re-record, then READ the diff
 ./gradlew :app:testDebugUnitTest                    # goldens + geometry + ingest tests
 
@@ -426,6 +426,6 @@ faster than the code it describes.
 - Prefer making a coupling *structural* (route it through a chokepoint in §1)
   over documenting it here. A row in this table is the fallback for coupling
   that could not be designed away — not the goal.
-- When a count in this document changes (496/494 strings, 72 goldens, Room
+- When a count in this document changes (498/496 strings, 96 goldens, Room
   version 3, `disclosureVersion` 1), update it in the same commit. Those
   numbers are the tripwires; a wrong one is worse than none.

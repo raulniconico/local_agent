@@ -29,7 +29,7 @@ passes the design spec and fails the coupling spec.
 
 ```bash
 python3 check_design.py      # exit 0 = no drift.  36 colour + 11 type + 5 shape
-                             # tokens against ../variants.py, and 91 strings
+                             # tokens against ../variants.py, and 93 strings
                              # against the module's Kotlin/strings.xml/coffee_server
 python3 screenshots.py       # redraw the simulator frames -> screenshots/*.png
 python3 screenshots.py --svg # keep the vector source alongside

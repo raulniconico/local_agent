@@ -1534,9 +1534,24 @@ def sessions_background(c: Canvas):
         y += 60
 
 
+def bean_block(c: Canvas, y, name=""):
+    """`0.31`'s Bean details block (BeanDetailsSection), added 2026-08-21.
+
+    ONE FIELD AND A BUTTON. The eight other bean fields and the images strip
+    sit behind "More details" and are not drawn here, because on every path
+    this block was added for they start collapsed -- a vibe brew and a cup
+    both open on a bean row with nothing in it, and a brew of a known bean
+    keeps them shut too so that Brew details is not pushed off the fold."""
+    y = section(c, y, "Bean details")
+    y = field(c, y, "Bean name", name) + 4
+    c.text(GUTTER + 6, y + 14, "More details", "labelLarge", C["primary"])
+    return y + 28
+
+
 def brew_background(c: Canvas):
     status_bar(c)
     y = top_bar(c, BEAN["name"], back=True)
+    y = bean_block(c, y, BEAN["name"])
     y = section(c, y, "Brew details", action="Ask AI")
     card(c, y, 300)
     field(c, y + 60, "Dripper", "Hario V60", x=GUTTER + 16, w=W - 2 * GUTTER - 32)
@@ -1544,10 +1559,19 @@ def brew_background(c: Canvas):
 
 def brew():
     """+1.1 log brew -- BrewSessionScreen, top. A new session pre-fills from
-    the bean's last one: recipe reuse is the actual workflow."""
+    the bean's last one: recipe reuse is the actual workflow.
+
+    Since 2026-08-21 it opens with the bean's own name field above the brew
+    fields -- see [bean_block]. Vibe brewing and a cup are this same frame
+    with that field empty and no "Ask AI"; `+1.2_cup_profile` draws the
+    second of those."""
     c = Canvas("+1.1 Log a brew")
     status_bar(c)
     y = top_bar(c, BEAN["name"], back=True)
+    # What the coffee was, before how it was brewed (2026-08-21). "Ask AI"
+    # survives *here* and nowhere else: it sends the bean, and this is the one
+    # path whose bean was named before the form opened.
+    y = bean_block(c, y, BEAN["name"])
     y = section(c, y, "Brew details", action="Ask AI")
 
     # 16 of card padding, the 52dp brewed row, then four 46dp capsule pairs
@@ -2294,36 +2318,37 @@ def welcome():
 
 
 def cup_profile():
-    """+1.2 -- CupDetailScreen: a coffee drunk at a café.
+    """+1.2 -- a cup: a coffee drunk at a café.
 
-    EVERY BLOCK ON THIS PAGE IS BORROWED, which is the point of the screen.
-    The identity fields and the images strip are `0.1`'s (`BeanFieldsGrid`,
-    `ImagesStrip`); Brew details, Pour stages, How was it and Flavor are the
-    four sections lifted out of `0.31` into `BrewFormSections` on 2026-08-20
-    so a cup could have them without a second copy. A cup saves as one bean
-    plus one session carrying the café's `journeyId`."""
+    IT HAS NO SCREEN OF ITS OWN ANY MORE (2026-08-21). `CupDetailScreen` drew
+    `0.1`'s bean fields above `0.31`'s four sections; `0.31` grew a bean block
+    of its own that day for vibe brewing, so the cup page became that screen
+    with a `journeyId` behind it and the second composable was deleted. What
+    the café changes is drawn here and is the whole list: the "New cup" title
+    fallback, "Save this cup" on the button, and no "Ask AI" beside Brew
+    details. A cup still saves as one bean plus one session carrying the
+    café's `journeyId`."""
     c = Canvas("+1.2 Cup profile")
     status_bar(c)
-    y = top_bar(c, BEAN["name"], back=True) + 8
-    y = field(c, y, "Bean name", BEAN["name"]) + 14
-    y = capsule_pair(c, y, ("Origin", BEAN["origin"]), ("Variety", BEAN["variety"])) + 14
-    y = capsule_pair(c, y, ("Roaster", BEAN["roaster"]), ("Process", BEAN["process"])) + 8
-    y = section(c, y, "Photos")
-    c.rect(GUTTER, y, 88, 88, C["primaryContainer"], R_THUMB)
-    c.path(f"M{GUTTER + 36} {y + 44} h16 m-8 -8 v16", stroke=C["onPrimaryContainer"], sw=2)
-    y += 88 + 12
+    y = top_bar(c, "New cup", back=True)
+    y = bean_block(c, y)
     y = section(c, y, "Brew details")
     card(c, y, 128)
     y2 = y + 16
     capsule_pair(c, y2, ("Dripper", "Hario V60"), ("Grinder", "Comandante C40"),
                  x=GUTTER + 16, w=W - 2 * GUTTER - 32)
-    capsule_pair(c, y2 + 52, ("Grind size", "24 clicks"), ("Dose", "18.0 g"),
+    capsule_pair(c, y2 + 52, ("Grind size", "24 clicks"), ("Dose (g)", "18.0"),
                  x=GUTTER + 16, w=W - 2 * GUTTER - 32)
     y += 128 + 8
     y = section(c, y, "Pour stages", action="Add stage")
     c.text(GUTTER, y + 14, "Bloom", "titleMedium")
     c.text(W - GUTTER, y + 14, "0:00", "bodyMedium", C["onSurfaceVariant"], "end")
     divider(c, y + 26)
+    y += 46
+    # Disabled until the coffee is named -- `+1.2`'s own rule, kept when it
+    # moved onto `0.31`: a nameless cup is a row in a café's list with nothing
+    # in it. Vibe brewing makes the opposite promise and saves blank.
+    button(c, y, "Save this cup")
     gesture_bar(c)
     return c
 
