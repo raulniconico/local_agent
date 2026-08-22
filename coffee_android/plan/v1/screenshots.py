@@ -322,12 +322,21 @@ def top_bar(c: Canvas, title, back=False, title_style="titleMedium",
     return y + TOPBAR_H
 
 
-def section(c: Canvas, y, text, action=None, caption=None):
+def section(c: Canvas, y, text, action=None, caption=None, secondary=None):
     """SectionHeader from ui/screens/AiDisclosureScreen.kt (shared).
     padding top 12, bottom 8; titleSmall on the left, and on the right either a
     TextButton (`action`) or a muted note (`caption`, Home's "Average across N
-    sessions"). Returns the y where the section's content starts."""
+    sessions"). Returns the y where the section's content starts.
+
+    `secondary` is a second TextButton, drawn to the *left* of `action` --
+    Brew details carries both from 2026-08-22 ("Ask AI", which acts on the
+    fields, and "More details", which decides whether they are on screen).
+    Measured off the primary's width so the two never overlap; the Kotlin lays
+    them out in a Row and does not have to."""
     c.text(GUTTER, y + 12 + 14, text, "titleSmall")
+    if secondary:
+        c.text(W - GUTTER - (len(action) * 7 + 16 if action else 0),
+               y + 12 + 14, secondary, "labelLarge", C["primary"], "end")
     if action:
         c.text(W - GUTTER, y + 12 + 14, action, "labelLarge", C["primary"], "end")
     elif caption:
@@ -822,7 +831,8 @@ def heatmap(c: Canvas, x, y, w, days, today, weeks=21):
     c.text(sr - 4, ly, "Less", "labelSmall", C["vizInk"], "end")
 
 
-def extraction_bar(c: Canvas, x, y, w, value, h=12):
+def extraction_bar(c: Canvas, x, y, w, value, h=12,
+                   low="Under", mid_label="Well extracted", high="Over"):
     """ui/components/ExtractionBar.kt -- an inverted meter: chroma means
     on-target, so the saturated band is the middle third and both ends are
     drab.
@@ -830,7 +840,13 @@ def extraction_bar(c: Canvas, x, y, w, value, h=12):
     The canvas is 12dp taller than the track (the thumb and the centre tick
     overshoot it), and the three zone words sit under it in a weighted Row with
     the active one emphasised -- the same three words the contentDescription
-    reads out. `None` draws the track with no marker and emphasises nothing."""
+    reads out. `None` draws the track with no marker and emphasises nothing.
+
+    THE THREE WORDS ARE ARGUMENTS because Concentration is this same bar
+    (2026-08-22): the Kotlin factored it the same way, into a private
+    `DeviationBar` that `ExtractionBar` and `ConcentrationBar` both wrap. Two
+    of these drawn from two copies of the geometry is how the two bars drift
+    apart while both look right on their own."""
     top = y + 6
     mid, third = x + w / 2, w / 3
     c.rect(x, top, w, h, C["vizTrack"], h / 2)
@@ -844,10 +860,10 @@ def extraction_bar(c: Canvas, x, y, w, value, h=12):
         c.rect(min(mid, vx), top, abs(vx - mid), h, C["vizDeviation"])
         c.rect(vx - 3, top - 5, 6, h + 10, C["surface"], 3)
         c.rect(vx - 1.5, top - 3.5, 3, h + 7, C["vizThumb"], 1.5)
-    zones = ((x, "start", "Under", value is not None and value < -1 / 3),
-             (mid, "middle", "Well extracted",
+    zones = ((x, "start", low, value is not None and value < -1 / 3),
+             (mid, "middle", mid_label,
               value is not None and -1 / 3 <= value <= 1 / 3),
-             (x + w, "end", "Over", value is not None and value > 1 / 3))
+             (x + w, "end", high, value is not None and value > 1 / 3))
     for lx, anchor, label, hot in zones:
         c.text(lx, y + h + 26, label, "labelSmall",
                C["onSurface"] if hot else C["onSurfaceVariant"], anchor,
@@ -1581,7 +1597,11 @@ def brew_background(c: Canvas):
     status_bar(c)
     y = top_bar(c, BEAN["name"], back=True)
     y = bean_block(c, y, BEAN["name"])
-    y = section(c, y, "Brew details", action="Ask AI")
+    # Two actions since 2026-08-22: "Ask AI", and the fold. A brew made at
+    # home opens with the section *open* -- the dripper, the grind and the
+    # pours are what the form is for -- so the label reads "Less details"
+    # here. `+1.2` draws the other half of that decision.
+    y = section(c, y, "Brew details", action="Ask AI", secondary="Less details")
     card(c, y, 300)
     field(c, y + 60, "Dripper", "Hario V60", x=GUTTER + 16, w=W - 2 * GUTTER - 32)
 
@@ -1651,7 +1671,7 @@ def brew_lower():
     status_bar(c)
     y = top_bar(c, BEAN["name"], back=True)
     y = section(c, y, "How was it?")
-    card(c, y, 300)
+    card(c, y, 320)
     iy, ix, iw = y + 16, GUTTER + 16, W - 2 * GUTTER - 32
     c.text(ix, iy + 14, "Score", "labelLarge")
     slider(c, iy + 10, ix + 96, 120, 4.5)
@@ -1662,10 +1682,23 @@ def brew_lower():
     iy += 42
     c.text(ix, iy + 12, "Extraction", "labelLarge")
     ey = extraction_bar(c, ix, iy + 22, iw, 0.1)
-    slider(c, ey + 14, ix, iw, 0.1, lo=-1, hi=1)
-    iy = ey + 34
+    # AND NO PLAIN `slider` UNDER IT. One was drawn here until 2026-08-22, from
+    # the build where this meter was read-only and a Slider below it did the
+    # setting; the pairing was removed from the app on 2026-08-17 (see
+    # ExtractionBar's own note) and the mock had kept showing a control that no
+    # longer exists.
+    #
+    # CONCENTRATION SITS WHERE THAT SLIDER WAS (2026-08-22): the second axis of
+    # the brewing control chart, drawn as the same deviation bar because it is
+    # the same kind of judgement -- the middle is the target and both ends are
+    # a miss.
+    iy = ey + 12
+    c.text(ix, iy + 12, "Concentration", "labelLarge")
+    iy = extraction_bar(c, ix, iy + 22, iw, -0.5,
+                        low="Too weak", mid_label="Just right",
+                        high="Too strong") + 12
     field(c, iy, "Note", "Bright, clean. Cut the bloom shorter.", x=ix, w=iw, h=88)
-    y += 300 + 20
+    y += 320 + 20
 
     y = section(c, y, "Flavor")
     card(c, y, 340)
@@ -2365,19 +2398,28 @@ def cup_profile():
     status_bar(c)
     y = top_bar(c, "New cup", back=True)
     y = bean_block(c, y)
-    y = section(c, y, "Brew details")
-    card(c, y, 128)
-    y2 = y + 16
-    capsule_pair(c, y2, ("Dripper", "Hario V60"), ("Grinder", "Comandante C40"),
-                 x=GUTTER + 16, w=W - 2 * GUTTER - 32)
-    capsule_pair(c, y2 + 52, ("Grind size", "24 clicks"), ("Dose (g)", "18.0"),
-                 x=GUTTER + 16, w=W - 2 * GUTTER - 32)
-    y += 128 + 8
-    y = section(c, y, "Pour stages", action="Add stage")
-    c.text(GUTTER, y + 14, "Bloom", "titleMedium")
-    c.text(W - GUTTER, y + 14, "0:00", "bodyMedium", C["onSurfaceVariant"], "end")
-    divider(c, y + 26)
-    y += 46
+    # FOLDED, AND THAT IS THE CUP'S OWN DEFAULT (2026-08-22). You did not
+    # grind this coffee and you did not pour it, so eight empty capsules and an
+    # empty stage list would sit between the bean's name and the thing the page
+    # was opened for. One tap opens them for the rare café that tells you.
+    # A brew made at home opens the other way -- see `0.31`.
+    y = section(c, y, "Brew details", secondary="More details")
+    y = section(c, y, "How was it?")
+    # 16 padding, the 40dp score row, then two deviation bars at 12 label + 10
+    # gap + 12 track + 32 to the foot of the zone words, 8 apart, and 16 again.
+    card(c, y, 212)
+    iy, ix, iw = y + 16, GUTTER + 16, W - 2 * GUTTER - 32
+    c.text(ix, iy + 14, "Score", "labelLarge")
+    c.text(W - GUTTER - 16, iy + 14, "not set", "labelSmall",
+           C["onSurfaceVariant"], "end")
+    slider(c, iy + 10, ix + 96, 120, None, unset=True)
+    iy += 40
+    c.text(ix, iy + 12, "Extraction", "labelLarge")
+    iy = extraction_bar(c, ix, iy + 22, iw, None) + 8
+    c.text(ix, iy + 12, "Concentration", "labelLarge")
+    extraction_bar(c, ix, iy + 22, iw, None, low="Too weak",
+                   mid_label="Just right", high="Too strong")
+    y += 212 + 12
     # Disabled until the coffee is named -- `+1.2`'s own rule, kept when it
     # moved onto `0.31`: a nameless cup is a row in a café's list with nothing
     # in it. Vibe brewing makes the opposite promise and saves blank.

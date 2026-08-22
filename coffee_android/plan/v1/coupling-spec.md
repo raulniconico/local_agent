@@ -123,7 +123,7 @@ Keyed by what you edited. "Verify" columns are commands in §6.
 | --- | --- | --- |
 | A colour / type / shape value in `ui/theme/Theme.kt` | Nothing — **`../variants.py` `PURE_GREEN` is the source of truth**, not Theme.kt. Change the deck first, or record the divergence in `check_design.py`'s `ACCEPTED_DEVIATIONS` *with a rationale written into `Theme.kt`* | `V1`, then `V2` |
 | A token in `../variants.py` | `Theme.kt`, and re-render the deck (`python3 ../scheme_e.py`) | `V1`, `V2` |
-| Anything visual at all | 74 Paparazzi goldens re-record | `V2` |
+| Anything visual at all | 77 Paparazzi goldens re-record | `V2` |
 
 `ACCEPTED_DEVIATIONS` is **not** a suppression list: an entry without a
 decision recorded in `Theme.kt` is drift wearing a disguise. It still prints
@@ -134,11 +134,11 @@ both values on every run. Today it holds exactly one entry (`surface`).
 | You changed | Also move | Verify |
 | --- | --- | --- |
 | Any user-facing string | `res/values/strings.xml` **and** `values-fr/` **and** `values-zh/` | `V3` |
-| A string the mock deck also draws | `screenshots.py` — `check_design.py` diffs 102 strings against it | `V1` |
+| A string the mock deck also draws | `screenshots.py` — `check_design.py` diffs 109 strings against it | `V1` |
 | Added a new string | All three locales; goldens; `LocaleScreenshotTest` renders all three | `V2`, `V3` |
 
-Current parity: **498** keys in `values/`, **496** in each of `values-fr/` and
-`values-zh/` (measured, 2026-08-21; the 444/442 recorded here before that was
+Current parity: **505** keys in `values/`, **503** in each of `values-fr/` and
+`values-zh/` (measured, 2026-08-22; the 444/442 recorded here before that was
 already stale by 28 keys, which is the argument for measuring rather than
 trusting this line). 122 of those were added on 2026-08-19 with the flavour-note
 catalogue — 110 note names plus 12 for the picker — which is why the count
@@ -157,7 +157,7 @@ and invisible to two thirds of the users.
 
 | You changed | Also move | Verify |
 | --- | --- | --- |
-| `data/Entities.kt` — added/renamed a column | Room `version` (currently **8**) + a new `Migration`; `data/Daos.kt`; **`data/SyncBundle.kt`** export *and* import; `../../../coffee_agent/sync_tools.py` `_BEAN_FIELDS`/`_SESSION_FIELDS`; `coffee/src/coffee_can/db.py` schema; `design-spec.md` §9 | `V4`, `V5` |
+| `data/Entities.kt` — added/renamed a column | Room `version` (currently **9**) + a new `Migration`; `data/Daos.kt`; **`data/SyncBundle.kt`** export *and* import; `../../../coffee_agent/sync_tools.py` `_BEAN_FIELDS`/`_SESSION_FIELDS`; `coffee/src/coffee_can/db.py` schema; `design-spec.md` §9 | `V4`, `V5` |
 | …but a column on **`journeys`** | only the first three. `journeys` has no desktop counterpart and is **not** in the sync bundle, so the two Python legs of that row do not apply — `address`/`barista` (v6) touched Room, the entity and the screen and nothing else | `V4` |
 | The bundle format | `SyncBundle.VERSION` **and** `sync_tools.BUNDLE_VERSION` — they must stay equal | `V5` |
 | A DAO query | Whether `CoffeeRepository` should expose it at all; whether `TestFakes.kt` needs the new method | `V2` |
@@ -307,7 +307,7 @@ and the Gradle tasks must run inside the module because Gradle owns them.
 ```bash
 # ============ from coffee_android/plan/v1/  (the audit side) ============
 
-# V1 — design tokens + mock copy fidelity (36 colour, 11 type, 5 shape, 102 strings)
+# V1 — design tokens + mock copy fidelity (36 colour, 11 type, 5 shape, 109 strings)
 python3 check_design.py            # must exit 0
 
 # V1b — redraw the simulator frames after any copy or visual change
@@ -315,9 +315,9 @@ python3 screenshots.py             # -> screenshots/*.png
 
 # ============ from coffee_android/v1/  (the module) ============
 
-# V2 — Paparazzi goldens (74 images, 96 @Test).  SEE THE TWO WARNINGS BELOW.
+# V2 — Paparazzi goldens (77 images, 99 @Test).  SEE THE TWO WARNINGS BELOW.
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64   # NOT the default JDK -- see below
-./gradlew :app:verifyPaparazziDebug                 # verify against the 74 goldens
+./gradlew :app:verifyPaparazziDebug                 # verify against the 77 goldens
 ./gradlew :app:recordPaparazziDebug                 # re-record, then READ the diff
 ./gradlew :app:testDebugUnitTest                    # goldens + geometry + ingest tests
 

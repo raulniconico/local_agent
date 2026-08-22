@@ -17,7 +17,7 @@ A CLI + desktop GUI application for logging hand-brew coffee: one profile per ba
 The data model has three levels:
 
 1. **Bean profile** — one per bag: name, origin, variety, altitude, roaster, producer, process, roast date, free-text note, and up to five photos/PDFs of the bag itself.
-2. **Brewing session** — one per cup, logged against a bean: date, dripper, filter paper, grinder, grind size, water ppm, humidity, dose, a 0–5 score, an extraction assessment, a tasting note, and eleven 0–5 flavor ratings.
+2. **Brewing session** — one per cup, logged against a bean: date, dripper, filter paper, grinder, grind size, water ppm, humidity, dose, a 0–5 score, an extraction assessment, a concentration assessment, a tasting note, and eleven 0–5 flavor ratings.
 3. **Brewing stage** — one per pour within a session: temperature, water weight, duration, and agitation/circling.
 
 Two design decisions shape everything else:
@@ -80,7 +80,7 @@ coffee/
 | `db.py` | Owns `SCHEMA` (all four tables) and `connect()`. `_migrate()` brings an older database up to date with additive `ALTER TABLE ADD COLUMN` calls; flavor columns are generated from `repo.FLAVOR_FIELDS`, so adding a flavor axis migrates automatically. |
 | `repo.py` | Every read and write. Also owns the domain constants (`FLAVOR_AXES`, `BEAN_FIELDS`, `SESSION_FIELDS`, `EXTRACTION_*`) that drive columns, forms, charts and CLI output alike. Every write commits immediately, so an interrupted session never loses answered fields — that is what makes "save as draft" a side effect rather than a code path. |
 | `paths.py` | `data_dir()` (honours `XDG_DATA_HOME`, and migrates the pre-rename `coffee-journal/` directory in place), `db_path()`, `images_dir(bean_id)`, plus `MAX_IMAGES_PER_BEAN` and `ALLOWED_IMAGE_SUFFIXES`. |
-| `formatting.py` | Small pure helpers (`format_score`, `format_extraction`, `format_seconds`, `format_or_dash`, `parse_time_to_seconds`) shared by both front ends. |
+| `formatting.py` | Small pure helpers (`format_score`, `format_extraction`, `format_concentration`, `format_seconds`, `format_or_dash`, `parse_time_to_seconds`) shared by both front ends. |
 
 **Front ends**
 
@@ -92,7 +92,7 @@ coffee/
 | `gui/whats_new_dialog.py` | A roaster list, then a product table for whichever one is picked, fetched via `whats_new.py` on a background thread. Two stacked pages in one dialog rather than nested modals. Currently has no entry point in the window (`MainWindow._open_whats_new` is kept, unconnected). |
 | `gui/can_see_dialog.py` | **Can drink**'s "more": every fetched coffee in one table, filtered locally by roaster, origin, stock and name. Fed the listings the main window already holds, so opening it costs no requests. |
 | `gui/bean_dialog.py` | The bean profile editor — fields, photo carousel, label scanning, the sessions table, and the per-bean flavor profile. Hosts the scan worker and its review dialog. |
-| `gui/brew_dialog.py` | The session editor — brew details, the stages table with its `StageDialog`, and the evaluation block (score, extraction bar, note, eleven flavor sliders, live radar). |
+| `gui/brew_dialog.py` | The session editor — brew details, the stages table with its `StageDialog`, and the evaluation block (score, extraction bar, **concentration bar**, note, eleven flavor sliders, live radar). Both bars are the same `ExtractionBar` widget with different zone words and constants. |
 | `gui/ai_brew_dialog.py` | "Ask AI": pick a dripper, get a Qwen recipe, review it, turn it into a real session with real stage rows. |
 | `gui/voice_brew_dialog.py` | "Voice Session": record a description with `QMediaRecorder`, send it to Qwen-Omni, review, create the session. Imports QtMultimedia at module level so a build without it fails at import and the caller disables the button gracefully. |
 | `gui/camera_dialog.py` | Live camera capture for label photos. Same module-level QtMultimedia pattern. |
@@ -143,7 +143,9 @@ Created by `db.SCHEMA`, migrated by `db._migrate()`. `{flavor}` expands to the e
 
 **`bean_images`** — `id`, `bean_id` (FK → `beans`, ON DELETE CASCADE), `position` INTEGER, `file_path` TEXT, `rotation` INTEGER default 0.
 
-**`brew_sessions`** — `id`, `bean_id` (FK, CASCADE), `brew_date`, `dripper`, `filter_paper`, `grinder`, `grind_size`, `water_ppm`, `humidity` TEXT; `dose_g` REAL; `score` REAL (NULL = unscored); `extraction` REAL (−1…+1, NULL = not assessed); `note` TEXT; `status`; `created_at`/`updated_at`; `{flavor}`.
+**`brew_sessions`** — `id`, `bean_id` (FK, CASCADE), `brew_date`, `dripper`, `filter_paper`, `grinder`, `grind_size`, `water_ppm`, `humidity` TEXT; `dose_g` REAL; `score` REAL (NULL = unscored); `extraction` REAL (−1…+1, NULL = not assessed); `concentration` REAL (−1…+1, NULL = not assessed); `note` TEXT; `status`; `created_at`/`updated_at`; `{flavor}`.
+
+> **Concentration** (added 2026-08-22, following the Android app the same day) is the other axis of the brewing control chart: how *strong* the cup was, where extraction is how far it was extracted. Symmetric like extraction and for the same reason — both ends are a miss, so a light-to-strong magnitude would make one end look like the good one. Zones are `repo.CONCENTRATION_ZONES` (`Too weak` / `Just right` / `Too strong`), a third of the range each, and it is carried in the sync bundle (`BUNDLE_VERSION` 3).
 
 **`brew_stages`** — `id`, `session_id` (FK, CASCADE), `stage_number` INTEGER, `temperature_c` REAL, `water_g` REAL, `time_seconds` INTEGER, `circling` TEXT.
 

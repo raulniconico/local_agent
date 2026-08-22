@@ -146,6 +146,10 @@ class BrewDialog(QDialog):
         # read off it the way an unset score can -- track it separately so an
         # untouched bar persists as NULL rather than as "Well extracted".
         self._extraction_set = False
+        # Same trick for the bar beside it, and the same reason: a
+        # concentration nobody touched must persist as NULL, not as the "just
+        # right" its centre position would otherwise claim.
+        self._concentration_set = False
         if session_id is None:
             previous_sessions = repo.list_sessions(conn, bean_id=bean_row["id"])
             if previous_sessions:
@@ -228,6 +232,16 @@ class BrewDialog(QDialog):
         )
         self.extraction_bar.valueChanged.connect(self._on_extraction_changed)
 
+        # The other axis of the brewing control chart, drawn as the same widget
+        # because it is the same kind of judgement: the middle is the target
+        # and both ends are a miss (2026-08-22). ExtractionBar already takes
+        # its zone words and its range as constructor arguments, so this needs
+        # no second widget class -- see repo.CONCENTRATION_ZONES.
+        self.concentration_bar = ExtractionBar(
+            repo.CONCENTRATION_ZONES, repo.CONCENTRATION_MIN, repo.CONCENTRATION_MAX
+        )
+        self.concentration_bar.valueChanged.connect(self._on_concentration_changed)
+
         self.note_edit = QPlainTextEdit()
         self.note_edit.setPlaceholderText("Tasting notes...")
         self.note_edit.setFixedHeight(70)
@@ -235,6 +249,7 @@ class BrewDialog(QDialog):
         eval_form = QFormLayout()
         eval_form.addRow("Score", self.score_spin)
         eval_form.addRow("Extraction", self.extraction_bar)
+        eval_form.addRow("Concentration", self.concentration_bar)
         eval_form.addRow("Note", self.note_edit)
 
         self.radar_chart = RadarChart([label for _, label in repo.FLAVOR_AXES])
@@ -355,6 +370,13 @@ class BrewDialog(QDialog):
         self.extraction_bar.blockSignals(True)
         self.extraction_bar.setValue(extraction or 0.0)
         self.extraction_bar.blockSignals(False)
+
+        concentration = row["concentration"]
+        self._concentration_set = concentration is not None
+        self.concentration_bar.blockSignals(True)
+        self.concentration_bar.setValue(concentration or 0.0)
+        self.concentration_bar.blockSignals(False)
+
         self.note_edit.setPlainText(row["note"] or "")
         for field, _ in repo.FLAVOR_AXES:
             self.flavor_sliders[field].setValue(int(row[field] or 0))
@@ -374,6 +396,9 @@ class BrewDialog(QDialog):
 
     def _on_extraction_changed(self, *_args):
         self._extraction_set = True
+
+    def _on_concentration_changed(self, *_args):
+        self._concentration_set = True
 
     def _update_radar(self, *_args):
         values = [self.flavor_sliders[field].value() for field, _ in repo.FLAVOR_AXES]
@@ -438,6 +463,8 @@ class BrewDialog(QDialog):
         repo.update_session_field(self.conn, self.session_id, "score", score)
         extraction = self.extraction_bar.value() if self._extraction_set else None
         repo.update_session_field(self.conn, self.session_id, "extraction", extraction)
+        concentration = self.concentration_bar.value() if self._concentration_set else None
+        repo.update_session_field(self.conn, self.session_id, "concentration", concentration)
         note = self.note_edit.toPlainText().strip() or None
         repo.update_session_field(self.conn, self.session_id, "note", note)
         for field, _ in repo.FLAVOR_AXES:

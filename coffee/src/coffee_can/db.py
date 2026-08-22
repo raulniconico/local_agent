@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS brew_sessions (
     dose_g       REAL,
     score        REAL,
     extraction   REAL,
+    concentration REAL,
     note         TEXT,
     flavor_notes TEXT,
     status       TEXT NOT NULL DEFAULT 'draft',
@@ -103,6 +104,14 @@ def _migrate(conn: sqlite3.Connection) -> None:
         # INTEGER when the conversion is lossless, so fractional values
         # still round-trip intact.
         conn.execute("ALTER TABLE brew_sessions ADD COLUMN extraction REAL")
+        conn.commit()
+    if "concentration" not in session_columns:
+        # How strong the cup was -- the second bar in the evaluation block,
+        # beside extraction (repo.CONCENTRATION_ZONES). NULL for every session
+        # logged before it existed, which reads as "-" rather than being
+        # backfilled as "Just right": nobody assessed those, and a symmetric
+        # scale's centre is a real answer, not an absence.
+        conn.execute("ALTER TABLE brew_sessions ADD COLUMN concentration REAL")
         conn.commit()
     if "flavor_notes" not in session_columns:
         # The tasting notes picked under each flavour axis on the phone --

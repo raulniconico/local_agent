@@ -259,7 +259,18 @@ for node in ast.walk(tree):
 # trailing action -- which is where "More details" moved that day, and losing
 # a string from the check by relocating it in the simulator is precisely the
 # silent gap this file exists to close.
-HELPER_COPY_KWARGS = ("action", "action_text", "caption", "placeholder")
+HELPER_COPY_KWARGS = ("action", "action_text", "caption", "placeholder",
+                      # `section(secondary=...)`: the second TextButton a
+                      # heading can carry, added with Brew details' fold
+                      # (2026-08-22). Same argument as the four above -- copy
+                      # handed to a helper is still copy on the screen.
+                      "secondary",
+                      # `extraction_bar(low=/mid_label=/high=)`: the three zone
+                      # words under a deviation bar. They were positional
+                      # literals inside the helper until Concentration made
+                      # them arguments, at which point four strings would have
+                      # left the check by moving three lines up the file.
+                      "low", "mid_label", "high")
 for node in ast.walk(tree):
     if isinstance(node, ast.Call):
         for kw in node.keywords:

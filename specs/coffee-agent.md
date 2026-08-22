@@ -200,7 +200,7 @@ There is no dedicated file-import tool: for CSV/spreadsheet/text sources the age
 ### 3.3 Desktop ↔ Android sync tools (`sync_tools.py`)
 
 ```python
-BUNDLE_VERSION: int = 1     # must equal coffee_android's SyncBundle.VERSION
+BUNDLE_VERSION: int = 3     # must equal coffee_android's SyncBundle.VERSION
 
 export_coffee_bundle(destination: str) -> str
 inspect_coffee_bundle(bundle: str) -> str
@@ -229,7 +229,7 @@ Field names are **coffee-can's snake_case column names** on both sides — the b
 
 **Conflict model.** Beans match **by name** — the only identifier the two databases share, since coffee-can's `beans.id` and Room's are independent autoincrement sequences. A name on both sides with any differing field is a conflict; `inspect_coffee_bundle` names them and the field that differs, and `apply_coffee_bundle` refuses to touch one without an explicit resolution, reporting it as unanswered instead. `"phone"` deletes the local bean first (cascading its sessions and stages, and unlinking its image files, which `ON DELETE CASCADE` cannot do) so a replaced bean can't end up carrying the other side's sessions. Matching on a mutable, non-unique field is a real limitation — a rename on either device imports as a second bean — and the tools say so in their own output rather than hiding it.
 
-**What does not cross**, because the schemas diverged: Android's session `waterG`/`waterTempC` (no coffee-can column), coffee-can's session `humidity` (no Room field), and Room's stage `label` (its free `note` maps to `circling`). Both flavour-axis sets **do** cross, on beans *and* sessions — a bean whose `flavor_source` is `auto` derives its radar by averaging its sessions, so dropping the session axes would import beans that can never recompute one.
+**What does not cross**, because the schemas diverged: Android's session `waterG`/`waterTempC`/`waterAlkalinity` (no coffee-can column), coffee-can's session `humidity` (no Room field), and Room's stage `label` (its free `note` maps to `circling`). That list is a record of *work not done* rather than of fields that are unmappable in principle — `concentration` was on it for a day, and came off it when the desktop grew the column (v3, 2026-08-22). Both flavour-axis sets **do** cross, on beans *and* sessions — a bean whose `flavor_source` is `auto` derives its radar by averaging its sessions, so dropping the session axes would import beans that can never recompute one.
 
 ### 3.4 USB sync (`usb_sync.py`)
 

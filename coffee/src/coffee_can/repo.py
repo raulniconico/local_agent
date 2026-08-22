@@ -47,6 +47,23 @@ EXTRACTION_MAX = 1.0
 EXTRACTION_ZONES = ("Under extracted", "Well extracted", "Over extracted")
 EXTRACTION_ZONE_EDGE = (EXTRACTION_MAX - EXTRACTION_MIN) / 6.0
 
+# How *strong* the cup was, on the same signed scale and for the same reason:
+# the other axis of the brewing control chart. A coffee can be fully extracted
+# and still watery (too much water for the dose) or under-extracted and syrupy
+# (too little), so one number cannot say both -- which is exactly the pair of
+# mistakes a brew log is kept to tell apart. Added 2026-08-22, following the
+# phone, which grew the slider first; the two now write the same column and it
+# travels in a sync bundle (coffee_agent/sync_tools._SESSION_FIELDS).
+#
+# Symmetric like extraction, and not a 0..5 magnitude, because both ends are a
+# miss: a cup twice as strong as you wanted is as wrong as one half as strong,
+# and a scale running from light to strong would make one end look like the
+# good one. Its centre is falsy for the same discard-on-close reason.
+CONCENTRATION_MIN = -1.0
+CONCENTRATION_MAX = 1.0
+CONCENTRATION_ZONES = ("Too weak", "Just right", "Too strong")
+CONCENTRATION_ZONE_EDGE = (CONCENTRATION_MAX - CONCENTRATION_MIN) / 6.0
+
 BEAN_FIELDS = (
     "name",
     "origin",
@@ -71,6 +88,7 @@ SESSION_FIELDS = (
     "dose_g",
     "score",
     "extraction",
+    "concentration",
     "note",
     # Carried, not interpreted: no desktop screen renders these, and the
     # column exists so a sync round trip through this database does not lose

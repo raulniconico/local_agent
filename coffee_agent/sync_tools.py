@@ -66,7 +66,15 @@ from coffee_can.repo import FLAVOR_FIELDS  # noqa: E402
 #: side stores and forwards it verbatim and never interprets it -- the desktop
 #: app has no UI for these yet, and re-encoding a format you do not render is
 #: how a round trip starts losing keys it did not recognise.
-BUNDLE_VERSION = 2
+#:
+#: v2 -> v3 adds ``concentration`` on sessions: how strong the cup was, the
+#: second bar beside extraction. Unlike ``flavor_notes`` this one is *rendered*
+#: on both sides -- coffee-can grew the column, the CLI prompt and the GUI bar
+#: on 2026-08-22, the same day the phone's slider shipped -- so the field is
+#: carried the ordinary way rather than forwarded blind. Additive again, and
+#: the bump is again about telling a later incompatible change which shapes it
+#: must read, not about this one.
+BUNDLE_VERSION = 3
 
 _MANIFEST = "manifest.json"
 _BEANS = "beans.json"
@@ -94,7 +102,8 @@ _BEAN_FIELDS = (
 #: floral. See :data:`BUNDLE_VERSION`.
 _SESSION_FIELDS = (
     "brew_date", "dripper", "filter_paper", "grinder", "grind_size",
-    "water_ppm", "dose_g", "score", "extraction", "note", "flavor_notes",
+    "water_ppm", "dose_g", "score", "extraction", "concentration", "note",
+    "flavor_notes",
 ) + FLAVOR_FIELDS
 
 

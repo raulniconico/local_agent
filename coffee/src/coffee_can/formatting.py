@@ -35,6 +35,26 @@ def format_score(score) -> str:
     return f"{score:g}/5"
 
 
+def format_concentration(value) -> str:
+    """Render a concentration value as its zone name plus the raw number --
+    the same shape as :func:`format_extraction`, on the other axis of the
+    brewing control chart. Kept a separate function rather than one taking a
+    zone tuple: the two read from different constants and a caller that passed
+    the wrong tuple would print a plausible, wrong verdict."""
+    from .repo import CONCENTRATION_ZONE_EDGE, CONCENTRATION_ZONES
+
+    if value is None:
+        return "-"
+    value = float(value)
+    if value < -CONCENTRATION_ZONE_EDGE:
+        zone = CONCENTRATION_ZONES[0]
+    elif value <= CONCENTRATION_ZONE_EDGE:
+        zone = CONCENTRATION_ZONES[1]
+    else:
+        zone = CONCENTRATION_ZONES[2]
+    return f"{zone} ({value:+.2f})"
+
+
 def format_extraction(value) -> str:
     """Render a continuous extraction value as its zone name plus the raw
     number -- the words alone would hide the difference between a hair off

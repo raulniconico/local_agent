@@ -10,7 +10,14 @@ from rich.table import Table
 
 from . import repo
 from .db import connect
-from .formatting import format_extraction, format_or_dash, format_score, format_seconds, parse_time_to_seconds
+from .formatting import (
+    format_concentration,
+    format_extraction,
+    format_or_dash,
+    format_score,
+    format_seconds,
+    parse_time_to_seconds,
+)
 from .paths import ALLOWED_IMAGE_SUFFIXES, MAX_IMAGES_PER_BEAN
 
 console = Console()
@@ -290,6 +297,14 @@ def _collect_evaluation(conn, session_id, row):
     )
     if extraction is not None:
         repo.update_session_field(conn, session_id, "extraction", float(extraction))
+    concentration = ask_float(
+        f"Concentration ({repo.CONCENTRATION_MIN:g} weak .. 0 just right .. {repo.CONCENTRATION_MAX:g} strong)",
+        default=row["concentration"] if row else None,
+        minimum=repo.CONCENTRATION_MIN,
+        maximum=repo.CONCENTRATION_MAX,
+    )
+    if concentration is not None:
+        repo.update_session_field(conn, session_id, "concentration", float(concentration))
     note = ask("Note", default=row["note"] if row else None)
     if note is not None:
         repo.update_session_field(conn, session_id, "note", note)
@@ -393,6 +408,7 @@ def brew_show(session_id):
         f"Dose: {format_or_dash(row['dose_g'])}",
         f"Score: {format_score(row['score'])}",
         f"Extraction: {format_extraction(row['extraction'])}",
+        f"Concentration: {format_concentration(row['concentration'])}",
         f"Flavor: {', '.join(flavor_bits) if flavor_bits else '-'}",
         f"Note: {format_or_dash(row['note'])}",
     ]

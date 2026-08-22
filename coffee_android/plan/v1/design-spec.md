@@ -360,9 +360,10 @@ non-problem.
 
 | Component | Shape | Notes |
 | --- | --- | --- |
-| `RadarChart` | 11-axis Canvas polygon | `TextMeasurer`-based label layout, not guessed offsets. Two label sets (§5.3) and two ink styles — in-app on white, and white-on-green at 4× for the Share Card, one drawing routine. Optionally **interactive** (§5.6): pinch-zoom, pan, double-tap reset, tap-an-axis, and a ring of tasting notes hung off the labels |
+| `RadarChart` | 11-axis Canvas polygon | Fewer than three scored axes draw a **dot** (one) or a **line** (two) rather than nothing — a polygon needs three vertices, and until 2026-08-22 that was the only branch, so the first two sliders someone moved changed nothing on the chart above them. `TextMeasurer`-based label layout, not guessed offsets. Two label sets (§5.3) and two ink styles — in-app on white, and white-on-green at 4× for the Share Card, one drawing routine. Optionally **interactive** (§5.6): pinch-zoom, pan, double-tap reset, tap-an-axis, and a ring of tasting notes hung off the labels |
 | `FlavorNoteSheet` | full-screen picker | Ten note bubbles for one axis, at most five chosen. See §5.6 |
 | `ExtractionBar` | −1…+1 axis, three zones | under / well extracted / over, with `VizBand` + `VizBandEdge` + `VizDeviation` |
+| `ConcentrationBar` | −1…+1 axis, three zones | too weak / just right / too strong (2026-08-22). The **same private `DeviationBar`** `ExtractionBar` wraps — only the three zone words differ, because strength is the same *kind* of judgement as extraction: the middle is the target and both ends are a miss. Deliberately not a `ValueBar` from light to strong, which would make the right-hand end the good end |
 | `ValueBar` | slide bar | Score and all eleven flavour axes. Draggable — a 2026-08-17 change: dragging directly on what had been a read-only meter proved the better control, and the palette was copied across so a slider stops looking like an unrelated second widget |
 | `ContributionCalendar` | heatmap grid | `ActivityWeeks = 21`; selected cell enlarges ×1.3 |
 | `DurationPickerDialog` | two snapping wheels | Pour-stage elapsed time, `m` 0–29 (1-row gap) and `ss` 0, 5, …, 55 (5-row gap, 2026-08-20 — 60 rows to dial a second nobody times a pour to was the friction), in a standard `AlertDialog`. **Not** M3 `TimePicker`: that dials an hour and a minute on a 24-hour clock and labels itself so, which is the wrong question in the wrong units for an offset from the start of a brew |
@@ -1218,8 +1219,27 @@ without saving; an explicit save does not.
 One brew, created or edited. **Bean details** (see below), then brew fields
 (dripper, grinder, grind size, filter, dose, water, **alkalinity**, ppm,
 humidity, total time), **Pour stages** with its own editor sheet, then **How
-was it?** — Score `ValueBar`, `ExtractionBar`, note — then **Flavor**: the
-radar over eleven `ValueBar` sliders.
+was it?** — Score `ValueBar`, `ExtractionBar`, `ConcentrationBar`, note — then
+**Flavor**: the radar over eleven `ValueBar` sliders.
+
+**Concentration sits directly under Extraction** (2026-08-22, direct product
+request), not beside Score: they are the two axes of the brewing control chart
+and a brew that missed is diagnosed by reading the pair. A cup can be fully
+extracted and watery, or under-extracted and syrupy; one number cannot say
+both.
+
+**Brew details and Pour stages fold behind "More details"** (2026-08-22,
+direct product request), the same control `BeanDetailsSection` carries, on
+`SectionHeader`'s new `secondaryAction` slot to the left of Ask AI. Both
+sections fold together, because the switch answers one question — *did you
+make this coffee?* — and the pours are the second half of that answer. It
+opens **expanded for a brew and folded for a cup**: a home brew is *about* the
+grind and the pours, while a café cup has neither, and eight empty capsules
+between the bean's name and the flavour wheel are eight answers nobody is
+going to give. The flag is seeded from `journeyId` and then owned by the user,
+including across rotation. Unlike Bean details' toggle it stays visible while
+the form is locked — what it reveals there is values you can read, not input
+boxes you cannot type into.
 
 **Water alkalinity sits where Water °C used to** (2026-08-21, direct product
 request). The temperature column stays in `sessions` and still round-trips
@@ -1364,8 +1384,8 @@ Complete and unwired — see §1.
 
 Room, mirroring `coffee-can`'s SQLite schema column-for-column — **except the
 last two tables, which have no desktop counterpart at all**.
-**`version = 8`, `exportSchema = true`**, with named `MIGRATION_1_2` through
-`MIGRATION_7_8`. `fallbackToDestructiveMigration()` is banned, and every
+**`version = 9`, `exportSchema = true`**, with named `MIGRATION_1_2` through
+`MIGRATION_8_9`. `fallbackToDestructiveMigration()` is banned, and every
 migration is **additive only** — which is why two sets of columns are still in
 the schema with nothing reading them (`journeys.latitude`/`longitude`, §8.6b,
 and `sessions.waterTempC`, below).
@@ -1376,7 +1396,8 @@ Eight entities:
 | --- | --- |
 | `beans` | identity + provenance, `status` (`draft`/`saved`), `flavorSource` (`auto`/`manual`), and **eleven flavour columns** |
 | `bean_images` | `position`, `filePath`, `rotation` |
-| `sessions` | brew parameters, `score`, `extraction`, note, **the same eleven flavour columns**, and `flavorNotes` |
+| `sessions` | brew parameters, `score`, `extraction`, `concentration`, note, **the same eleven flavour columns**, and `flavorNotes` |
+| `sessions.concentration` | −1…+1, how strong the cup was — the second slider in How was it (2026-08-22, direct product request). Null is "not rated", never a balanced zero. **Unlike `waterAlkalinity` it crosses**: the desktop grew `brew_sessions.concentration`, a CLI prompt and a GUI bar the same day, so it is in the bundle and `SyncBundle.VERSION`/`BUNDLE_VERSION` went to **3** |
 | `sessions.waterAlkalinity` | carbonate hardness, ppm as CaCO₃ — the Brew details field that took Water °C's place (2026-08-21, direct product request). **Beside `waterPpm`, not instead of it**: ppm is total dissolved solids, alkalinity is buffering, and two waters at the same TDS read completely differently in the cup. Phone-only, like `waterG` and `waterTempC` — the desktop's `brew_sessions` has no column, so the bundle does not carry it |
 | `sessions.waterTempC` | **retained, no longer surfaced** — the field the line above replaced. Dropping it means rebuilding the table and destroying temperatures a user typed, with no server-side copy to restore from. Unlike `journeys.latitude` it is still *carried*: `SessionDraft` hydrates it and writes it back untouched, so re-saving an older brew keeps it. A pour's temperature was never this column — `session_stages.waterTempC` is, and it is unaffected |
 | `session_stages` | one pour each |
@@ -1530,7 +1551,7 @@ the vision endpoint wanted anyway. Covered by instrumented tests.
 | Layer | Tool | Covers |
 | --- | --- | --- |
 | Design tokens | `check_design.py` | 36 colour, 11 type, 5 shape tokens against `../variants.py` |
-| Rendering | Paparazzi, `app/src/test/…/screenshot/` | 74 goldens in `app/src/test/snapshots/images/` — real compiled Compose through layoutlib, no emulator |
+| Rendering | Paparazzi, `app/src/test/…/screenshot/` | 77 goldens in `app/src/test/snapshots/images/` — real compiled Compose through layoutlib, no emulator |
 | Geometry | `ContributionCalendarGeometryTest`, `CropToFitTest` | layout maths |
 | Ingest | `ImageIngestTest`, `ImageIngestOrientationTest` | EXIF strip, orientation |
 | Insets, gesture, share targets | **a physical device only** | §4.3 |
