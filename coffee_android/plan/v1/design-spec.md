@@ -709,9 +709,21 @@ shipped state is the "no feed yet" branch.
 ### 8.3 `00` Home
 
 Bean shelf (each row: `BeanIcon`, name, process · roast date, brew-count pill,
-chevron), "See all N beans", **Brewing activity** contribution calendar, and
+chevron, and — bottom-right, when there is one — **the café the bean came home
+from**), "See all N beans", **Brewing activity** contribution calendar, and
 **My flavor** — an eleven-axis radar averaged across every session, labelled
 with the session count.
+
+**The café name is derived, never stored** (2026-08-21, direct product
+request: a bean added from Can travel should say so here).
+`BeanWithDetails.cafeName` is a correlated subquery for the earliest cup of
+that bean whose journey still exists — earliest because the question is where
+the bag came *from*, not where it was last drunk. `beans` gains no column:
+the edge already exists on `sessions.journeyId` (§9), and a copy on the bean
+would be both a cached derivation (`coupling-spec.md` §4.2) and a new column
+on a table the sync bundle carries. Null is the common case, and deleting a
+journey takes the label with it, which is the same orphaning `sessions.journeyId`
+describes.
 
 Empty state: the **pour-over mascot** at 160dp — the same figure `0.3`'s empty
 state uses, replacing the brand lockup on 2026-08-19 (the lockup opens the
@@ -929,6 +941,15 @@ point: a green row reads as "one of those" rather than as a status this list
 invented. Nothing else changes — same height, same glyph, same divider —
 because a cup is not a different *kind* of record, just one drunk elsewhere.
 
+**And it names the café, bottom-right** (2026-08-21, direct product request).
+The green already says *that* this was drunk out; `SessionWithBeanName.cafeName`
+— the `journeys` row resolved by the same query that supplies the bean's name,
+`LEFT JOIN` so the six brews in seven that were made at home are not dropped —
+says *which*, which is the half worth reading back a month later. Same corner
+and same treatment as Home's shelf card (§8.3), because the two cards are
+deliberately the same object at the same `ShelfCardHeight`. Null on a brew
+made at home and on a cup whose café has been deleted.
+
 Every brew across every bean, newest first, with the dripper glyph at 64dp,
 dose, score and extraction verdict. Header states the count. Empty state and
 delete are both built. A **pushed** destination since 2026-08-19, reached from
@@ -1119,9 +1140,17 @@ away again through the same `leaveWithoutSaving` sweep.
 
 Everything `journeyId` changes is a label or a column: **New cup** as the
 title fallback, **Save this cup** on the button, **Delete this cup?** on the
-delete prompt, "Take a memory of the café" on the photo sheet (§8.6b), the
-`journeyId` written onto the session, and no Ask AI. The form is the same
-form.
+delete prompt, **Take a shot** on the photo sheet, the `journeyId` written
+onto the session, and no Ask AI. The form is the same form.
+
+*Three wordings for one sheet, and the third is not redundant* (2026-08-21,
+direct product request). `PhotoSourceSheet`'s take-label follows the table the
+picture lands in, not the screen it was raised from. This sheet hangs off the
+**Bean details** block and writes a `BeanImageEntity`, so `+1.1`'s "Take a
+memory of the café" — which really does write `journey_images` (§8.6b) — was
+naming the wrong subject here; and "Take a photo of the bag" names an object
+that is usually not on the table at a café. **Take a shot** is neither, and it
+keeps the sheet honest about what it is attaching the picture to.
 
 **The save button waits for a name.** `+1.2`'s own rule, kept: a cup is a
 coffee you are recording because of what it was, and a nameless one is a row
@@ -1187,17 +1216,35 @@ without saving; an explicit save does not.
 ### 8.8 `0.31` Brew Session Detail
 
 One brew, created or edited. **Bean details** (see below), then brew fields
-(dripper, grinder, grind size, filter, dose, water, temperature, ppm,
+(dripper, grinder, grind size, filter, dose, water, **alkalinity**, ppm,
 humidity, total time), **Pour stages** with its own editor sheet, then **How
 was it?** — Score `ValueBar`, `ExtractionBar`, note — then **Flavor**: the
 radar over eleven `ValueBar` sliders.
 
+**Water alkalinity sits where Water °C used to** (2026-08-21, direct product
+request). The temperature column stays in `sessions` and still round-trips
+through the draft (§9); it simply has no input any more, and the pour stages
+below still ask per pour — which is where a temperature that changes mid-brew
+was always recorded.
+
 **Bean details sits above Brew details** (`BeanDetailsSection`, 2026-08-21,
-direct product request). It shows **one** input, the bean's name, and a
-**More details** text button; pressing that reveals `0.1`'s own
-`BeanFieldsGrid` (origin, variety, altitude, roaster, producer, process, roast
-date, note) and `ImagesStrip` beneath it, with the photo sheet and the
-roast-date picker wired exactly as on `0.1`.
+direct product request). It shows **one** input, the bean's name, and
+**More details** as the section heading's own trailing action; pressing that
+reveals `0.1`'s own `BeanFieldsGrid` (origin, variety, altitude, roaster,
+producer, process, roast date, note) and `ImagesStrip` beneath it, with the
+photo sheet and the roast-date picker wired exactly as on `0.1`.
+
+**It is a toggle, and it lives on the heading** (2026-08-21, direct product
+request). Open, the action reads **Less details** and a second press folds the
+block away again. Both halves reverse the first cut of this block, which put a
+full-width text button under the name field and made the reveal one-way on the
+argument that a control able to hide fields someone has typed into can lose
+them from view. Nothing is lost: the draft is held by the screen, not by the
+composables, so collapsing and reopening returns every value — while having no
+way back meant one exploratory tap pushed Brew details down the page for the
+rest of the session. `SectionHeader` already carries a trailing action slot,
+and using it is what makes the label read as the heading's own switch rather
+than as one more control in the form's stack.
 
 *Why a brew form edits a bean at all:* two of the ways in arrive on a bean with
 no name — vibe brewing creates a blank row so the session has something to
@@ -1211,8 +1258,9 @@ commonest way in.
 The bean draft follows the same discipline as the session beside it — typing
 reaches Room only on Save, it counts towards `dirty`, and it locks with the
 rest of the form in view mode (`BeanFieldsGrid`/`ImagesStrip` take an
-`enabled` flag for this; while locked, "More details" and the "Add img" tile
-are absent rather than dead). The one exception is a photograph, which is a
+`enabled` flag for this; while locked, the details toggle and the "Add img"
+tile are absent rather than dead — a block already open stays open and simply
+reads as text, so what the lock hides is the control, not the fields). The one exception is a photograph, which is a
 file plus a row and is attached immediately — the exception `0.1` and `+1.1`
 already make.
 
@@ -1316,9 +1364,11 @@ Complete and unwired — see §1.
 
 Room, mirroring `coffee-can`'s SQLite schema column-for-column — **except the
 last two tables, which have no desktop counterpart at all**.
-**`version = 5`, `exportSchema = true`**, with named `MIGRATION_1_2`,
-`MIGRATION_2_3`, `MIGRATION_3_4` and `MIGRATION_4_5`.
-`fallbackToDestructiveMigration()` is banned.
+**`version = 8`, `exportSchema = true`**, with named `MIGRATION_1_2` through
+`MIGRATION_7_8`. `fallbackToDestructiveMigration()` is banned, and every
+migration is **additive only** — which is why two sets of columns are still in
+the schema with nothing reading them (`journeys.latitude`/`longitude`, §8.6b,
+and `sessions.waterTempC`, below).
 
 Eight entities:
 
@@ -1327,6 +1377,8 @@ Eight entities:
 | `beans` | identity + provenance, `status` (`draft`/`saved`), `flavorSource` (`auto`/`manual`), and **eleven flavour columns** |
 | `bean_images` | `position`, `filePath`, `rotation` |
 | `sessions` | brew parameters, `score`, `extraction`, note, **the same eleven flavour columns**, and `flavorNotes` |
+| `sessions.waterAlkalinity` | carbonate hardness, ppm as CaCO₃ — the Brew details field that took Water °C's place (2026-08-21, direct product request). **Beside `waterPpm`, not instead of it**: ppm is total dissolved solids, alkalinity is buffering, and two waters at the same TDS read completely differently in the cup. Phone-only, like `waterG` and `waterTempC` — the desktop's `brew_sessions` has no column, so the bundle does not carry it |
+| `sessions.waterTempC` | **retained, no longer surfaced** — the field the line above replaced. Dropping it means rebuilding the table and destroying temperatures a user typed, with no server-side copy to restore from. Unlike `journeys.latitude` it is still *carried*: `SessionDraft` hydrates it and writes it back untouched, so re-saving an older brew keeps it. A pour's temperature was never this column — `session_stages.waterTempC` is, and it is unaffected |
 | `session_stages` | one pour each |
 | `catalogue_items` | crawler cache |
 | `news_items` | feed cache — four fields, no snippet column |
@@ -1478,7 +1530,7 @@ the vision endpoint wanted anyway. Covered by instrumented tests.
 | Layer | Tool | Covers |
 | --- | --- | --- |
 | Design tokens | `check_design.py` | 36 colour, 11 type, 5 shape tokens against `../variants.py` |
-| Rendering | Paparazzi, `app/src/test/…/screenshot/` | 68 goldens in `app/src/test/snapshots/images/` — real compiled Compose through layoutlib, no emulator |
+| Rendering | Paparazzi, `app/src/test/…/screenshot/` | 74 goldens in `app/src/test/snapshots/images/` — real compiled Compose through layoutlib, no emulator |
 | Geometry | `ContributionCalendarGeometryTest`, `CropToFitTest` | layout maths |
 | Ingest | `ImageIngestTest`, `ImageIngestOrientationTest` | EXIF strip, orientation |
 | Insets, gesture, share targets | **a physical device only** | §4.3 |

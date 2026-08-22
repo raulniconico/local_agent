@@ -251,6 +251,21 @@ for node in ast.walk(tree):
                 lits.add(ast.literal_eval(arg))
             except Exception:
                 pass
+# Copy handed to a *helper* rather than drawn directly. `section(action=...)`,
+# `top_bar(action_text=...)` and `field(placeholder=...)` all end in a c.text()
+# eventually, but the literal sits at the call site as a keyword and the walk
+# above only reads positional arguments of `text`/`wrap`. Ten strings were
+# invisible to this check until 2026-08-21, among them every section heading's
+# trailing action -- which is where "More details" moved that day, and losing
+# a string from the check by relocating it in the simulator is precisely the
+# silent gap this file exists to close.
+HELPER_COPY_KWARGS = ("action", "action_text", "caption", "placeholder")
+for node in ast.walk(tree):
+    if isinstance(node, ast.Call):
+        for kw in node.keywords:
+            if kw.arg in HELPER_COPY_KWARGS and isinstance(kw.value, ast.Constant) \
+                    and isinstance(kw.value.value, str):
+                lits.add(kw.value.value)
 for node in ast.walk(tree):
     if isinstance(node, (ast.Tuple, ast.List)):
         for e in node.elts:

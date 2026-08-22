@@ -883,29 +883,43 @@ def spinner(c: Canvas, cx, cy, r=9, sw=2):
 # One consistent fixture across every frame, so the same log is visible from
 # Home, from the bean, and from the session list -- the way it would be on a
 # real phone. Brew counts, session rows and the Home average agree.
-# (name, roaster, origin, brews, process, roast day). The shelf card's second
-# line is now process + roast date -- BeanEntity.shelfMeta() -- so the sample
-# carries both; the roaster is still here because the card falls back to it and
-# +1.1's picker still shows it.
+# (name, roaster, origin, brews, process, roast day, café). The shelf card's
+# second line is now process + roast date -- BeanEntity.shelfMeta() -- so the
+# sample carries both; the roaster is still here because the card falls back to
+# it and +1.1's picker still shows it.
+#
+# The last element is BeanWithDetails.cafeName, drawn bottom-right since
+# 2026-08-21: the café a bean came home from, which is derived from the
+# earliest cup of it and so is set on exactly the bean CUPS says was drunk at
+# JOURNEY. It is None on the other three, which is the common case and the
+# reason the corner has to look right empty as well as filled.
 BEANS = [
-    ("Ethiopia Guji Natural", "Terres de Café", "Ethiopia", 4, "Natural", "28 Jul"),
-    ("Colombia Huila Washed", "Café Lomi", "Colombia", 2, "Washed", "20 Jul"),
-    ("Kenya Nyeri AB", "Belleville", "Kenya", 0, "Washed", "02 Aug"),
-    ("Guatemala Huehue", "Coutume", "Guatemala", 1, "Washed", "15 Jul"),
+    ("Ethiopia Guji Natural", "Terres de Café", "Ethiopia", 4, "Natural", "28 Jul",
+     "Belleville Brûlerie"),
+    ("Colombia Huila Washed", "Café Lomi", "Colombia", 2, "Washed", "20 Jul", None),
+    ("Kenya Nyeri AB", "Belleville", "Kenya", 0, "Washed", "02 Aug", None),
+    ("Guatemala Huehue", "Coutume", "Guatemala", 1, "Washed", "15 Jul", None),
 ]
 
 MY_FLAVOR = [3.7, 2.8, 2.0, 3.9, 2.6, 1.5, 1.9, 1.7, 0.7, 2.5, 2.3]
 BEAN_FLAVOR = [4.2, 3.1, 2.4, 4.0, 1.8, 1.2, 1.5, 1.0, 0.5, 2.2, 3.0]
 SESSION_FLAVOR = [4.5, 3.0, 2.5, 4.0, 1.5, 1.0, 1.5, 1.0, 0.5, 2.0, 3.5]
 
+# (bean name, meta line, day, café). The fourth element is
+# SessionWithBeanName.cafeName -- null on a brew made at home, which is six of
+# these seven. The one that is not is the cup CUPS lists: the Ethiopia drunk at
+# Belleville Brûlerie, scored 4.5, which is why that row's meta carries no
+# dripper. In the build that row is also painted `JourneyGround`; this frame
+# still draws flat rows with no card behind them, so the green is not
+# representable here and only the café's name is.
 SESSIONS = [
-    ("Ethiopia Guji Natural", "Hario V60 · 15.0 g · 4.5", "11 Aug"),
-    ("Colombia Huila Washed", "Kalita Wave · 18.0 g · 3.5", "09 Aug"),
-    ("Ethiopia Guji Natural", "Hario V60 · 15.0 g · 4.0", "07 Aug"),
-    ("Guatemala Huehue", "Chemex · 30.0 g · 3.0", "04 Aug"),
-    ("Ethiopia Guji Natural", "Origami Dripper · 14.0 g · 4.5", "02 Aug"),
-    ("Colombia Huila Washed", "Hario V60 · 16.0 g", "30 Jul"),
-    ("Ethiopia Guji Natural", "Hario V60 · 15.0 g · 3.5", "28 Jul"),
+    ("Ethiopia Guji Natural", "Hario V60 · 15.0 g · 4.5", "11 Aug", None),
+    ("Colombia Huila Washed", "Kalita Wave · 18.0 g · 3.5", "09 Aug", None),
+    ("Ethiopia Guji Natural", "4.5", "07 Aug", "Belleville Brûlerie"),
+    ("Guatemala Huehue", "Chemex · 30.0 g · 3.0", "04 Aug", None),
+    ("Ethiopia Guji Natural", "Origami Dripper · 14.0 g · 4.5", "02 Aug", None),
+    ("Colombia Huila Washed", "Hario V60 · 16.0 g", "30 Jul", None),
+    ("Ethiopia Guji Natural", "Hario V60 · 15.0 g · 3.5", "28 Jul", None),
 ]
 
 # Home's Brewing-activity grid, from the same log. `today` has to be fixed or
@@ -962,7 +976,7 @@ def home():
     y = top_bar(c, "Coffee Can", action_text="History")
     y = section(c, y, "Your beans", action="Search")
 
-    for name, roaster, origin, brews, process, roast in BEANS[:3]:
+    for name, roaster, origin, brews, process, roast, cafe in BEANS[:3]:
         card(c, y, 72)
         bag_tile(c, GUTTER + 12, y + 4, 64, origin[:2])
         tx = GUTTER + 12 + 64 + 14
@@ -978,6 +992,12 @@ def home():
                else C["surfaceContainer"], 4)
         c.text(tx + 8, y + 62, label, "labelSmall",
                C["onPrimaryContainer"] if brews else C["onSurfaceVariant"])
+        # BeanWithDetails.cafeName, bottom-right of the card and end-aligned:
+        # where the bag came from, on the one sample bean that came from
+        # anywhere. Same corner as the brew card's in `0.3`, on purpose.
+        if cafe:
+            c.text(W - GUTTER - 12, y + 64, cafe, "labelSmall",
+                   C["onSurfaceVariant"], "end")
         c.path(f"M{W - GUTTER - 24} {y + 31} l5 5 l-5 5", stroke=C["outline"], sw=1.6)
         y += 78
     y -= 6                      # the 6dp gap sits between cards, not after the last
@@ -1132,7 +1152,7 @@ def bean_detail_lower():
     y += 300 + 24
 
     y = section(c, y, "Sessions", action="New brew")
-    for name, meta, day in [s for s in SESSIONS if s[0] == BEAN["name"]][:3]:
+    for name, meta, day, _cafe in [s for s in SESSIONS if s[0] == BEAN["name"]][:3]:
         c.text(GUTTER, y + 22, f"{day} 2026", "titleMedium")
         c.text(GUTTER, y + 40, meta, "bodyMedium", C["onSurfaceVariant"])
         divider(c, y + 52)
@@ -1454,10 +1474,15 @@ def sessions():
     c.text(GUTTER, y + 20, f"Newest first · {len(SESSIONS)} sessions",
            "labelMedium", C["onSurfaceVariant"])
     y += 32
-    for name, meta, day in SESSIONS:
+    for name, meta, day, cafe in SESSIONS:
         c.text(GUTTER, y + 26, name, "titleMedium")
         c.text(GUTTER, y + 44, meta, "bodyMedium", C["onSurfaceVariant"])
-        c.text(W - GUTTER, y + 36, day, "bodyMedium", C["onSurfaceVariant"], "end")
+        c.text(W - GUTTER, y + 30, day, "bodyMedium", C["onSurfaceVariant"], "end")
+        # SessionWithBeanName.cafeName -- see the SESSIONS fixture for why the
+        # green ground the build also gives this row is not drawn here.
+        if cafe:
+            c.text(W - GUTTER, y + 48, cafe, "labelSmall",
+                   C["onSurfaceVariant"], "end")
         divider(c, y + 60)
         y += 60
     fab(c)
@@ -1493,7 +1518,7 @@ def which_bean():
     y = sheet(c, 300)
     c.text(24, y + 26, "Which bean is in the cup?", "headlineSmall")
     y += 46
-    for name, roaster, origin, _, _p, _r in BEANS[:4]:
+    for name, roaster, origin, _, _p, _r, _c in BEANS[:4]:
         bag_tile(c, 24, y + 6, 44, origin[:2])
         c.text(80, y + 24, name, "bodyLarge")
         c.text(80, y + 42, roaster, "bodyMedium", C["onSurfaceVariant"])
@@ -1527,7 +1552,7 @@ def sessions_background(c: Canvas):
     status_bar(c)
     y = top_bar(c, "Sessions", back=True)
     y += 32
-    for name, meta, day in SESSIONS[:4]:
+    for name, meta, day, _cafe in SESSIONS[:4]:
         c.text(GUTTER, y + 26, name, "titleMedium")
         c.text(GUTTER, y + 44, meta, "bodyMedium", C["onSurfaceVariant"])
         divider(c, y + 60)
@@ -1537,15 +1562,19 @@ def sessions_background(c: Canvas):
 def bean_block(c: Canvas, y, name=""):
     """`0.31`'s Bean details block (BeanDetailsSection), added 2026-08-21.
 
-    ONE FIELD AND A BUTTON. The eight other bean fields and the images strip
-    sit behind "More details" and are not drawn here, because on every path
-    this block was added for they start collapsed -- a vibe brew and a cup
-    both open on a bean row with nothing in it, and a brew of a known bean
-    keeps them shut too so that Brew details is not pushed off the fold."""
-    y = section(c, y, "Bean details")
-    y = field(c, y, "Bean name", name) + 4
-    c.text(GUTTER + 6, y + 14, "More details", "labelLarge", C["primary"])
-    return y + 28
+    ONE FIELD, AND THE SWITCH ON THE HEADING. The eight other bean fields and
+    the images strip sit behind "More details" and are not drawn here, because
+    on every path this block was added for they start collapsed -- a vibe brew
+    and a cup both open on a bean row with nothing in it, and a brew of a
+    known bean keeps them shut too so that Brew details is not pushed off the
+    fold.
+
+    Since 2026-08-21 that control is `section()`'s own trailing action rather
+    than a text button under the field, and it is a toggle: open, it reads
+    "Less details". Collapsed is the state every frame here draws."""
+    y = section(c, y, "Bean details", action="More details")
+    y = field(c, y, "Bean name", name)
+    return y + 8
 
 
 def brew_background(c: Canvas):
@@ -1592,7 +1621,11 @@ def brew():
                       ("Filter", "Hario V60 02…"), x=ix, w=iw) + 10
     iy = capsule_pair(c, iy, ("Dose (g)", "15.0"),
                       ("Water (g)", "250"), x=ix, w=iw) + 10
-    iy = capsule_pair(c, iy, ("Water °C", "93"),
+    # Water alkalinity where Water °C used to be (2026-08-21). The temperature
+    # column is still in `sessions` and still round-trips through the draft; it
+    # simply has no input any more, and the pour stages below still carry a
+    # temperature per pour, which is where one belongs.
+    iy = capsule_pair(c, iy, ("Water alkalinity", "40"),
                       ("Water ppm", "72"), x=ix, w=iw)
     y += ch + 20
 
