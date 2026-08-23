@@ -200,7 +200,7 @@ There is no dedicated file-import tool: for CSV/spreadsheet/text sources the age
 ### 3.3 Desktop ↔ Android sync tools (`sync_tools.py`)
 
 ```python
-BUNDLE_VERSION: int = 3     # must equal coffee_android's SyncBundle.VERSION
+BUNDLE_VERSION: int = 4     # must equal coffee_android's SyncBundle.VERSION
 
 export_coffee_bundle(destination: str) -> str
 inspect_coffee_bundle(bundle: str) -> str
@@ -221,15 +221,23 @@ Two keys the phone deliberately ignores on the way in: `stage_number` and an ima
 
 | Member | Contents |
 | --- | --- |
-| `manifest.json` | `{version, source: "desktop"\|"android", beans, exported_at?}` |
+| `manifest.json` | `{version, source: "desktop"\|"android", beans, journeys, exported_at?}` |
 | `beans.json` | Array of beans, each with `sessions[]` (each with `stages[]`) and `images[]` |
-| `images/…` | The image files, referenced by each image entry's `file` |
+| `journeys.json` | Array of cafés, each with `images[]`. Optional — a v3 bundle has none, which reads as "no cafés" |
+| `images/…` | Bean page images, referenced by each image entry's `file` |
+| `journey_images/…` | Café photographs, same contract |
 
 Field names are **coffee-can's snake_case column names** on both sides — the bundle is a wire format between two schemas and one has to win; picking the desktop's lets `apply_coffee_bundle` hand values straight to `repo.update_bean_field` with no translation table to keep in step from two directions. **Null fields are omitted, and that is load-bearing**: `_differences()` reads an absent key as *no opinion* rather than as an empty value, which is what stops a column the phone never filled from disagreeing with a desktop default and manufacturing a phantom conflict on an identical bean.
 
 **Conflict model.** Beans match **by name** — the only identifier the two databases share, since coffee-can's `beans.id` and Room's are independent autoincrement sequences. A name on both sides with any differing field is a conflict; `inspect_coffee_bundle` names them and the field that differs, and `apply_coffee_bundle` refuses to touch one without an explicit resolution, reporting it as unanswered instead. `"phone"` deletes the local bean first (cascading its sessions and stages, and unlinking its image files, which `ON DELETE CASCADE` cannot do) so a replaced bean can't end up carrying the other side's sessions. Matching on a mutable, non-unique field is a real limitation — a rename on either device imports as a second bean — and the tools say so in their own output rather than hiding it.
 
-**What does not cross**, because the schemas diverged: Android's session `waterG`/`waterTempC`/`waterAlkalinity` (no coffee-can column), coffee-can's session `humidity` (no Room field), and Room's stage `label` (its free `note` maps to `circling`). That list is a record of *work not done* rather than of fields that are unmappable in principle — `concentration` was on it for a day, and came off it when the desktop grew the column (v3, 2026-08-22). Both flavour-axis sets **do** cross, on beans *and* sessions — a bean whose `flavor_source` is `auto` derives its radar by averaging its sessions, so dropping the session axes would import beans that can never recompute one.
+**What does not cross: nothing, since v4 (2026-08-23).** That list was always a record of *work not done* rather than of fields unmappable in principle, and the work is done. `concentration` came off it first (v3, 2026-08-22, when the desktop grew the column). v4 took the rest: `water_g`, `water_temp_c`, `water_alkalinity` and `total_time_sec` got coffee-can columns; `humidity` — which had a column on *both* sides the whole time and was merely absent from `_SESSION_FIELDS`, the instructive failure — got a list entry; a stage's `label` got `brew_stages.label` beside `circling`; and journeys got `journeys`, `journey_images` and `brew_sessions.journey_id`. Two representational seams remain and are mappings, not losses: `filter` ↔ `filter_paper`, and a stage's `note` ↔ `circling`.
+
+**Journeys.** A café is `coffee_android`'s table and has no desktop screen; the desktop tables exist **only** to receive one and hand it back, and `repo.py` gained storage calls that no CLI or GUI path uses. Sessions name their café in a `journey` key — by **name**, never by id, since the two `journeys.id` sequences are unrelated — and `_write_journeys` runs before any bean so a cup's reference always resolves. Cafés are **added, never replaced**, even on this side, which departs from the per-bean adjudication on purpose: there is no desktop screen rendering a café, so "which version do you want?" has no answerable form here.
+
+Both flavour-axis sets **do** cross, on beans *and* sessions — a bean whose `flavor_source` is `auto` derives its radar by averaging its sessions, so dropping the session axes would import beans that can never recompute one.
+
+`coffee_android/plan/v1/check_schema_parity.py` is what keeps this true: it maps every Room column to a desktop column and to a `sync_tools` allowlist, and fails on either gap. Run it after any schema change on either side.
 
 ### 3.4 USB sync (`usb_sync.py`)
 

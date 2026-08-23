@@ -80,10 +80,11 @@ coffee_server/
 ├── prompts.py          # every prompt the server sends, rendered server-side
 ├── auth.py             # X-API-Key dependencies + Google ID token verification
 ├── accounts.py         # the account record: sub, counters, quota, ban. SQLite
-├── crawler.py          # roaster catalogue + news, allowlist-gated, OFF by default
-├── allowlist.json      # per-domain crawl permissions (specs/legal.md rule 3) — empty
+├── crawler.py          # roaster catalogue (gated, idle) + press news (live)
+├── allowlist.json      # per-domain ROASTER permissions (specs/legal.md rule 3) — empty
+├── news_sources.json   # trade-press RSS feeds — 7 enabled, 1 disabled on a 403
 ├── config.py           # env-driven settings
-├── requirements.txt
+├── requirements.txt    # two extras are load-bearing -- see below
 ├── Dockerfile          # python:3.12-slim, uvicorn on :8000
 ├── .dockerignore       # excludes .env -- never baked into the image
 ├── .gitignore          # .env, .venv, *.pem, *.ppk
@@ -108,7 +109,7 @@ Eight modules.
 | `providers.py` | One function per vendor for chat and for vision, plus dispatch tables. Normalises request shapes, handles the Anthropic-vs-OpenAI system-prompt difference, uses Anthropic's schema-validated structured output for OCR where available, and wraps every upstream failure in `ProviderRequestError`. `pick_provider()` decides who serves a request: the client may express a preference and does not get to insist. SDKs are imported lazily. |
 | `auth.py` | Two independent guards answering different questions. `require_api_key`/`require_read_key` ask "is this one of our clients?" (a constant-time compare against a key that ships in the APK, so a weak claim by construction). `require_account` asks "**which user** is this?" — a Google ID token verified against Google's JWKS including **audience**, without which any Google token in the world would authenticate. `meter()` maps the account store's refusals onto 429/403. |
 | `accounts.py` | The account record and nothing more: `sub`, day counters, sliding-window rate events, ban flag, in SQLite. Also the GDPR Art. 15 access document and Art. 17 erasure. Quota is charged **before** the provider call, so a client that reliably triggers a 502 cannot get unmetered retries. |
-| `crawler.py` | The catalogue/news fetch, centrally. Implements `specs/legal.md` §3.3–§3.6 — robots.txt fail-closed, one request at a time per host with jittered delay, budget counters that abort, conditional requests, a truthful User-Agent — behind an allowlist that is empty and a switch that is off. |
+| `crawler.py` | The catalogue and news fetch, centrally. Implements `specs/legal.md` §3.3–§3.6 — robots.txt fail-closed, one request at a time per host with jittered delay, budget counters that abort, conditional requests, a truthful User-Agent. **Two source lists, gated differently** (§3.2e): roasters behind the empty `allowlist.json`, press RSS behind `news_sources.json`, which is live. |
 | `config.py` | Reads every setting from the environment at import, with an explicitly-pathed `load_dotenv`. `configured_providers()` returns the set of vendors with a key set. |
 
 ### Request flow
@@ -171,18 +172,21 @@ SuggestResponse{provider, model, summary, dose_g, grind_size, stages[]}
 
 1. **Prerequisite check** — verifies `aws`, `ssh`, `scp`, `rsync`, `curl` locally, and runs `install-deps.sh` automatically if any are missing (needs `sudo`).
 2. **Default VPC** — looks it up; errors with the fix command if there isn't one.
-3. **Security group** — created or reused. Two rules, which are the entire access policy: **SSH (22) restricted to the deploying machine's current public IP** (from `checkip.amazonaws.com`), and **`APP_PORT` open to the world** — the app itself enforces `X-API-Key`.
+3. **Security group** — created or reused. The rules are the entire access policy: **SSH (22) restricted to the deploying machine's current public IP** (from `checkip.amazonaws.com`), plus — when `API_HOST` is set — **80 and 443 open to the world**, with any world-facing `APP_PORT` rule revoked. Port 80 is required for the ACME HTTP-01 challenge, not merely for the HTTPS redirect: cert issuance fails without it. With `API_HOST` empty the script keeps the older behaviour and opens `APP_PORT` to the world instead.
 4. **Instance** — `run-instances` with `user-data.sh`, or reuse of a pending/running one with the right tag. `INSTANCE_TYPE` defaults to `t3.micro`. `user-data.sh` runs once on first boot via cloud-init and installs Docker and rsync (Amazon Linux 2023 ships with neither).
 5. **Wait** for SSH and Docker to come up, since user-data runs asynchronously after boot.
 6. **Ship** — `rsync` of the source, then a separate `scp` of `coffee_server/.env`. The `.env` is *not* in the image; it is injected at run time via `--env-file`.
-7. **Build and restart** — over SSH: `docker build -t coffee-server .`, `docker rm -f coffee-server-app`, then `docker run -d --restart unless-stopped -p ${APP_PORT}:8000 --env-file .env`.
-8. **Health check** — polls `/healthz` up to 20 times at 3-second intervals, then prints the URL and a ready-to-use `curl`, or points at `docker logs coffee-server-app` on failure.
+7. **Build and restart** — over SSH: `docker build -t coffee-server .`, `docker rm -f coffee-server-app`, then `docker run -d --restart unless-stopped --env-file .env`, with two additions that matter: the port is published as `127.0.0.1:${APP_PORT}:8000` when `API_HOST` is set (Caddy reaches it over the loopback, so it is never on a public interface), and `~/coffee_server/data` is bind-mounted to `/data` with `ACCOUNT_DB_PATH=/data/accounts.db`. **The bind mount is load-bearing:** every deploy does `docker rm -f`, so an in-image `accounts.db` would take the per-user metering records with it each time.
+7b. **TLS front end** — when `API_HOST` is set: installs the Caddy binary if absent, writes `/etc/caddy/Caddyfile` (a `reverse_proxy` vhost for `API_HOST`, plus a `file_server` vhost over `/srv/site` for `SITE_HOST` and `www.$SITE_HOST` when that is set too), installs a systemd unit, and restarts it. Caddy obtains and renews Let's Encrypt certificates automatically and redirects HTTP→HTTPS with a 308. The unit uses `LogsDirectory=caddy` rather than a hand-rolled `mkdir`+`chown`: on Amazon Linux a manually created log directory carries the wrong SELinux context and Caddy exits with "permission denied" opening its own log **despite owning the directory**. No ACME account `email` is configured, deliberately — that address is sent to Let's Encrypt, and none has been chosen; certs still issue and renew, only expiry-warning mail is lost.
+8. **Health check** — polls `/healthz` up to 20 times at 3-second intervals — against `https://$API_HOST` when set, else `http://<ip>:$APP_PORT` — then prints the base URL and a ready-to-use `curl`, or points at `docker logs coffee-server-app` on failure.
 
 `deploy/destroy.sh` terminates the instance and deletes the security group. It is deliberately not part of the deploy flow — a forgotten EC2 instance keeps billing.
 
 **Operational basics:** logs via `ssh -i $KEY_FILE ec2-user@<ip> docker logs coffee-server-app`; restart by re-running `deploy.sh`; teardown via `destroy.sh`.
 
-**Documented gaps in the deploy path:** old `/32` SSH rules from previous runs are not removed when your public IP changes (an accumulating allowlist of your own past IPs, not an open one), and no Elastic IP is attached, so the public IP can change if the *instance* is stopped and started (re-running `deploy.sh` only restarts the container).
+**Documented gaps in the deploy path:** old `/32` SSH rules from previous runs are not removed when your public IP changes (an accumulating allowlist of your own past IPs, not an open one). `deploy.sh` also does not allocate the Elastic IP or create the DNS records itself — both were done once by hand (see below) and the script assumes `API_HOST` already resolves to the instance; a first run against a name that does not resolve yet will bring the app up but leave Caddy retrying ACME until DNS lands.
+
+**The live deployment (as of 2026-08-23):** instance `i-0abfc509863f30bc0` in `eu-west-3`, Elastic IP `13.36.4.67`, Route 53 hosted zone `Z02940141ZRYBNM9AY30X` for `coffee-can.org` with `api`, apex and `www` all pointing at that address. The Elastic IP matters more than it did before TLS: a certificate is bound to a name, the name is bound to an A record, and letting the address change out from under it breaks both the app and renewal.
 
 ### Secrets handling
 
@@ -329,7 +333,15 @@ Requires both credentials. `GET` returns the entire Art. 15(3) access document �
 
 Require `X-API-Key` matching **`READ_API_KEY`** (the metered key is also accepted). No account, no metering: serving a cached list is not a cost that needs rationing.
 
-Both return `503` today, with a message naming the reason: three compliance gates are unmet (`specs/legal.md` rules 2–3 — outreach, the 14-day wait, a per-domain allowlist entry — and `specs/legal-accounts.md` rule 72 — `legal.md` §1.2's use case must be re-opened before crawl results are served to Play users). `allowlist.json` ships empty, so **`CRAWLER_ENABLED=1` alone still crawls nothing**: the switch is not the permission.
+**The two halves are gated differently, and that is the point (2026-08-23).**
+
+`GET /v1/news` **works.** It serves cached headlines from the RSS feeds in `news_sources.json` — seven trade publications, refreshed hourly. Items carry headline, source, date and canonical link and nothing else, per `legal-accounts.md` rule 74: no snippet past the headline and specifically no AI-written summary, since the *droit voisin* exclusion (arts. L.218-1 CPI, DSM art. 15) covers hyperlinks and very short extracts but not summaries.
+
+`GET /v1/catalogue` still returns `503`, with a message naming the reason: `specs/legal.md` rules 2–3 (outreach, the 14-day wait, a per-domain allowlist entry) and `specs/legal-accounts.md` rule 72 (`legal.md` §1.2's use case must be re-opened before crawl results are served to Play users) are unmet. `allowlist.json` ships with `"sources": []`, so **`CRAWLER_ENABLED=1` alone still crawls nothing**: the switch is not the permission.
+
+**Why press feeds are not on the roaster allowlist.** `specs/legal.md` is titled and scoped to crawling *French roasters' e-commerce catalogues*; rules 2–3 buy permission for an act whose permission is genuinely in doubt. An RSS feed is the inverse — published *in order to be read by machines*, which is the tier-2 first-party structured endpoint §3.2 rule 7 tells you to prefer. Requiring an outreach email and a verbatim CGU quotation before reading one is a category error, and it is why `/v1/news` returned `503` for months while `coffee/src/coffee_can/coffee_news.py` polled the same eight feeds from the desktop without difficulty. Two files, two justifications, one `Source` type carrying a `kind` of `"roaster"` or `"press"` so `Fetcher` applies identically to both.
+
+What did **not** get relaxed: robots.txt, the per-host delay, conditional GETs and the truthful User-Agent all still apply, because they are what actually protects the publisher. A feed that refuses this crawler is disabled with its reason recorded (`comunicaffe.com`, `403`), never worked around — `legal.md` rule 18 forbids changing the User-Agent to get past a refusal. `legal-android.md` rule 23 is *satisfied* rather than bypassed: moving these feeds server-side is what makes the fetch happen once, centrally, instead of once per installed device.
 
 `/v1/catalogue` carries a `rubric` object alongside its items — the art. D.111-16 ranking/links/exhaustiveness/frequency disclosure — served with the data so the catalogue screen renders it without French consumer law being compiled into an APK, and so correcting it is a deploy rather than a release (`legal-accounts.md` rule 76).
 
@@ -380,20 +392,36 @@ Text extraction differs by shape: Anthropic returns content blocks, joined with 
 
 | `READ_API_KEY` | no | falls back to `SERVER_API_KEY` | The catalogue/news key. Split from the metered key so a catalogue-triggered rotation cannot take the AI features down with it — `coffee_android/plan/api.md` §2 |
 | `GOOGLE_CLIENT_IDS` | for the Android client | *(empty)* | Comma-separated OAuth **web** client IDs. The audience allowlist for ID tokens. Empty **fails closed**: `/v1/suggest`, `/v1/vision` and `/v1/account` all 503, because serving paid calls to unauthenticated callers is the failure the whole module exists to prevent |
-| `ACCOUNT_DB_PATH` | no | `coffee_server/accounts.db` | SQLite file holding the account records. Not user content — see `accounts.py` |
+| `ACCOUNT_DB_PATH` | no | `coffee_server/accounts.db` | SQLite file holding the account records. Not user content — see `accounts.py`. **`deploy.sh` sets this to `/data/accounts.db` and bind-mounts it**, so the records survive the `docker rm -f` every deploy performs |
 | `DAILY_QUOTA_ASK` / `_SUGGEST` / `_VISION` | no | `60` / `60` / `40` | Per-account daily caps. Abuse cutoffs, not product limits |
 | `RATE_LIMIT_WINDOW_SECONDS` | no | `60` | Sliding burst window |
 | `RATE_LIMIT_MAX_REQUESTS` | no | `6` | Requests per account per operation per window |
 | `ANTHROPIC_VISION_MODEL` | no | `claude-opus-5` | Separate from the chat model on purpose, so one can move without the other |
 | `QWEN_VISION_MODEL` | no | `qwen3.5-omni-flash` | |
 | `MAX_IMAGE_BYTES` | no | `6291456` | Beyond this, `/v1/vision` returns 413 |
-| `CRAWLER_ENABLED` | no | *off* | See `crawler.py`. Turning it on with an empty allowlist still crawls nothing |
-| `CRAWLER_ALLOWLIST_PATH` | no | `coffee_server/allowlist.json` | |
+| `CRAWLER_ENABLED` | no | *off* | Gates **both** halves. On today. Turning it on with an empty *roaster* allowlist still crawls no roaster; the press feeds are a separate list and do run |
+| `CRAWLER_ALLOWLIST_PATH` | no | `coffee_server/allowlist.json` | Roaster permissions. Empty today |
+| `CRAWLER_NEWS_SOURCES_PATH` | no | `coffee_server/news_sources.json` | Press RSS feeds. **A separate file from the allowlist on purpose** — see §3.2e |
 | `CATALOGUE_TTL_SECONDS` / `NEWS_TTL_SECONDS` | no | `86400` / `7200` | |
-| `CRAWLER_USER_AGENT` | no | `CoffeeBeanIndexBot/0.1 (+https://coffeecan.app/bot; bot@coffeecan.app)` | `specs/legal.md` rule 17 requires it to be truthful with a contact that resolves; **rule 18 forbids ever replacing it with a browser string** |
-| `CRAWLER_CONTACT_EMAIL` | no | `bot@coffeecan.app` | Sent as the `From` header |
+| `CRAWLER_USER_AGENT` | no | `CoffeeBeanIndexBot/0.1 (+https://coffee-can.org/bot; bot@coffee-can.org)` | `specs/legal.md` rule 17 requires it to be truthful with a contact that resolves; **rule 18 forbids ever replacing it with a browser string** |
+| `CRAWLER_CONTACT_EMAIL` | no | `bot@coffee-can.org` | Sent as the `From` header |
 
 At least one provider key is needed for the service to be useful; with none, it starts and logs a warning, and every `/v1/ask` returns 400.
+
+### Two dependency extras that are not optional
+
+Both were found by the failure they cause, and both fail *late* — the image
+builds, the server starts, and the breakage appears only when a real request
+exercises the path:
+
+| Requirement | Without the extra |
+| --- | --- |
+| `google-auth[requests]` | `auth.py` imports `google.auth.transport.requests`, which needs the `requests` package. Plain `google-auth` imports fine, then **every** token verification returns `500 "The requests library is not installed"`. Invisible until account auth is both configured and used |
+| `httpx[brotli]` | `Fetcher` advertises `Accept-Encoding: gzip, br`. With no brotli decoder, httpx returns undecoded bytes and XML parsing fails at line 1 column 0. Five of eight news feeds did exactly this |
+
+The second is worth stating as a rule: **advertise only the encodings you can
+decode.** The desktop client worked throughout precisely because it never
+advertised `br`.
 
 **Deploy-time** (`coffee_server/deploy/.env`, local only — never copied to the server)
 
@@ -404,7 +432,9 @@ At least one provider key is needed for the service to be useful; with none, it 
 | `AWS_REGION` | *(empty)* | Falls back to whatever `aws configure` has set |
 | `INSTANCE_TYPE` | `t3.micro` | Free-tier eligible |
 | `INSTANCE_NAME` | `coffee-server` | Tag used to find/reuse the instance and security group; change it to manage a second independent deployment |
-| `APP_PORT` | `8000` | Host port published from the container and opened to the internet |
+| `APP_PORT` | `8000` | Port published from the container. Bound to `127.0.0.1` and fronted by Caddy when `API_HOST` is set; published publicly only in the no-TLS fallback |
+| `API_HOST` | *(empty)* | Public hostname Caddy terminates TLS on and reverse-proxies to `APP_PORT`. **Must already resolve to the instance before the first run**, or ACME issuance fails. Empty disables Caddy entirely and restores plain HTTP on `APP_PORT` |
+| `SITE_HOST` | *(empty)* | Apex for the website vhost, which also serves `www.<SITE_HOST>` from `/srv/site`. Empty means no website vhost |
 
 ### 3.6 Running
 

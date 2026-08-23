@@ -290,7 +290,13 @@ SVG_PATH = re.compile(r'^[Mm][\d{\s.-]')
 # an entry cannot quietly become cover for a fabrication.
 COMPOSED = {
     # ProfileScreen/PrivacyScreen: "Questions: " + BuildConfig.SUPPORT_EMAIL
-    "Questions: hello@coffeecan.app",
+    "Questions: hello@coffee-can.org",
+    # ProfileScreen's signed-in header: AccountStore.displayName, i.e. the
+    # Google account's own name. Runtime data with no literal anywhere in the
+    # app, so the deck has to pick *some* name to draw; this is the one it
+    # draws. The fallback when Google supplies none IS a literal and is
+    # checked normally (R.string.profile_signed_in_fallback_name).
+    "Zixing",
     # DataAccessSheet: "Daily limits: " + quotaPerDay.entries.joinToString{},
     # keys and values from coffee_server/config.py DAILY_QUOTA
     "Daily limits: ask 60, suggest 60, vision 40",

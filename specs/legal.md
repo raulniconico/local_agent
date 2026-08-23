@@ -11,6 +11,30 @@ engineering · commercial risk & governance) conducted 2026-08-03. Site
 observations in §2 were measured live on that date and **must be re-verified
 before any run**.
 
+**Scope, and what falls outside it (added 2026-08-23).** This document governs
+taking **product data from roasters' shops**. Its rules 2–3 — the outreach
+email, the 14-day wait, the per-domain allowlist entry quoting the CGU verbatim
+— exist to buy permission for an act whose permission is genuinely in doubt.
+
+They do **not** govern reading a trade publication's **RSS feed**. A feed is
+published *in order to be read by machines*; it is the tier-2 first-party
+structured endpoint §3.2 rule 7 tells you to prefer over scraping, and it falls
+under a different regime entirely (*droit voisin des éditeurs de presse*, arts.
+L.218-1 et seq. CPI, where hyperlinks and very short extracts are excluded from
+the right). Requiring outreach before reading one is a category error, not
+diligence — and applying these rules to press feeds is exactly what kept
+`coffee_server`'s `/v1/news` returning 503 for months while the desktop client
+polled the same feeds without difficulty.
+
+The press feeds therefore live in `coffee_server/news_sources.json`, separate
+from `allowlist.json`, with their own recorded justification. **What still
+applies to them, because it is what actually protects the publisher:** §3.3–§3.6
+in full — robots.txt fail-closed, per-host delay, conditional requests, budget
+counters, and rule 17's truthful User-Agent with a contact that resolves. Rule
+18 in particular: a feed that answers `403` has refused, and the response is to
+disable it and record why, never to change the User-Agent until it answers.
+Display is capped separately by `legal-accounts.md` rule 74.
+
 Not legal advice. Consult a French *avocat* in IP/IT before any public or
 monetised launch.
 

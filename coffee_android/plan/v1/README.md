@@ -28,6 +28,7 @@ passes the design spec and fails the coupling spec.
 ## Tooling — run from this directory
 
 ```bash
+python3 check_schema_parity.py  # exit 0 = the two databases still match
 python3 check_design.py      # exit 0 = no drift.  36 colour + 11 type + 5 shape
                              # tokens against ../variants.py, and 109 strings
                              # against the module's Kotlin/strings.xml/coffee_server
@@ -41,9 +42,10 @@ as `APP = ../../v1` and read it read-only.
 
 | File | |
 | --- | --- |
+| `check_schema_parity.py` | Proves every Room column still has a desktop column *and* a place on `sync_tools`' allowlists. Added 2026-08-23 after six fields were found to have silently stopped travelling — the failure it catches is not a crash but a field that quietly does not arrive. 8 tables, 102 columns |
 | `check_design.py` | The drift checker. Its `ACCEPTED_DEVIATIONS` is **not** a suppression list — an entry needs a decision recorded in `Theme.kt`, and both values still print on every run |
 | `screenshots.py` | Draws the simulator frames *from the Kotlin*. When a screen changes, change its function here in the same commit, the way `../scheme_e.py` is kept in step with the deck |
-| `screenshots/` | 49 simulated PNGs + `REAL_CAPTURES.md`. **Not evidence** — see `coupling-spec.md` §8 |
+| `screenshots/` | 50 simulated PNGs + `REAL_CAPTURES.md`. **Not evidence** — see `coupling-spec.md` §8 |
 | `AUDIT.md` | The 2026-08-14 conformance review. **Historical**, not current state — but it is the `AUDIT.md` that ~40 comments across `../../v1/app/src/` cite by bare name, so it stays readable and stays here |
 
 ## What stayed in `../` and why

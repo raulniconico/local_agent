@@ -38,14 +38,29 @@ CREATE TABLE IF NOT EXISTS bean_images (
 CREATE TABLE IF NOT EXISTS brew_sessions (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     bean_id      INTEGER NOT NULL REFERENCES beans(id) ON DELETE CASCADE,
+    -- The cafe this was drunk at, or NULL for a brew made at home. A session
+    -- with one is what the Android app calls a "cup".
+    --
+    -- DELIBERATELY NOT A FOREIGN KEY, matching SessionEntity.journeyId. A
+    -- cascade here would delete a brew -- its stages, its score, its tasting
+    -- notes -- because someone tidied away a cafe they no longer wanted
+    -- listed. Deleting a journey should orphan its cups back into ordinary
+    -- brews, which is what a plain nullable column does. Nothing enforces the
+    -- reference, so a reader has to tolerate an id whose row is gone; every
+    -- query here joins *from* the journey, so a dangling id is never looked up.
+    journey_id   INTEGER,
     brew_date    TEXT,
     dripper      TEXT,
     filter_paper TEXT,
     grinder      TEXT,
     grind_size   TEXT,
     water_ppm    TEXT,
+    water_alkalinity REAL,
     humidity     TEXT,
     dose_g       REAL,
+    water_g      REAL,
+    water_temp_c REAL,
+    total_time_sec INTEGER,
     score        REAL,
     extraction   REAL,
     concentration REAL,
@@ -64,7 +79,91 @@ CREATE TABLE IF NOT EXISTS brew_stages (
     temperature_c REAL,
     water_g       REAL,
     time_seconds  INTEGER,
-    circling      TEXT
+    circling      TEXT,
+    label         TEXT
+);
+
+-- THE JOURNEY TABLES EXIST HERE SO THE SCHEMAS MATCH, NOT BECAUSE THIS APP
+-- LOGS CAFES. `coffee_android` grew them (a cafe visited, on a date, in a
+-- place, with photographs) and nothing on this side reads or writes them: no
+-- CLI command, no GUI dialog, no repo call outside the sync bridge. That is
+-- the point. Structure parity is what makes a phone -> desktop -> phone round
+-- trip lossless, and the alternative -- letting the phone hold a table this
+-- database cannot receive -- is how a user's cafes quietly disappear the first
+-- time they sync.
+--
+-- Column-for-column with JourneyEntity / JourneyImageEntity, including the two
+-- retired ones. `latitude`/`longitude` are no longer surfaced on the phone and
+-- are retained there because migrations are additive only; they are here for
+-- the same reason, so a device still holding coordinates has somewhere to put
+-- them.
+--
+-- `visited_at` is an epoch **millisecond**, not a date string like
+-- `beans.roast_date` or `brew_sessions.brew_date`. That is the phone's choice
+-- and it is kept rather than converted: a visit you cannot date is not a visit
+-- you took, so unlike a roast date it is never absent, and rewriting the units
+-- at the boundary would be this side inventing a second representation of a
+-- column it does not otherwise touch.
+CREATE TABLE IF NOT EXISTS journeys (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT NOT NULL,
+    location    TEXT,
+    address     TEXT,
+    barista     TEXT,
+    latitude    REAL,
+    longitude   REAL,
+    visited_at  INTEGER NOT NULL,
+    note        TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- A journey's photographs, the same contract as bean_images. The FK *is*
+-- declared here, unlike brew_sessions.journey_id above, and for the reason
+-- JourneyImageEntity declares one too: a photo of a cafe has no meaning once
+-- the cafe row is gone, whereas a brew keeps all of its own meaning.
+CREATE TABLE IF NOT EXISTS journey_images (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    journey_id INTEGER NOT NULL REFERENCES journeys(id) ON DELETE CASCADE,
+    position   INTEGER NOT NULL,
+    file_path  TEXT NOT NULL,
+    rotation   INTEGER NOT NULL DEFAULT 0
+);
+
+-- The last two Android tables, and the least interesting: both are caches of a
+-- `coffee_server` endpoint, replaced wholesale on every successful fetch, and
+-- neither holds anything the user typed. They are here only so "the two
+-- schemas match" is a statement that can be checked mechanically rather than
+-- one with a footnote.
+--
+-- NOTHING ON THIS SIDE WRITES THEM. coffee-can caches the same two feeds as
+-- JSON files beside this database (`coffee_news.py`, `whats_new.py`), and that
+-- is not changed here -- moving a working cache into SQLite would be a desktop
+-- behaviour change, which is out of scope. Sync does not carry them either:
+-- re-fetching is free and a stale catalogue row is worse than none.
+CREATE TABLE IF NOT EXISTS catalogue_items (
+    url           TEXT PRIMARY KEY,
+    roaster       TEXT NOT NULL,
+    name          TEXT NOT NULL,
+    image_url     TEXT,
+    origin        TEXT,
+    process       TEXT,
+    price_eur     REAL,
+    weight_g      INTEGER,
+    tasting_note  TEXT,
+    first_seen_at INTEGER
+);
+
+-- The column list is a legal boundary, not a convenience: `specs/legal-accounts.md`
+-- rule 74 is a [BLOCKER] limiting a news feed to headline, source, date and
+-- link. There is deliberately nowhere here to put a snippet, an excerpt or an
+-- AI-written summary. Do not add one; NewsItemEntity says the same.
+CREATE TABLE IF NOT EXISTS news_items (
+    url          TEXT PRIMARY KEY,
+    title        TEXT NOT NULL,
+    source       TEXT NOT NULL,
+    published_at INTEGER,
+    fetched_at   INTEGER NOT NULL
 );
 """.format(flavor_columns="".join(f",\n    {field} REAL" for field in FLAVOR_FIELDS))
 
@@ -122,6 +221,45 @@ def _migrate(conn: sqlite3.Connection) -> None:
         # See coffee_agent/sync_tools.BUNDLE_VERSION.
         conn.execute("ALTER TABLE brew_sessions ADD COLUMN flavor_notes TEXT")
         conn.commit()
+    # The four columns the phone had first (2026-08-23). Every one of them is
+    # a measurement someone actually typed on a device, and until now a
+    # sync bundle had nowhere to put it: the Android session has carried
+    # `waterG`, `waterTempC`, `waterAlkalinity` and `totalTimeSec` for months
+    # while `brew_sessions` had no column for any of them, so a
+    # phone -> desktop -> phone round trip silently dropped all four. They are
+    # added here so the round trip is lossless, not because a desktop screen
+    # renders them -- the same reason `flavor_notes` above exists.
+    #
+    # NULL for every session logged before the column, which reads as "not
+    # recorded". Nothing is backfilled: a brew nobody weighed the water for
+    # has no water weight, and inventing one would put a number in a log whose
+    # whole purpose is to be trusted.
+    if "water_g" not in session_columns:
+        conn.execute("ALTER TABLE brew_sessions ADD COLUMN water_g REAL")
+        conn.commit()
+    if "water_temp_c" not in session_columns:
+        # The brew's water temperature, distinct from `brew_stages.temperature_c`,
+        # which is one pour's. The phone stopped surfacing this on 2026-08-21
+        # and kept the column rather than destroying what users had typed; the
+        # column here exists to receive exactly that history.
+        conn.execute("ALTER TABLE brew_sessions ADD COLUMN water_temp_c REAL")
+        conn.commit()
+    if "water_alkalinity" not in session_columns:
+        # Carbonate hardness in ppm as CaCO3 -- beside water_ppm (total
+        # dissolved solids), not instead of it: two waters at the same TDS can
+        # buffer acidity completely differently.
+        conn.execute("ALTER TABLE brew_sessions ADD COLUMN water_alkalinity REAL")
+        conn.commit()
+    if "total_time_sec" not in session_columns:
+        conn.execute("ALTER TABLE brew_sessions ADD COLUMN total_time_sec INTEGER")
+        conn.commit()
+    if "journey_id" not in session_columns:
+        # No REFERENCES clause, matching the CREATE above and the phone -- see
+        # the schema comment for why a cascade would be wrong here. SQLite
+        # could not add an enforced FK by ALTER anyway, so an existing database
+        # and a fresh one end up with the same (deliberately unenforced) shape.
+        conn.execute("ALTER TABLE brew_sessions ADD COLUMN journey_id INTEGER")
+        conn.commit()
     for field in FLAVOR_FIELDS:
         if field not in session_columns:
             conn.execute(f"ALTER TABLE brew_sessions ADD COLUMN {field} REAL")
@@ -130,6 +268,15 @@ def _migrate(conn: sqlite3.Connection) -> None:
     stage_columns = {row["name"] for row in conn.execute("PRAGMA table_info(brew_stages)")}
     if "water_g" not in stage_columns:
         conn.execute("ALTER TABLE brew_stages ADD COLUMN water_g REAL")
+        conn.commit()
+    if "label" not in stage_columns:
+        # What the pour is called -- "Bloom", "Second pour". The phone has had
+        # `SessionStageEntity.label` all along and this table only had
+        # `circling`, so a stage crossing a sync bundle arrived unnamed. It is
+        # a separate column and not a rename of `circling`: circling says how
+        # the pour was poured, the label says which pour it was, and folding
+        # one into the other would lose whichever was written second.
+        conn.execute("ALTER TABLE brew_stages ADD COLUMN label TEXT")
         conn.commit()
 
     _migrate_split_sour_fermented(conn)

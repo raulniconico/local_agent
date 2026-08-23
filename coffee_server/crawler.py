@@ -27,6 +27,30 @@ WHY IT IS OFF BY DEFAULT, AND WHY THAT IS NOT A TODO. Three separate gates in
 Turning `CRAWLER_ENABLED=1` with an empty allowlist still crawls nothing. That
 is the intended behaviour: the switch alone is not the permission.
 
+NEWS SOURCES ARE NOT ROASTERS, AND ARE NOT GATED LIKE THEM (2026-08-23).
+`/v1/news` reads `news_sources.json`, not `allowlist.json`. The three gates
+above are about **taking a French roaster's shop catalogue**, which is what
+`specs/legal.md` is titled and scoped for: rules 2-3 buy permission for an act
+whose permission is genuinely in doubt. A trade publication's RSS feed is the
+inverse -- it is published *in order to be read by machines*, and is the tier-2
+first-party structured endpoint 3.2 rule 7 tells you to prefer over scraping.
+Requiring an outreach email and a verbatim CGU quotation before reading it
+would be a category error, not diligence, and it is why `/v1/news` returned 503
+for months while the desktop app (`coffee_can/coffee_news.py`) polled the same
+eight feeds without difficulty.
+
+What did NOT get relaxed, because it is what actually protects the publisher:
+every press fetch still goes through [Fetcher], so robots.txt is honoured, the
+per-host delay applies, requests are conditional (an unchanged feed answers 304
+in ~200 bytes), and the User-Agent is truthful with a working contact address.
+`legal-accounts.md` rule 74 still caps display at headline, source, date and
+link -- no snippet, and specifically no AI-written summary, which the droit
+voisin exclusion for hyperlinks and very short extracts does not cover.
+
+And rule 23 is satisfied rather than bypassed: the point of moving these feeds
+off the desktop is that the fetch now happens **once, here, on a schedule**,
+instead of once per installed device.
+
 WHAT IS IMPLEMENTED. The fetch discipline (§3.3-§3.6) and tier 2, the
 first-party structured endpoints that cover six of the eight surveyed sites.
 Tiers 3 and 4 (sitemap-guided fetch, bounded category pagination) are refused
@@ -68,6 +92,11 @@ class Source:
     """
 
     domain: str
+    #: "roaster" (allowlist.json, the rules 2-3 paperwork) or "press"
+    #: (news_sources.json, a syndication feed). See NEWS SOURCES below.
+    kind: str = "roaster"
+    #: Shown to the user as the news item's source. Falls back to `domain`.
+    display_name: str = ""
     tier: int = 2
     endpoint: str = ""
     contact_email: str = ""
@@ -85,15 +114,49 @@ class Source:
 
     @property
     def is_crawlable(self) -> bool:
+        if not self.enabled:
+            return False
+        if self.kind == "press":
+            # A syndication feed carries its own permission: the publisher
+            # emits it to be read by machines. There is no outreach step to
+            # record because there is no question to ask. What still binds is
+            # enforced elsewhere and is not optional -- robots.txt, the
+            # per-host delay and the conditional GET all live in Fetcher, and
+            # rule 74 caps what may be displayed. See NEWS SOURCES below.
+            return bool(self.news_feed_url)
         # An explicit "no" and a CGU that prohibits scraping are excluded here,
         # in code, rather than by anyone remembering (legal.md rule 3). Silence
         # is not consent but is not refusal either -- it is the case the
         # outreach step exists to convert into one of the other two.
-        if not self.enabled or self.decision != "allow":
+        if self.decision != "allow":
             return False
         if self.response == "no" or self.cgu_permits_scraping is False:
             return False
         return bool(self.contacted_on and self.robots_sha256 and self.decided_on)
+
+
+def load_news_sources() -> list[Source]:
+    """The press feeds behind /v1/news, from a file separate from the allowlist.
+
+    Kept apart from [load_sources] deliberately: mixing them would mean either
+    applying the roaster paperwork to publications that never needed it, or
+    weakening `is_crawlable` for roasters to accommodate feeds. Two files, two
+    justifications, one `Source` type so [Fetcher] applies identically to both.
+    """
+    path = config.CRAWLER_NEWS_SOURCES_PATH
+    if not path.exists():
+        return []
+    try:
+        raw = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.error("news sources unreadable (%s); serving none", exc)
+        return []
+    out = []
+    for entry in raw.get("sources", []):
+        fields = {k: v for k, v in entry.items() if k in Source.__dataclass_fields__}
+        fields["kind"] = "press"
+        out.append(Source(**fields))
+    return out
 
 
 def load_sources() -> list[Source]:
@@ -239,6 +302,11 @@ class Fetcher:
             "From": config.CRAWLER_CONTACT_EMAIL,
             "Accept-Language": "fr-FR,fr;q=0.9",
             "Accept-Encoding": "gzip, br",
+            # Several WordPress feeds content-negotiate, and a request with no
+            # Accept gets the HTML page rather than the XML -- which then fails
+            # to parse and looks like a broken feed. The desktop client has
+            # always sent this; the server had not.
+            "Accept": "application/rss+xml, application/atom+xml, application/xml;q=0.9, */*;q=0.8",
         }
         etag, last_modified = self._validators.get(url, ("", ""))
         if etag:
@@ -436,9 +504,9 @@ def _refresh_news() -> _Cached:
     previously cached items for that source are carried forward rather than
     dropped. Without that, every hourly poll would blank the feed.
     """
-    sources = [s for s in load_sources() if s.is_crawlable and s.news_feed_url]
+    sources = [s for s in load_news_sources() if s.is_crawlable]
     if not sources:
-        raise CrawlerUnavailableError("no allowlisted news feed")
+        raise CrawlerUnavailableError("no news sources configured (news_sources.json is empty)")
 
     import httpx
 
@@ -458,18 +526,23 @@ def _refresh_news() -> _Cached:
                 # the others are still worth serving. Carry this source's
                 # last-known items rather than silently losing them.
                 logger.warning("news feed %s failed: %s", source.news_feed_url, exc)
-                items.extend(previous.get(source.domain, []))
+                items.extend(previous.get(source.display_name or source.domain, []))
                 continue
 
             if body is None:  # 304 Not Modified
-                items.extend(previous.get(source.domain, []))
+                items.extend(previous.get(source.display_name or source.domain, []))
                 continue
 
             try:
-                root = ET.fromstring(body)
+                # A UTF-8 BOM, or any whitespace, before the declaration makes
+                # expat fail with "XML or text declaration not at start of
+                # entity" -- freshcup.com serves exactly that. Stripping is
+                # correct rather than lenient: the bytes are a well-formed
+                # document with a byte-order mark in front of it.
+                root = ET.fromstring(body.lstrip("\ufeff \t\r\n"))
             except ET.ParseError as exc:
                 logger.warning("news feed %s is not parseable XML: %s", source.news_feed_url, exc)
-                items.extend(previous.get(source.domain, []))
+                items.extend(previous.get(source.display_name or source.domain, []))
                 continue
 
             # Headline, source, date, link. Nothing else is extracted, because
@@ -487,7 +560,7 @@ def _refresh_news() -> _Cached:
                 items.append(
                     {
                         "title": " ".join(title.split()),
-                        "source": source.domain,
+                        "source": source.display_name or source.domain,
                         "url": link,
                         "published_at": _published_at(entry),
                     }

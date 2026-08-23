@@ -129,10 +129,12 @@ POLAROID_TILTS = [
 
 # What was drunk at the sample café -- each one a session carrying its
 # journeyId (see SessionEntity.journeyId), which is what also puts it in
-# History with a green row.
+# History with a green row. (bean, meta line): the meta is what `session_card`
+# reads the dripper off, and a café cup usually has none, which is why the
+# first of these is a bare score.
 CUPS = [
     ("Ethiopia Guji Natural", "4.5"),
-    ("Kenya Nyeri AA", "3.5"),
+    ("Kenya Nyeri AA", "Origami Dripper · 15.0 g · 3.5"),
 ]
 
 JOURNEY = {
@@ -146,6 +148,10 @@ JOURNEY = {
 
 
 GUTTER = 16          # theme/Theme.kt's `Gutter`, in every screen's Column
+# `SectionHeadingSize` in ui/screens/AiDisclosureScreen.kt -- 20sp, a
+# per-component override of titleMedium rather than a role of its own, so it is
+# a number here too and not a key into TYPE.
+SECTION_HEADING = 20
 TOPBAR_H = 64
 STATUS_H = 28
 BAR_BOTTOM = STATUS_H + TOPBAR_H     # first free y under the app bar
@@ -324,25 +330,86 @@ def top_bar(c: Canvas, title, back=False, title_style="titleMedium",
 
 def section(c: Canvas, y, text, action=None, caption=None, secondary=None):
     """SectionHeader from ui/screens/AiDisclosureScreen.kt (shared).
-    padding top 12, bottom 8; titleSmall on the left, and on the right either a
-    TextButton (`action`) or a muted note (`caption`, Home's "Average across N
-    sessions"). Returns the y where the section's content starts.
+    padding top 12, bottom 8; the heading on the left at `SectionHeadingSize`
+    (20sp -- titleMedium's role with a per-component size override, 2026-08-22),
+    and on the right either a TextButton (`action`) or a muted note (`caption`,
+    Home's "Average across N sessions"). Returns the y where the section's
+    content starts.
 
     `secondary` is a second TextButton, drawn to the *left* of `action` --
     Brew details carries both from 2026-08-22 ("Ask AI", which acts on the
     fields, and "More details", which decides whether they are on screen).
     Measured off the primary's width so the two never overlap; the Kotlin lays
     them out in a Row and does not have to."""
-    c.text(GUTTER, y + 12 + 14, text, "titleSmall")
+    # The heading's own baseline sits lower than the actions beside it: the Row
+    # centres them on each other, and at 20sp against labelLarge's 14 the two
+    # baselines are no longer the same line.
+    c.text(GUTTER, y + 12 + 18, text, "titleMedium", size=SECTION_HEADING)
     if secondary:
         c.text(W - GUTTER - (len(action) * 7 + 16 if action else 0),
-               y + 12 + 14, secondary, "labelLarge", C["primary"], "end")
+               y + 12 + 16, secondary, "labelLarge", C["primary"], "end")
     if action:
-        c.text(W - GUTTER, y + 12 + 14, action, "labelLarge", C["primary"], "end")
+        c.text(W - GUTTER, y + 12 + 16, action, "labelLarge", C["primary"], "end")
     elif caption:
-        c.text(W - GUTTER, y + 12 + 14, caption, "labelSmall",
+        c.text(W - GUTTER, y + 12 + 16, caption, "labelSmall",
                C["onSurfaceVariant"], "end")
-    return y + 12 + 20 + 8
+    return y + 12 + 25 + 8
+
+
+def session_card(c: Canvas, y, title, meta, trailing=None, cafe=None, cup=None):
+    """ui/screens/SessionCard.kt -- ONE drawing, because there is now one
+    composable: `0.3` History and `0.2`'s Sessions block both call it
+    (2026-08-22, direct product request that the bean page use History's card).
+
+    A ShelfCardHeight card with the dripper's own glyph on a Brand disc, title
+    over meta, and -- only where the caller has one -- a date at the right.
+    `0.3` titles the row with the bean and trails the date; `0.2` is already
+    one bean's page, so the date IS the title and there is nothing to trail.
+    A cup is painted JourneyGround, the ground `+1` lies on.
+
+    Returns the y the next card starts at; the caller draws the inset divider
+    between two of them."""
+    h = 96                       # theme/Theme.kt's ShelfCardHeight
+    # The ground says *that* it was drunk out, the corner says *where* -- two
+    # different facts, and `0.2` draws the first without the second, so the
+    # flag is separable from the name. It defaults to it because in `0.3` a
+    # named café is exactly what a cup is.
+    cup = bool(cafe) if cup is None else cup
+    card(c, y, h, fill=C["surfaceContainerLow"] if cup else None)
+    dripper = meta.split(" · ")[0]
+    slug = "ic_dripper_" + dripper.lower().replace(" ", "_")
+    known = (APP / "app/src/main/res/drawable" / f"{slug}.xml").exists()
+    disc, cy = 64, y + h / 2
+    dx = GUTTER + 12 + disc / 2
+    # The disc is drawn here and the glyph over it at 0.65 of its size, which
+    # is DripperGlyph's own ratio -- `illustration(disc=True)` would draw a
+    # disc the same size as the glyph, i.e. a glyph with no margin.
+    c.circle(dx, cy, disc / 2, C["brand"])
+    if known:
+        illustration(c, slug, dx, cy, disc * 0.65, disc=False)
+    elif dripper and not dripper[0].isdigit():
+        # DripperGlyph's fallback for a dripper it has no icon for: the name's
+        # first two letters, uppercased.
+        c.text(dx, cy + 5, dripper[:2].upper(), "titleSmall", "#FFFFFF", "middle")
+    # ...and nothing at all when no dripper was recorded, which is the café cup:
+    # `take(2)` of an empty string is an empty string, not a placeholder.
+    tx = GUTTER + 12 + disc + 12
+    c.text(tx, cy - 4, title, "titleMedium", size=14)
+    c.text(tx, cy + 14, meta, "bodyMedium", C["onSurfaceVariant"], size=12)
+    if trailing:
+        c.text(W - GUTTER - 12 - 14, cy + 4, trailing, "bodyMedium",
+               C["onSurfaceVariant"], "end", size=12)
+    if cafe:
+        c.text(W - GUTTER - 12, y + h - 8, cafe, "labelSmall",
+               C["onSurfaceVariant"], "end")
+    c.path(f"M{W - GUTTER - 22} {cy - 5} l5 5 l-5 5", stroke=C["outline"], sw=1.6)
+    return y + h
+
+
+def session_divider(c: Canvas, y):
+    """The inset rule between two cards -- clears the dripper disc, the way
+    Home's clears the bean tile."""
+    c.line(GUTTER + 64 + 24, y, W - GUTTER, y, C["outlineVariant"], 1)
 
 
 def card(c: Canvas, y, h, x=GUTTER, w=None, fill=None, r=R_CARD):
@@ -904,11 +971,13 @@ def spinner(c: Canvas, cx, cy, r=9, sw=2):
 # sample carries both; the roaster is still here because the card falls back to
 # it and +1.1's picker still shows it.
 #
-# The last element is BeanWithDetails.cafeName, drawn bottom-right since
-# 2026-08-21: the café a bean came home from, which is derived from the
-# earliest cup of it and so is set on exactly the bean CUPS says was drunk at
-# JOURNEY. It is None on the other three, which is the common case and the
-# reason the corner has to look right empty as well as filled.
+# The last element is BeanWithDetails.cafeName -- derived from the earliest cup
+# of a bean, so it is set on exactly the bean CUPS says was drunk at JOURNEY.
+# Since 2026-08-22 it is what `00` Home *filters on*: a café's coffee is not a
+# bag on your shelf, so that bean is absent from `home()` and present in
+# `pick_bean()`, which still offers every bean. The label that used to draw it
+# bottom-right of a Home card went with the filter -- `0.3` History's row still
+# draws one, from SessionWithBeanName.cafeName.
 BEANS = [
     ("Ethiopia Guji Natural", "Terres de Café", "Ethiopia", 4, "Natural", "28 Jul",
      "Belleville Brûlerie"),
@@ -925,9 +994,8 @@ SESSION_FLAVOR = [4.5, 3.0, 2.5, 4.0, 1.5, 1.0, 1.5, 1.0, 0.5, 2.0, 3.5]
 # SessionWithBeanName.cafeName -- null on a brew made at home, which is six of
 # these seven. The one that is not is the cup CUPS lists: the Ethiopia drunk at
 # Belleville Brûlerie, scored 4.5, which is why that row's meta carries no
-# dripper. In the build that row is also painted `JourneyGround`; this frame
-# still draws flat rows with no card behind them, so the green is not
-# representable here and only the café's name is.
+# dripper -- and why `session_card()` paints that one on JourneyGround and
+# falls back to the two-letter disc for it, exactly as the build does.
 SESSIONS = [
     ("Ethiopia Guji Natural", "Hario V60 · 15.0 g · 4.5", "11 Aug", None),
     ("Colombia Huila Washed", "Kalita Wave · 18.0 g · 3.5", "09 Aug", None),
@@ -992,7 +1060,10 @@ def home():
     y = top_bar(c, "Coffee Can", action_text="History")
     y = section(c, y, "Your beans", action="Search")
 
-    for name, roaster, origin, brews, process, roast, cafe in BEANS[:3]:
+    # Home's own list: everything BEANS holds, less the beans that came from a
+    # café. `pick_bean()` below deliberately draws the unfiltered set.
+    shelf = [b for b in BEANS if b[6] is None]
+    for name, roaster, origin, brews, process, roast, cafe in shelf[:3]:
         card(c, y, 72)
         bag_tile(c, GUTTER + 12, y + 4, 64, origin[:2])
         tx = GUTTER + 12 + 64 + 14
@@ -1008,18 +1079,12 @@ def home():
                else C["surfaceContainer"], 4)
         c.text(tx + 8, y + 62, label, "labelSmall",
                C["onPrimaryContainer"] if brews else C["onSurfaceVariant"])
-        # BeanWithDetails.cafeName, bottom-right of the card and end-aligned:
-        # where the bag came from, on the one sample bean that came from
-        # anywhere. Same corner as the brew card's in `0.3`, on purpose.
-        if cafe:
-            c.text(W - GUTTER - 12, y + 64, cafe, "labelSmall",
-                   C["onSurfaceVariant"], "end")
         c.path(f"M{W - GUTTER - 24} {y + 31} l5 5 l-5 5", stroke=C["outline"], sw=1.6)
         y += 78
     y -= 6                      # the 6dp gap sits between cards, not after the last
 
     # A Text with 8dp of padding above and below its 20dp line box.
-    c.text(W - GUTTER, y + 23, f"See all {len(BEANS)} beans", "labelLarge",
+    c.text(W - GUTTER, y + 23, f"See all {len(shelf)} beans", "labelLarge",
            C["primary"], "end")
     y += 36
 
@@ -1168,11 +1233,13 @@ def bean_detail_lower():
     y += 300 + 24
 
     y = section(c, y, "Sessions", action="New brew")
-    for name, meta, day, _cafe in [s for s in SESSIONS if s[0] == BEAN["name"]][:3]:
-        c.text(GUTTER, y + 22, f"{day} 2026", "titleMedium")
-        c.text(GUTTER, y + 40, meta, "bodyMedium", C["onSurfaceVariant"])
-        divider(c, y + 52)
-        y += 52
+    mine = [s for s in SESSIONS if s[0] == BEAN["name"]][:3]
+    for i, (name, meta, day, _cafe) in enumerate(mine):
+        if i:
+            session_divider(c, y)
+        # `0.3`'s card with the two strings swapped -- the date names the row
+        # because this page is already one bean's. See session_card().
+        y = session_card(c, y, f"{day} 2026", meta, cup=bool(_cafe))
     y += 24
     button(c, y, "Save changes")
     gesture_bar(c)
@@ -1490,17 +1557,10 @@ def sessions():
     c.text(GUTTER, y + 20, f"Newest first · {len(SESSIONS)} sessions",
            "labelMedium", C["onSurfaceVariant"])
     y += 32
-    for name, meta, day, cafe in SESSIONS:
-        c.text(GUTTER, y + 26, name, "titleMedium")
-        c.text(GUTTER, y + 44, meta, "bodyMedium", C["onSurfaceVariant"])
-        c.text(W - GUTTER, y + 30, day, "bodyMedium", C["onSurfaceVariant"], "end")
-        # SessionWithBeanName.cafeName -- see the SESSIONS fixture for why the
-        # green ground the build also gives this row is not drawn here.
-        if cafe:
-            c.text(W - GUTTER, y + 48, cafe, "labelSmall",
-                   C["onSurfaceVariant"], "end")
-        divider(c, y + 60)
-        y += 60
+    for i, (name, meta, day, cafe) in enumerate(SESSIONS):
+        if i:
+            session_divider(c, y)
+        y = session_card(c, y, name, meta, trailing=day, cafe=cafe)
     fab(c)
     gesture_bar(c)
     return c
@@ -1575,21 +1635,37 @@ def sessions_background(c: Canvas):
         y += 60
 
 
-def bean_block(c: Canvas, y, name=""):
+def bean_block(c: Canvas, y, name="", photos=False):
     """`0.31`'s Bean details block (BeanDetailsSection), added 2026-08-21.
 
-    ONE FIELD, AND THE SWITCH ON THE HEADING. The eight other bean fields and
-    the images strip sit behind "More details" and are not drawn here, because
-    on every path this block was added for they start collapsed -- a vibe brew
-    and a cup both open on a bean row with nothing in it, and a brew of a
-    known bean keeps them shut too so that Brew details is not pushed off the
-    fold.
+    ONE FIELD, AND THE SWITCH ON THE HEADING. The eight other bean fields sit
+    behind "More details" and are not drawn here, because on every path this
+    block was added for they start collapsed -- a vibe brew and a cup both open
+    on a bean row with nothing in it, and a brew of a known bean keeps them
+    shut too so that Brew details is not pushed off the fold.
 
     Since 2026-08-21 that control is `section()`'s own trailing action rather
     than a text button under the field, and it is a toggle: open, it reads
-    "Less details". Collapsed is the state every frame here draws."""
+    "Less details". Collapsed is the state every frame here draws.
+
+    `photos=True` is `+1.2`'s case and only its case (2026-08-23,
+    BeanDetailsSection's `photosOutsideFold`): a cup's images strip is drawn
+    ABOVE the fold, since a cup is the one path where the photograph is the
+    point and there is never one yet -- the "+" tile is the only door to it,
+    and folding it away hid the door. Every other frame arrives on a bean whose
+    pictures the hero at the top of the page is already showing."""
     y = section(c, y, "Bean details", action="More details")
     y = field(c, y, "Bean name", name)
+    if photos:
+        y = section(c, y + 6, "Images")
+        # ImagesStrip's add tile: 88dp, R_THUMB, secondaryContainer, a plus
+        # over the label. No thumbnails beside it -- a new cup has none.
+        c.rect(GUTTER, y, 88, 88, C["secondaryContainer"], R_THUMB)
+        cx, cy = GUTTER + 44, y + 36
+        c.path(f"M{cx - 8} {cy} h16 M{cx} {cy - 8} v16",
+               stroke=C["onSecondaryContainer"], sw=2)
+        c.text(cx, y + 66, "Add img", "labelSmall", C["onSecondaryContainer"], "middle")
+        y += 88
     return y + 8
 
 
@@ -1974,11 +2050,57 @@ def journey_profile():
     # NO NOTES SECTION since 2026-08-20; the Cups block carries the "what was
     # it actually like" half of a visit now.
     y = section(c, y, "Cups", action="Add a cup")
-    for name, score in CUPS:
-        c.text(GUTTER, y + 14, name, "titleMedium")
-        c.text(W - GUTTER, y + 14, score, "labelLarge", C["onSurfaceVariant"], "end")
-        divider(c, y + 26)
-        y += 38
+    # `0.3`'s card since 2026-08-22 -- see session_card(). The bean names the
+    # row (this page already supplies the café), nothing trails, and `cup=False`
+    # is not a claim that these are home brews: this whole page is painted
+    # JourneyGround, so a cup tinted the same green would be a card with no
+    # boundary on a ground of its own colour.
+    for i, (name, meta) in enumerate(CUPS):
+        if i:
+            session_divider(c, y)
+        y = session_card(c, y, name, meta, cup=False)
+    y += 8
+    button(c, y, "Save changes", x=GUTTER, w=W - 2 * GUTTER - 128)
+    dx, dw = W - GUTTER - 116, 116
+    c.rect(dx, y, dw, 40, "none", 20, stroke=C["error"])
+    c.text(dx + dw / 2, y + 25, "Delete", "labelLarge", C["error"], "middle")
+    gesture_bar(c)
+    return c
+
+
+def journey_profile_lower():
+    """+1.1b -- the same page from the Café section down, so the Cups block is
+    on screen.
+
+    A second frame for the same screen, exactly as `0.2b` is: `+1.1` grew past
+    one canvas on 2026-08-22, when its cups became `session_card()`s at
+    ShelfCardHeight instead of 38px rows, and a frame that stops just above the
+    block it exists to document is worse than no frame. The page above this cut
+    is `+1.1_journey_profile.png`."""
+    c = Canvas("+1.1b Journey profile, lower")
+    c.rect(0, 0, W, H, C["surfaceContainerLow"])
+    status_bar(c)
+    y = top_bar(c, JOURNEY["name"], back=True)
+    y = section(c, y, "Caf\u00e9")
+    y = field(c, y, "Caf\u00e9 name", JOURNEY["name"]) + 14
+    y = capsule_pair(c, y, ("Address", JOURNEY["address"]),
+                     ("City", JOURNEY["city"])) + 4
+    y = section(c, y, "The visit")
+    y = capsule_pair(c, y, ("Visited on", JOURNEY["day"]),
+                     ("Barista", JOURNEY["barista"])) + 16
+    card(c, y, 56)
+    c.circle(GUTTER + 26, y + 28, 5, C["primary"])
+    c.path(f"M{GUTTER + 26} {y + 33} l0 8", stroke=C["primary"], sw=2)
+    c.text(GUTTER + 44, y + 24, "Open in Maps", "titleMedium")
+    c.text(GUTTER + 44, y + 42, f"Search for {JOURNEY['address']}, {JOURNEY['city']}",
+           "bodyMedium", C["onSurfaceVariant"])
+    c.path(f"M{W - GUTTER - 22} {y + 22} l6 6 l-6 6", stroke=C["onSurfaceVariant"], sw=1.8)
+    y += 56 + 4
+    y = section(c, y, "Cups", action="Add a cup")
+    for i, (name, meta) in enumerate(CUPS):
+        if i:
+            session_divider(c, y)
+        y = session_card(c, y, name, meta, cup=False)
     y += 8
     button(c, y, "Save changes", x=GUTTER, w=W - 2 * GUTTER - 128)
     dx, dw = W - GUTTER - 116, 116
@@ -2107,13 +2229,23 @@ def profile_empty():
 def profile():
     """+2 signed in.
 
-    No avatar, no Name, no Email -- rule 60 removed every reason they
-    existed, and the code has no field for any of them. That is the widest
-    divergence from the deck's +2, and it is the spec winning."""
+    Avatar and display name, restored on the product owner's instruction
+    (2026-08-23) over rule 60's removal of them -- see legal-accounts.md
+    rule 60 for the recorded override. Still no email row: the override
+    covers what the profile *shows*, not what the server stores, and
+    accounts.py has no column an address could go into.
+
+    The avatar is Google's own profile photo, fetched from Google's CDN --
+    the app's only request to a host other than the gateway. Drawn here as a
+    filled disc because the deck has no network either."""
     c = Canvas("+2 Profile, signed in")
     status_bar(c)
     y = top_bar(c, "Profile", back=True, action_text="Log out")
-    y += 12
+    y += 24
+    c.circle(W / 2, y + 44, 44, fill=C["outlineVariant"])
+    y += 88 + 16
+    c.text(W / 2, y + 24, "Zixing", "headlineMedium", anchor="middle")
+    y += 28 + 28
     y = section(c, y, "Account & legal")
     card(c, y, 3 * 58)
     rows = [("Privacy Policy", None, False),
@@ -2173,16 +2305,16 @@ def privacy():
 
     c.text(GUTTER + 12, y + 14, "Already uninstalled? You can also delete it at",
            "labelSmall", C["onSurfaceVariant"])
-    c.text(GUTTER + 12, y + 30, "coffeecan.app/delete", "labelSmall", C["primary"])
+    c.text(GUTTER + 12, y + 30, "coffee-can.org/delete", "labelSmall", C["primary"])
     y += 46
 
     y = section(c, y, "The full policy")
     card(c, y, 68)
-    c.text(GUTTER + 16, y + 30, "coffeecan.app/privacy", "bodyLarge", C["primary"])
+    c.text(GUTTER + 16, y + 30, "coffee-can.org/privacy", "bodyLarge", C["primary"])
     c.text(GUTTER + 16, y + 50, "Always the current version. Tap to open, hold to copy.",
            "labelSmall", C["onSurfaceVariant"])
     y += 68 + 24
-    c.text(GUTTER, y + 12, "Questions: hello@coffeecan.app", "labelSmall",
+    c.text(GUTTER, y + 12, "Questions: hello@coffee-can.org", "labelSmall",
            C["onSurfaceVariant"])
     c.text(GUTTER, y + 28, "You can also complain to the CNIL (cnil.fr).",
            "labelSmall", C["onSurfaceVariant"])
@@ -2391,13 +2523,14 @@ def cup_profile():
     of its own that day for vibe brewing, so the cup page became that screen
     with a `journeyId` behind it and the second composable was deleted. What
     the café changes is drawn here and is the whole list: the "New cup" title
-    fallback, "Save this cup" on the button, and no "Ask AI" beside Brew
-    details. A cup still saves as one bean plus one session carrying the
+    fallback, "Save this cup" on the button, no "Ask AI" beside Brew details,
+    and -- since 2026-08-23 -- the images strip drawn above the fold rather
+    than inside it. A cup still saves as one bean plus one session carrying the
     café's `journeyId`."""
     c = Canvas("+1.2 Cup profile")
     status_bar(c)
     y = top_bar(c, "New cup", back=True)
-    y = bean_block(c, y)
+    y = bean_block(c, y, photos=True)
     # FOLDED, AND THAT IS THE CUP'S OWN DEFAULT (2026-08-22). You did not
     # grind this coffee and you did not pour it, so eight empty capsules and an
     # empty stage list would sit between the bean's name and the thing the page
@@ -2460,6 +2593,7 @@ PAGES = [
     ("+1_can_travel.png", can_travel),
     ("+1_can_travel_empty.png", can_travel_empty),
     ("+1.1_journey_profile.png", journey_profile),
+    ("+1.1b_journey_profile_lower.png", journey_profile_lower),
     ("+2_profile.png", profile),
     ("+2_profile_empty.png", profile_empty),
     ("+2.2a_privacy.png", privacy),

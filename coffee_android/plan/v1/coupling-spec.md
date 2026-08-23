@@ -123,7 +123,7 @@ Keyed by what you edited. "Verify" columns are commands in §6.
 | --- | --- | --- |
 | A colour / type / shape value in `ui/theme/Theme.kt` | Nothing — **`../variants.py` `PURE_GREEN` is the source of truth**, not Theme.kt. Change the deck first, or record the divergence in `check_design.py`'s `ACCEPTED_DEVIATIONS` *with a rationale written into `Theme.kt`* | `V1`, then `V2` |
 | A token in `../variants.py` | `Theme.kt`, and re-render the deck (`python3 ../scheme_e.py`) | `V1`, `V2` |
-| Anything visual at all | 77 Paparazzi goldens re-record | `V2` |
+| Anything visual at all | 78 Paparazzi goldens re-record | `V2` |
 
 `ACCEPTED_DEVIATIONS` is **not** a suppression list: an entry without a
 decision recorded in `Theme.kt` is drift wearing a disguise. It still prints
@@ -157,8 +157,8 @@ and invisible to two thirds of the users.
 
 | You changed | Also move | Verify |
 | --- | --- | --- |
-| `data/Entities.kt` — added/renamed a column | Room `version` (currently **9**) + a new `Migration`; `data/Daos.kt`; **`data/SyncBundle.kt`** export *and* import; `../../../coffee_agent/sync_tools.py` `_BEAN_FIELDS`/`_SESSION_FIELDS`; `coffee/src/coffee_can/db.py` schema; `design-spec.md` §9 | `V4`, `V5` |
-| …but a column on **`journeys`** | only the first three. `journeys` has no desktop counterpart and is **not** in the sync bundle, so the two Python legs of that row do not apply — `address`/`barista` (v6) touched Room, the entity and the screen and nothing else | `V4` |
+| `data/Entities.kt` — added/renamed a column | Room `version` (currently **9**) + a new `Migration`; `data/Daos.kt`; **`data/SyncBundle.kt`** export *and* import; `../../../coffee_agent/sync_tools.py` `_BEAN_FIELDS`/`_SESSION_FIELDS`/`_STAGE_FIELDS`/`_JOURNEY_FIELDS`; `coffee/src/coffee_can/db.py` schema **and `_migrate`**; `coffee/src/coffee_can/repo.py`'s matching `*_FIELDS` allowlist; `design-spec.md` §9 | `V4`, `V4b`, `V5` |
+| …but a column on **`journeys`** | **all of it, since 2026-08-23.** This row used to say "only the first three" because `journeys` had no desktop counterpart; it has one now (`coffee_can.db`'s `journeys`/`journey_images`, storage-only — the desktop still has no café screen and gains none), and the bundle carries cafés. Treat a journey column exactly like a session column | `V4`, `V4b`, `V5` |
 | The bundle format | `SyncBundle.VERSION` **and** `sync_tools.BUNDLE_VERSION` — they must stay equal | `V5` |
 | A DAO query | Whether `CoffeeRepository` should expose it at all; whether `TestFakes.kt` needs the new method | `V2` |
 | An `AxisPage`, or which screen sits in a `+n` slot | **The number of every screen under it.** A deck number states *how a screen is reached*, so a screen that leaves the axis has to be renumbered into `0.x` and everything beneath it with it — routes in `ui/Nav.kt`, the frame names and `Canvas` titles in `screenshots.py`, `design-spec.md` §7.1's table and §8's headings, and any docstring quoting the old number (`grep -rn '+1\.' --include=*.kt`). A screen that becomes a push also gains a back arrow and **loses `AxisPageInsets`**, which nothing will fail on — Paparazzi renders every inset as zero | `V1`, `V1b`, `V2` |
@@ -184,6 +184,29 @@ phone → desktop → phone round trip does not quietly lose what the phone put
 there; `_write_bean` swallows unknown fields, so omitting any one of those four
 would have failed silently rather than loudly.
 
+**That silence is what let five fields drift, and the repair is the reason
+bundle v4 exists (2026-08-23).** `sessions.waterG`, `waterTempC`,
+`waterAlkalinity` and `totalTimeSec` had no `brew_sessions` column, and
+`session_stages.label` had no `brew_stages` column, so a bundle carried none of
+them — for months, in the first two cases. `sessions.humidity` was the mirror
+failure and the more instructive one: the column existed on **both** sides the
+whole time, and the field simply was never added to `sync_tools._SESSION_FIELDS`,
+which is an allowlist and not a reflection of the table. Nothing failed. The
+data just did not arrive.
+
+The repair moved all five of the desktop's missing columns
+(`db.py` `SCHEMA` + `_migrate`, `repo.SESSION_FIELDS`, `repo.add_stage`/
+`update_stage`), both halves of `SyncBundle`, `sync_tools._SESSION_FIELDS` and
+the new `sync_tools._STAGE_FIELDS`, and the version on both sides — **no Room
+column changed, so `CoffeeDatabase` stayed at version 9 and no migration was
+owed**. That is the shape of a bundle-only change, and it is worth recognising:
+a row in §2.3 keyed on `Entities.kt` does not fire, and the one keyed on "the
+bundle format" does.
+
+The lesson for the table above: when you add a column, the failure you are
+guarding against is not a crash. It is a field that quietly stops travelling,
+which surfaces months later as "my phone did not get my brews".
+
 Two bundle invariants that fail silently rather than loudly:
 
 - **Omit nulls; never write them.** An absent key means "no opinion". Writing
@@ -198,6 +221,7 @@ Two bundle invariants that fail silently rather than loudly:
 | You changed | Also move | Verify |
 | --- | --- | --- |
 | `net/ServerApi.kt` | `coffee_server`'s route; `design-spec.md` §10.2–10.3; `../api.md` reasoning | `V6` |
+| `app/build.gradle.kts`'s `buildConfigField` URLs and emails | **`../v1/check_design.py`'s `COMPOSED` set** — the app assembles `"Questions: " + BuildConfig.SUPPORT_EMAIL` at runtime, so the deck's literal is pinned there rather than in `strings.xml`. Change the email without changing that entry and the drift check fails. Also `screenshots.py` and `scheme_e.py`, which draw the same strings | `check_design.py` |
 | Added an endpoint | Justify it against `specs/legal-android.md` §4 rule 23 — **this app talks to that gateway and no other host, and that is a compliance rule, not a convenience** | `V6` |
 | A call site that needs the network | Route it through `AiGateway` or `CatalogueGateway`. Never through `ApiClient`/`ServerApi` | `V6` |
 
@@ -240,6 +264,9 @@ identifier is shared across the boundary**. Grep the *concept*.
 | Dropdown vocabulary | `Choices.kt` ← ported verbatim from `coffee/src/coffee_can/assets/*.json` | suggestions, **not** an enum — free text stays valid |
 | Wire shapes | endpoint path string (`v1/suggest`) | `ServerApi.kt`, `coffee_server/schemas.py` |
 | Design tokens | the hex value | `Theme.kt`, `../variants.py` |
+| **News item shape** | the JSON key (`title`, `source`, `url`, `published_at`) | `NewsScreen`/`NewsFeed` in the app, `coffee_server/crawler.py`'s `_refresh_news`. Four fields, and four only: `legal-accounts.md` rule 74 caps display at headline/source/date/link, so **adding a field here is a legal change, not a schema change** |
+| **What may be fetched at all** | the filename | `coffee_server/news_sources.json` (press RSS, live) vs `allowlist.json` (roasters, empty). Two files with two different justifications — see `specs/legal.md`'s scope note. Do not merge them, and do not move an entry between them |
+| **The gateway's hostname** | `SERVER_BASE_URL` | `v1/local.properties` → `BuildConfig` → `net/AiGateway.kt`; must be **HTTPS**, because `network_security_config.xml` forbids cleartext with no exceptions. Changing the deployed host means `coffee_server/deploy/.env`'s `API_HOST`, the DNS A record, and a Caddy redeploy — the certificate is bound to the name |
 
 **The asymmetry in sync conflict resolution is deliberate.** `coffee_agent`
 adjudicates per bean because an agent is driving and can ask the user;
@@ -313,13 +340,39 @@ python3 check_design.py            # must exit 0
 # V1b — redraw the simulator frames after any copy or visual change
 python3 screenshots.py             # -> screenshots/*.png
 
+# V4b — schema parity: every Room column has a desktop column AND is on a
+# sync allowlist.  Run it on any Entities.kt or db.py change; it is the only
+# check that catches a field which silently stops travelling.
+python3 check_schema_parity.py     # must exit 0
+
 # ============ from coffee_android/v1/  (the module) ============
 
-# V2 — Paparazzi goldens (77 images, 99 @Test).  SEE THE TWO WARNINGS BELOW.
+# V2 — Paparazzi goldens (78 images, 106 @Test).  SEE THE TWO WARNINGS BELOW.
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64   # NOT the default JDK -- see below
-./gradlew :app:verifyPaparazziDebug                 # verify against the 77 goldens
+./gradlew :app:verifyPaparazziDebug                 # verify against the 78 goldens
 ./gradlew :app:recordPaparazziDebug                 # re-record, then READ the diff
 ./gradlew :app:testDebugUnitTest                    # goldens + geometry + ingest tests
+
+# V2a — the ONE gesture harness. Paparazzi renders a static frame and adb
+# cannot press-hold-then-move (`input motionevent` is per-process; `sendevent`
+# needs root), so ImagesStrip's long-press drag is only checkable here.
+#
+#   *** THIS COMMAND DESTROYS THE APP'S DATA ON THE DEVICE IT RUNS ON. ***
+#
+# AGP uninstalls both APKs when a connected test run finishes, and uninstalling
+# takes /data/data/app.coffeecan with it -- the Room database and every photo
+# the app had copied in. Auto Backup is off for this app by design
+# (res/xml/data_extraction_rules.xml, legal-accounts rule 62), so Android holds
+# no copy to restore from. This happened for real on 2026-08-23, on the
+# maintainer's own phone, with months of beans and brews on it.
+#
+# RUN IT ON AN EMULATOR OR A THROWAWAY DEVICE. If it must be a real one, take a
+# copy first -- the debug build is debuggable, so this works without root:
+#   adb shell run-as app.coffeecan tar -c -f - databases files > backup.tar
+./gradlew :app:connectedDebugAndroidTest          # emulator/test device ONLY
+
+# V2b — the dripper icons are generated; the XML must not be hand-edited
+cd ../plan/dripper_icons && python3 convert_drippers.py --check   # 0 = in step
 
 # V3 — locale parity: must print exactly app_name and app_title_home, nothing else
 cd app/src/main/res && for L in fr zh; do echo "== $L =="; comm -23 \

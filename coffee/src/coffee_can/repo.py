@@ -11,7 +11,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from .paths import MAX_IMAGES_PER_BEAN, images_dir
+from .paths import MAX_IMAGES_PER_BEAN, images_dir, journey_images_dir
 
 FLAVOR_AXES = (
     ("flavor_fruity", "Fruity"),
@@ -84,8 +84,26 @@ SESSION_FIELDS = (
     "grinder",
     "grind_size",
     "water_ppm",
+    # Carbonate hardness (ppm as CaCO3), beside water_ppm's total dissolved
+    # solids rather than instead of it.
+    "water_alkalinity",
     "humidity",
     "dose_g",
+    # Brew-level water and temperature, and how long the whole thing took.
+    # Carried, not interpreted, exactly like flavor_notes below: no desktop
+    # screen renders these three, and the columns exist so a
+    # phone -> desktop -> phone round trip does not lose what the phone put
+    # there. Note water_temp_c is the *brew's* temperature; a single pour's
+    # lives on brew_stages.temperature_c and is unaffected.
+    "water_g",
+    "water_temp_c",
+    "total_time_sec",
+    # The cafe this was drunk at, or NULL for a brew made at home. Storage
+    # only: nothing in the CLI or the GUI sets it, and nothing displays it.
+    # It is here so a "cup" logged on the phone survives a round trip through
+    # this database still attached to its cafe -- see db.py's schema comment
+    # on the journeys table.
+    "journey_id",
     "score",
     "extraction",
     "concentration",
@@ -294,17 +312,23 @@ def add_stage(
     water_g: Optional[float],
     time_seconds: Optional[int],
     circling: Optional[str],
+    label: Optional[str] = None,
 ) -> int:
+    """`label` is trailing and defaults to None so the four existing positional
+    callers (the CLI, both GUI dialogs, the agent) keep working untouched. It
+    names the pour -- "Bloom", "Second pour" -- and is not a synonym for
+    `circling`, which says how the pour was circled; only sync writes it today.
+    """
     next_number = conn.execute(
         "SELECT COALESCE(MAX(stage_number), 0) + 1 AS n FROM brew_stages WHERE session_id = ?",
         (session_id,),
     ).fetchone()["n"]
     conn.execute(
         """
-        INSERT INTO brew_stages (session_id, stage_number, temperature_c, water_g, time_seconds, circling)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO brew_stages (session_id, stage_number, temperature_c, water_g, time_seconds, circling, label)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (session_id, next_number, temperature_c, water_g, time_seconds, circling),
+        (session_id, next_number, temperature_c, water_g, time_seconds, circling, label),
     )
     _touch(conn, "brew_sessions", session_id)
     conn.commit()
@@ -328,13 +352,20 @@ def update_stage(
     water_g: Optional[float],
     time_seconds: Optional[int],
     circling: Optional[str],
+    label: Optional[str] = None,
 ) -> None:
+    """`label` defaults to None for the same positional-caller reason as
+    :func:`add_stage` -- but note the consequence: an existing caller that
+    omits it *clears* the label, because this is a full-row update rather than
+    a patch. Only the GUI stage editor calls this, and it has no label field to
+    lose; give it one and it must pass the value through here too.
+    """
     row = conn.execute("SELECT session_id FROM brew_stages WHERE id = ?", (stage_id,)).fetchone()
     if row is None:
         return
     conn.execute(
-        "UPDATE brew_stages SET temperature_c = ?, water_g = ?, time_seconds = ?, circling = ? WHERE id = ?",
-        (temperature_c, water_g, time_seconds, circling, stage_id),
+        "UPDATE brew_stages SET temperature_c = ?, water_g = ?, time_seconds = ?, circling = ?, label = ? WHERE id = ?",
+        (temperature_c, water_g, time_seconds, circling, label, stage_id),
     )
     _touch(conn, "brew_sessions", row["session_id"])
     conn.commit()
@@ -376,3 +407,115 @@ def get_bean_average_flavor_scores(conn: sqlite3.Connection, bean_id: int):
     if row["n"] == 0:
         return 0, None
     return row["n"], [row[field] or 0 for field in FLAVOR_FIELDS]
+
+
+# --- journeys ---------------------------------------------------------------
+#
+# STORAGE WITHOUT A UI, ON PURPOSE. A journey is a cafe you went to, and this
+# app has no screen for one -- `coffee_android` does. These functions exist so
+# `coffee_agent/sync_tools.py` has somewhere to put a journey that arrives in a
+# bundle, and somewhere to read one back from when a bundle goes the other way.
+# Nothing in `cli.py` or `gui/` calls them, which is the intended state: the
+# desktop's *schema* matches the phone's, its *interface* does not.
+#
+# Journeys match across devices BY NAME, the same limitation and the same
+# reasoning as beans: the two id sequences are independent and mean nothing to
+# each other. Two visits to one cafe are one journey on both sides, so the name
+# is the identity; rename it on one device and it arrives as a second cafe.
+
+JOURNEY_FIELDS = (
+    "name",
+    "location",
+    "address",
+    "barista",
+    # Retired on the phone (2026-08-20) and retained there because migrations
+    # are additive only. Kept here for the same reason: a device that still
+    # holds coordinates needs somewhere to put them.
+    "latitude",
+    "longitude",
+    # Epoch milliseconds, not a date string -- see db.py's schema comment.
+    "visited_at",
+    "note",
+)
+
+
+def create_journey(conn: sqlite3.Connection, name: str, visited_at: int) -> int:
+    """`visited_at` is required because a visit you cannot date is not a visit
+    you took -- JourneyEntity makes it non-null for the same reason, unlike
+    `beans.roast_date`, where "not set" is a real and common state."""
+    cur = conn.execute(
+        "INSERT INTO journeys (name, visited_at) VALUES (?, ?)", (name, visited_at)
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
+def update_journey_field(conn: sqlite3.Connection, journey_id: int, field: str, value) -> None:
+    _update_field(conn, "journeys", JOURNEY_FIELDS, journey_id, field, value)
+
+
+def list_journeys(conn: sqlite3.Connection):
+    return conn.execute(
+        "SELECT * FROM journeys ORDER BY visited_at DESC, id DESC"
+    ).fetchall()
+
+
+def get_journey(conn: sqlite3.Connection, journey_id: int) -> Optional[sqlite3.Row]:
+    return conn.execute("SELECT * FROM journeys WHERE id = ?", (journey_id,)).fetchone()
+
+
+def delete_journey(conn: sqlite3.Connection, journey_id: int) -> None:
+    """Deleting a cafe orphans its cups back into ordinary brews rather than
+    destroying them: `brew_sessions.journey_id` carries no foreign key, so no
+    cascade reaches them. The journey's own photographs *do* cascade, and their
+    files are unlinked first for the same reason delete_bean_image exists --
+    ON DELETE CASCADE knows nothing about the filesystem.
+    """
+    for row in list_journey_images(conn, journey_id):
+        delete_journey_image(conn, row["id"])
+    conn.execute("DELETE FROM journeys WHERE id = ?", (journey_id,))
+    conn.commit()
+
+
+def add_journey_image(conn: sqlite3.Connection, journey_id: int, source_path: Path) -> int:
+    """Copies the file in, exactly as add_bean_image does -- a path handed to
+    this function is a borrowed handle (an extracted zip member, a picker
+    result), not a durable one."""
+    position = conn.execute(
+        "SELECT COALESCE(MAX(position), 0) + 1 AS n FROM journey_images WHERE journey_id = ?",
+        (journey_id,),
+    ).fetchone()["n"]
+    dest = journey_images_dir(journey_id) / f"{uuid.uuid4().hex}{source_path.suffix.lower()}"
+    shutil.copy2(source_path, dest)
+    conn.execute(
+        "INSERT INTO journey_images (journey_id, position, file_path) VALUES (?, ?, ?)",
+        (journey_id, position, str(dest)),
+    )
+    _touch(conn, "journeys", journey_id)
+    conn.commit()
+    return position
+
+
+def list_journey_images(conn: sqlite3.Connection, journey_id: int):
+    return conn.execute(
+        "SELECT * FROM journey_images WHERE journey_id = ? ORDER BY position", (journey_id,)
+    ).fetchall()
+
+
+def delete_journey_image(conn: sqlite3.Connection, image_id: int) -> None:
+    row = conn.execute("SELECT * FROM journey_images WHERE id = ?", (image_id,)).fetchone()
+    if row is None:
+        return
+    conn.execute("DELETE FROM journey_images WHERE id = ?", (image_id,))
+    _touch(conn, "journeys", row["journey_id"])
+    conn.commit()
+    Path(row["file_path"]).unlink(missing_ok=True)
+
+
+def list_sessions_for_journey(conn: sqlite3.Connection, journey_id: int):
+    """The cups drunk at one cafe. Reads *from* the journey, which is what makes
+    an unenforced `journey_id` safe: a dangling id is simply never looked up."""
+    return conn.execute(
+        "SELECT * FROM brew_sessions WHERE journey_id = ? ORDER BY brew_date DESC, id DESC",
+        (journey_id,),
+    ).fetchall()

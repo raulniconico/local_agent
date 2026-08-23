@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
 <g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
-<ellipse cx="50" cy="38" rx="24" ry="6" stroke-width="5.5"/><path d="M26 38 L34 80" stroke-width="5.5"/><path d="M74 38 L66 80" stroke-width="5.5"/><path d="M34 80 A16 3 0 0 0 66 80" stroke-width="5.5"/><ellipse cx="50" cy="18" rx="17" ry="4.2" stroke-width="5.5"/><circle cx="42" cy="18" r="1.1" stroke-width="1.6"/><circle cx="50" cy="16.6" r="1.1" stroke-width="1.6"/><circle cx="58" cy="18" r="1.1" stroke-width="1.6"/><circle cx="46" cy="19.6" r="1.1" stroke-width="1.6"/><circle cx="54" cy="19.6" r="1.1" stroke-width="1.6"/><path d="M50 22 L50 32" stroke-width="2.6"/>
+<ellipse cx="50" cy="28.8" rx="33.8" ry="6.8" stroke-width="5.5"/><path d="M16.2 28.8 L32.5 75.2" stroke-width="5.5"/><path d="M83.8 28.8 L67.5 75.2" stroke-width="5.5"/><path d="M32.5 75.2 A17.6 2.8 0 0 0 67.5 75.2" stroke-width="5.5"/><ellipse cx="50" cy="13.8" rx="22.3" ry="4.5" stroke-width="5.5"/><circle cx="42" cy="13.8" r="1.2" stroke-width="1.5"/><circle cx="50" cy="12.4" r="1.2" stroke-width="1.5"/><circle cx="58" cy="13.8" r="1.2" stroke-width="1.5"/><circle cx="46" cy="15.4" r="1.2" stroke-width="1.5"/><circle cx="54" cy="15.4" r="1.2" stroke-width="1.5"/><path d="M50 18.8 L50 25.8" stroke-width="2.6"/>
 </g>
 </svg>

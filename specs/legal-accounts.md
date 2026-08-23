@@ -1011,9 +1011,30 @@ platforms.
 
 #### Scope minimisation and the account record
 
-60. **[BLOCKER · Both]** **Request `openid` only from Google. Do not request
-    `email`, and do not request `profile`.** The account exists to meter and to
+60. **[BLOCKER · Both — partially overridden 2026-08-23]** **Request `openid`
+    only from Google. Do not request `email`, and do not request `profile`.** The account exists to meter and to
     cut off abuse; the opaque provider-scoped `sub` is sufficient for both.
+
+    **[Override, 2026-08-23 — product owner's instruction.]** The profile
+    screen now shows the Google account's **display name and avatar**, which
+    this rule had removed. Recorded here rather than changed silently, per the
+    precedent rule 103 set. Three things to be exact about:
+
+    - **The scope set is unchanged.** `email` and `profile` are still not
+      requested. `displayName` and `profilePictureUri` come off
+      `GoogleIdTokenCredential`, which Credential Manager populates without
+      them. So the letter of the first sentence still holds; what changed is
+      the *use* the app makes of what it already receives.
+    - **The server is untouched.** `accounts.py` still stores `sub` and
+      counters, and still has no column a name or an address could go into.
+      This is a client-side display change, not a data-model change.
+    - **It costs two disclosures.** The device now persists a name and an
+      avatar URL (`AccountStore`), which belongs on Play's Data safety form
+      under personal info; and rendering the avatar makes the app's **first
+      and only request to a host other than `coffee_server`**
+      (`lh3.googleusercontent.com`, via Coil). Any claim that the app talks
+      solely to its own gateway is now false and must be corrected wherever
+      it is made.
     Losing sync removed every remaining reason `email` existed — no recovery,
     no verification, no account mail, no relay deliverability problem. Both
     specialists reached this independently and it is the cleanest win in the

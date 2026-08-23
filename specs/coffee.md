@@ -20,6 +20,8 @@ The data model has three levels:
 2. **Brewing session** — one per cup, logged against a bean: date, dripper, filter paper, grinder, grind size, water ppm, humidity, dose, a 0–5 score, an extraction assessment, a concentration assessment, a tasting note, and eleven 0–5 flavor ratings.
 3. **Brewing stage** — one per pour within a session: temperature, water weight, duration, and agitation/circling.
 
+A fourth level exists in the *schema* only — **journeys** (cafés) — and belongs to `coffee_android`, not to this app. See §3.1: those tables, and a handful of columns on `brew_sessions`/`brew_stages`, are storage with no UI behind them, kept so the two databases match and a sync round trip loses nothing.
+
 Two design decisions shape everything else:
 
 - **One database, two front ends.** The GUI (`coffeecan-gui`) and the CLI (`coffeecan`) are equal peers over the same `~/.local/share/coffee-can/coffee.db`. Neither owns the data. A profile created in the CLI appears in the GUI immediately.
@@ -143,11 +145,23 @@ Created by `db.SCHEMA`, migrated by `db._migrate()`. `{flavor}` expands to the e
 
 **`bean_images`** — `id`, `bean_id` (FK → `beans`, ON DELETE CASCADE), `position` INTEGER, `file_path` TEXT, `rotation` INTEGER default 0.
 
-**`brew_sessions`** — `id`, `bean_id` (FK, CASCADE), `brew_date`, `dripper`, `filter_paper`, `grinder`, `grind_size`, `water_ppm`, `humidity` TEXT; `dose_g` REAL; `score` REAL (NULL = unscored); `extraction` REAL (−1…+1, NULL = not assessed); `concentration` REAL (−1…+1, NULL = not assessed); `note` TEXT; `status`; `created_at`/`updated_at`; `{flavor}`.
+**`brew_sessions`** — `id`, `bean_id` (FK, CASCADE), `journey_id` INTEGER (nullable, **no FK** — see below), `brew_date`, `dripper`, `filter_paper`, `grinder`, `grind_size`, `water_ppm`, `humidity` TEXT; `dose_g`, `water_g`, `water_temp_c`, `water_alkalinity` REAL; `total_time_sec` INTEGER; `score` REAL (NULL = unscored); `extraction` REAL (−1…+1, NULL = not assessed); `concentration` REAL (−1…+1, NULL = not assessed); `note` TEXT; `flavor_notes` TEXT; `status`; `created_at`/`updated_at`; `{flavor}`.
 
-> **Concentration** (added 2026-08-22, following the Android app the same day) is the other axis of the brewing control chart: how *strong* the cup was, where extraction is how far it was extracted. Symmetric like extraction and for the same reason — both ends are a miss, so a light-to-strong magnitude would make one end look like the good one. Zones are `repo.CONCENTRATION_ZONES` (`Too weak` / `Just right` / `Too strong`), a third of the range each, and it is carried in the sync bundle (`BUNDLE_VERSION` 3).
+> **The storage-only columns.** `water_g`, `water_temp_c`, `water_alkalinity`, `total_time_sec`, `flavor_notes` and `journey_id` are written and read by nothing in this project — no CLI prompt, no GUI field, no display. They exist because `coffee_android` records them and a `phone → desktop → phone` round trip must not lose what the phone put there. `water_temp_c` is the *brew's* water temperature; a single pour's is `brew_stages.temperature_c` and always was. `water_alkalinity` is carbonate hardness, beside `water_ppm`'s total dissolved solids rather than instead of it. Added 2026-08-23 with `BUNDLE_VERSION` 4.
 
-**`brew_stages`** — `id`, `session_id` (FK, CASCADE), `stage_number` INTEGER, `temperature_c` REAL, `water_g` REAL, `time_seconds` INTEGER, `circling` TEXT.
+> **Concentration** (added 2026-08-22, following the Android app the same day) is the other axis of the brewing control chart: how *strong* the cup was, where extraction is how far it was extracted. Symmetric like extraction and for the same reason — both ends are a miss, so a light-to-strong magnitude would make one end look like the good one. Zones are `repo.CONCENTRATION_ZONES` (`Too weak` / `Just right` / `Too strong`), a third of the range each, and it is carried in the sync bundle (`BUNDLE_VERSION` 3, now 4).
+
+**`brew_stages`** — `id`, `session_id` (FK, CASCADE), `stage_number` INTEGER, `temperature_c` REAL, `water_g` REAL, `time_seconds` INTEGER, `circling` TEXT, `label` TEXT.
+
+> **`label` is not a rename of `circling`.** `circling` says how the pour was poured; `label` says which pour it was ("Bloom", "Second pour"). The phone has carried both as separate fields all along, and until 2026-08-23 only `circling` had a column here, so a stage crossing a bundle arrived unnamed. Storage-only, like the columns above — `add_stage`/`update_stage` accept it as a trailing keyword argument and nothing in the CLI or GUI passes one.
+
+**`journeys`** — `id`, `name` TEXT NOT NULL, `location`, `address`, `barista` TEXT, `latitude`/`longitude` REAL, `visited_at` INTEGER NOT NULL (epoch **milliseconds**, unlike every date elsewhere here), `note` TEXT, `created_at`/`updated_at`.
+
+**`journey_images`** — `id`, `journey_id` (FK → `journeys`, CASCADE), `position` INTEGER, `file_path` TEXT, `rotation` INTEGER default 0.
+
+> **These two tables have no UI and are not meant to get one.** A journey is a café you drank at — `coffee_android`'s feature, not this app's. They exist so the two schemas match and a café survives a round trip; `repo.py` has storage calls for them (§3.2) that no CLI command or GUI dialog reaches. `brew_sessions.journey_id` carries **no foreign key on purpose**, matching the phone: a cascade would delete a *brew* — its stages, its score, its notes — because someone tidied away a café. Deleting a journey orphans its cups back into ordinary brews instead, so a reader has to tolerate a `journey_id` whose row is gone, and every query reads *from* the journey so a dangling id is never looked up.
+
+**`catalogue_items`**, **`news_items`** — structural mirrors of the app's two server caches, present so "the schemas match" is mechanically checkable. **Nothing on this side writes them**: coffee-can caches the same two feeds as JSON files beside the database (`coffee_news.py`, `whats_new.py`), and sync does not carry them — re-fetching is free and a stale catalogue row is worse than none.
 
 > **Migration note.** `extraction` was briefly declared `INTEGER` before becoming `REAL`. Databases carrying the old declaration are left alone: SQLite only narrows a REAL to an INTEGER when lossless, so fractional values round-trip intact. Similarly, the retired `flavor_sour_fermented` column is kept (unreferenced) after the axis was split into `flavor_sour` and `flavor_fermented`; `_migrate_split_sour_fermented()` copies the old value to `flavor_sour` only, filling NULLs so it never repeats or overwrites later edits.
 
@@ -204,11 +218,28 @@ count_sessions_by_date(conn) -> dict                            # {ISO date: cou
 **Stages**
 
 ```python
-add_stage(conn, session_id, temperature_c, water_g, time_seconds, circling) -> int   # returns stage_number
+add_stage(conn, session_id, temperature_c, water_g, time_seconds, circling, label=None) -> int  # returns stage_number
 list_stages(conn, session_id)
 get_stage(conn, stage_id) -> sqlite3.Row | None
-update_stage(conn, stage_id, temperature_c, water_g, time_seconds, circling) -> None
+update_stage(conn, stage_id, temperature_c, water_g, time_seconds, circling, label=None) -> None
 delete_stage(conn, stage_id) -> None
+```
+
+`label` is trailing with a default so the four existing positional callers (the CLI, both GUI dialogs, the agent) keep working. Note `update_stage` is a full-row update, not a patch: a caller that omits `label` **clears** it. Only the GUI stage editor calls it, and it has no label field to lose — give it one and it must pass the value through.
+
+**Journeys** — storage for `coffee_android`'s cafés. No CLI or GUI path calls any of these; `coffee_agent/sync_tools.py` is the only caller.
+
+```python
+JOURNEY_FIELDS: tuple                                    # name, location, address, barista, latitude, longitude, visited_at, note
+create_journey(conn, name, visited_at) -> int            # visited_at is NOT NULL: a visit you cannot date is not a visit you took
+update_journey_field(conn, journey_id, field, value) -> None
+list_journeys(conn)                                      # newest visit first
+get_journey(conn, journey_id) -> sqlite3.Row | None
+delete_journey(conn, journey_id) -> None                 # unlinks its photos; orphans its cups rather than deleting them
+add_journey_image(conn, journey_id, source_path) -> int  # copies the file in, like add_bean_image
+list_journey_images(conn, journey_id)
+delete_journey_image(conn, image_id) -> None
+list_sessions_for_journey(conn, journey_id)
 ```
 
 **Flavor aggregates** — both return `(session_count, [mean per axis in FLAVOR_AXES order])`, or `(0, None)` when nothing is rated. Sessions with every axis at 0/NULL are excluded.

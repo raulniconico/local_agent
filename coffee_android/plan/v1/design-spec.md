@@ -183,12 +183,28 @@ established. OFL-licensed; the licence ships in `assets/licenses/`.
 | `headlineSmall` | 22sp | SemiBold | major headings |
 | `titleLarge` | 22sp | SemiBold | app-bar titles |
 | `titleMedium` | 16sp | SemiBold | card titles, bean names |
-| `titleSmall` | 14sp | SemiBold | section headings |
+| `titleSmall` | 14sp | SemiBold | -- (see the note on section headings below) |
 | `bodyLarge` | 16sp | Normal | body copy |
 | `bodyMedium` | 14sp | Normal | secondary copy |
 | `labelLarge` | 14sp | SemiBold | button labels |
 | `labelMedium` | 12sp | SemiBold | chips, pills |
 | `labelSmall` | 11sp | Medium | captions |
+
+**Section headings are 20sp, which is not a role.** `SectionHeader` --
+"My beans", "Images", "Radar", "Cups" and the rest -- has been raised twice by
+direct product request: off `titleSmall` (14sp, the same size as the body copy
+under it) onto `titleMedium` on 2026-08-17, and onto a flat **20sp** on
+2026-08-22. It stays a per-component override rather than becoming a twelfth
+role because the next rung up, `titleLarge` at 22sp, is what the axis's app
+bars draw their titles with, and a heading at exactly the screen title's size
+flattens the hierarchy instead of sharpening it. The constant is
+`SectionHeadingSize` beside the composable; `screenshots.py`'s `section()`
+carries the same number.
+
+**Three app bars moved up with it.** `+2.2a` Privacy, `+2.2b` How we use AI and
+`0.1` Add bean drew their titles at `titleMedium` while the other six used
+`titleLarge`; at 16sp they would have been *smaller* than the headings beneath
+them. They are `titleLarge` now, so every bar on every screen is one size.
 
 **The three label roles are semi-bold, and that is load-bearing.** Set at 400
 they read as undersized body copy — small, thin and accidental where the design
@@ -613,10 +629,56 @@ rather than shipped as frozen pictures**, so the poses can move.
 - **Can-boy**, the mascot, at `FIGURE = 100f` internal units, in three poses:
   **pour-over** (rest and tilted), **shutter-flash** (the scan prompt), and
   **heartbreak** (whole and settled — empty and error states).
+- **The images strip** (`ImagesStrip`, shared by `0.1`, `0.2` and the brew/cup
+  form) carries **two gestures on one long press** (2026-08-23, direct product
+  request). Long-press *and move* drags a photo to reorder the strip; long-press
+  *and release* opens a menu with **Delete photo**. Both come from one
+  `detectDragGesturesAfterLongPress` — it fires `onDragStart` the moment the
+  press lands, and the release decides which act it was — because a separate
+  `combinedClickable(onLongClick = …)` would contest the same gesture and
+  neither would win reliably. A plain tap still opens the viewer. Order matters
+  beyond taste: position 0 is the photo `PhotoHeroPage` and the share card use,
+  so "which picture represents this bean" was a decision the user could not
+  previously make. The order is held locally during the drag and written once on
+  release (`reorderImages`), because committing per frame would round-trip Room
+  mid-gesture; `deleteBeanImage` renumbers the survivors, since `addImage` takes
+  the *count* as the next position and a gap would let two rows claim one slot.
+  The drag arithmetic is a pure function (`List.moving`) covered by
+  `ImageReorderTest`, and the gesture itself by `ImagesStripDragTest` — the
+  module's only instrumented UI test, and the only harness in the project that
+  can drive a press-hold-then-move.
+
+  **It shipped broken once, which is why that test exists.** The first cut keyed
+  `Modifier.pointerInput` on the strip's own order, so the first reorder step
+  cancelled the very gesture coroutine performing it and the photo snapped back.
+  Nothing could have caught it: Paparazzi renders one static frame, `adb input
+  motionevent` is a separate process per event so the moves never join the
+  gesture, and `sendevent` needs root. Key a gesture's `pointerInput` on
+  identity, never on state the gesture itself writes.
+
 - **Dripper glyphs** — one per entry in `Choices.DRIPPERS` (15: Hario V60,
   Chemex, Kalita Wave, Melitta, Clever, Bee House, Origami, Fellow Stagg, Orea,
   April, Cafec Flower, Timemore Crystal Eye, Hario Switch, Kono Meimon, OXO
-  Brew). Rendered at `SessionGlyph` 64dp on session rows.
+  Brew), on a `SessionGlyph` 64dp disc in every session card.
+
+  **Each is drawn from its product's real dimensions** (redrawn 2026-08-22,
+  direct product report: "Origami in reality is wider than V60, but in your
+  design they seem almost the same"). The first set drew six of the cones with
+  one identical call and separated them only by the ribs on the front, which at
+  26–41dp are three grey pixels. `plan/dripper_icons/generate.py` now converts
+  each brewer's real top diameter and height through one `SCALE`, so what you
+  see is the proportion the product has: Origami is 11.8 × 7.2 cm against V60's
+  11.6 × 8.2, Orea is the shallowest on the widest flat base, Kono the deepest
+  cone, Clever the only one taller than it is wide, and Timemore the only
+  faceted rim. The identifying detail sits on top of the right silhouette
+  instead of doing the whole job alone.
+
+  **The pipeline is two scripts and both are in the repo now.**
+  `generate.py` writes the SVGs; `convert_drippers.py` flattens them into
+  `res/drawable/ic_dripper_*.xml` (and `--check` fails if any XML is stale).
+  The converter was referenced by `Illustrations.kt` from the day the vectors
+  landed but had never been kept, so the fifteen XMLs were hand-flattened once
+  and could not be regenerated. Do not hand-edit the XML.
 
 ---
 
@@ -715,16 +777,33 @@ from**), "See all N beans", **Brewing activity** contribution calendar, and
 **My flavor** — an eleven-axis radar averaged across every session, labelled
 with the session count.
 
-**The café name is derived, never stored** (2026-08-21, direct product
-request: a bean added from Can travel should say so here).
+**A bean that came from a café is not on this shelf** (2026-08-22, direct
+product request). `+1.2` writes a real `BeanEntity` so a cup has something to
+belong to (§8.6c), but that row records *what you drank out*, not a bag you
+own, and listing it under "My beans" claims you have it. Home filters it out.
+Nothing is lost: `0.3` History lists every session, so the cup is there with
+its café beside it, and `+1.1`'s own Cups block lists it under the café it was
+drunk at. `+1.1a`'s picker is **not** filtered — you can log a home brew of a
+coffee you first met at a café, if you went and bought the bag.
+
+**The filter's field is `cafeName`, which is derived and never stored.**
 `BeanWithDetails.cafeName` is a correlated subquery for the earliest cup of
 that bean whose journey still exists — earliest because the question is where
 the bag came *from*, not where it was last drunk. `beans` gains no column:
 the edge already exists on `sessions.journeyId` (§9), and a copy on the bean
 would be both a cached derivation (`coupling-spec.md` §4.2) and a new column
-on a table the sync bundle carries. Null is the common case, and deleting a
-journey takes the label with it, which is the same orphaning `sessions.journeyId`
-describes.
+on a table the sync bundle carries. It carries the orphan rule for free —
+deleting a journey nulls it, and deleting a journey is already defined as
+orphaning its cups back into ordinary brews, so the bean reappearing on the
+shelf is that same rule rather than an exception to it.
+
+**The label this field used to draw on a Home card is gone** (it was added
+2026-08-21 and made unreachable by the filter a day later: a card that could
+draw a café name is a card that is no longer on this screen). `0.3`'s row keeps
+its own corner, from `SessionWithBeanName.cafeName`. Pinned by
+`HomeScreenScreenshotTest.homeHidesBeansFromAJourney`, whose fixture is the
+`home()` shelf plus one café bean and must render the same four cards and the
+same "See all 4 beans".
 
 Empty state: the **pour-over mascot** at 160dp — the same figure `0.3`'s empty
 state uses, replacing the brand lockup on 2026-08-19 (the lockup opens the
@@ -946,10 +1025,19 @@ because a cup is not a different *kind* of record, just one drunk elsewhere.
 The green already says *that* this was drunk out; `SessionWithBeanName.cafeName`
 — the `journeys` row resolved by the same query that supplies the bean's name,
 `LEFT JOIN` so the six brews in seven that were made at home are not dropped —
-says *which*, which is the half worth reading back a month later. Same corner
-and same treatment as Home's shelf card (§8.3), because the two cards are
-deliberately the same object at the same `ShelfCardHeight`. Null on a brew
-made at home and on a cup whose café has been deleted.
+says *which*, which is the half worth reading back a month later. Null on a brew made at home and on a cup whose café has
+been deleted — and, since Home stopped listing beans that came from a café
+(§8.3), this is the app's only café corner.
+
+**The card itself is `SessionCard`, and `0.2` draws it too** (2026-08-22,
+direct product request). It was private to this screen while the bean page
+drew its own flat `SessionLine` — no disc, no card, no cup colouring — so the
+same brew looked like two kinds of record depending on which screen you
+reached it from. One composable now, with the two callers varying **the two
+strings and nothing else**: History titles the row with the bean and trails
+the date, while `0.2` is already one bean's page, so the date is the title and
+there is nothing left to trail. Same `ShelfCardHeight` as Home's shelf card,
+because a brew and a bean are deliberately the same object.
 
 Every brew across every bean, newest first, with the dripper glyph at 64dp,
 dose, score and extraction verdict. Header states the count. Empty state and
@@ -960,9 +1048,35 @@ claiming only top and sides would leave its last row under the system bar).
 
 ### 8.6b `+1.1` Journey Profile
 
-One café: name, visit date, city, **address**, **barista**, note, and up to
-three photographs. No scan card (a café has no label), no radar (a journey has
-no flavour), no sessions list (a brew belongs to a bean).
+One café: name, visit date, city, **address**, **barista**, note, up to
+three photographs, and the **Cups** block. No scan card (a café has no label)
+and no radar (a journey has no flavour).
+
+**Swipe right to go back to `+1`** (2026-08-23, direct product request). This
+page is a push on top of the axis, and the axis is horizontal — Can travel is
+the page you came from, so dragging the café rightwards putting it back is a
+gesture the app has already taught. It replaces nothing: the back disc and the
+system gesture still work and all three end in the same `leave()`, so a café
+with unsaved edits asks before it goes whichever way you left it. Implemented
+with `detectHorizontalDragGestures`, which waits for horizontal touch slop and
+so leaves the page's own vertical scroll untouched; the page follows the finger
+and springs back below a 96dp threshold, because a gesture that can fail
+silently should show that it is being read. Rightward only — nothing sits to
+the left of this screen.
+
+**A cup is a `SessionCard`, like every other list of brews** (2026-08-22,
+direct product request). It replaced `CupLine`, a bean name with a score at the
+end of it. The bean names the row and nothing trails: this page already
+supplies the café and the date, so repeating either would be the one fact the
+reader has. **Its cups are drawn untinted** — `tintCups = false`, the only
+caller that passes it. The green a cup carries in `0.3` is `JourneyGround`, and
+this whole page *is* `JourneyGround`, so tinting here would be a card with no
+boundary on a ground of its own colour. The rule is unchanged, not excepted:
+the green says "drunk out" only where the page around it does not already.
+
+The block is below one screen's fold, so the simulator carries a second frame
+for it (`+1.1b_journey_profile_lower.png`), the way `0.2b` does for the bean
+page. The Paparazzi golden stops above it too — verified on a device.
 
 **A Polaroid camera and its prints, not a photo hero** (2026-08-20, direct
 product request). The page opens on a drawn Polaroid camera at 156dp, then its
@@ -1153,7 +1267,19 @@ naming the wrong subject here; and "Take a photo of the bag" names an object
 that is usually not on the table at a café. **Take a shot** is neither, and it
 keeps the sheet honest about what it is attaching the picture to.
 
-**The save button waits for a name.** `+1.2`'s own rule, kept: a cup is a
+**The save button no longer waits for a name — the refusal does** (2026-08-23,
+direct product report: "I add a new cup, I modify it but I can't save it").
+The rule below is unchanged and still binds; what moved is where it lives. It
+used to sit in the button's `enabled`, which made a dead grey control at the
+foot of a form the user had just filled in with a score, a radar and a
+photograph, with nothing anywhere saying that one empty field three sections
+above was the reason — and a disabled button cannot be asked. The button is now
+live whenever the form is savable at all, and `save()` refuses out loud with a
+snackbar (`cup_needs_name`). The same commit stopped `save()` swallowing a
+failed write behind a debug log: a write that fails now says so
+(`brew_save_failed`) instead of looking like one that worked.
+
+**Why a cup waits for a name at all.** `+1.2`'s own rule, kept: a cup is a
 coffee you are recording because of what it was, and a nameless one is a row
 in a café's list with nothing in it. Vibe brewing makes the opposite promise —
 brew now, name the bean later — so it still saves blank.
@@ -1189,6 +1315,19 @@ through the second. Unchanged by the 2026-08-21 merge — the cup path simply
 sets the same condition false on the screen it now shares.
 
 **No scan card.** It is `0.1`'s, consent-gated, and unreasoned-about for a cup.
+
+**The images strip is above the fold here, and only here** (2026-08-23, direct
+product request). `BeanDetailsSection` keeps the eight secondary bean fields
+behind *More details* on every path, and the photo strip used to be folded with
+them. A cup is the one route where that hid something: the photograph is the
+point of recording a café coffee, the bean row is always brand new so
+`PhotoHeroPage` at the top of the page has nothing to show, and the strip's "+"
+tile is therefore the only door to attaching one. `photosOutsideFold = true` is
+passed by this path alone — every other caller arrives on a bean whose pictures
+the hero is already displaying, so a second copy above the brew fields would
+duplicate what the reader is looking at. The strip carries its own **Images**
+heading either way, so above the fold it reads as a section of the page rather
+than a row that escaped from one.
 
 ### 8.7 `0.31a` Which bean? → Pick Bean
 
@@ -1383,7 +1522,12 @@ Complete and unwired — see §1.
 ## 9. Data model
 
 Room, mirroring `coffee-can`'s SQLite schema column-for-column — **except the
-last two tables, which have no desktop counterpart at all**.
+last two tables, which have no desktop counterpart at all**. As of 2026-08-23
+the mirror is exact again for `beans`, `sessions` and `session_stages`: the
+desktop grew `brew_sessions.water_g` / `water_temp_c` / `water_alkalinity` /
+`total_time_sec` and `brew_stages.label`, which had drifted phone-only, so the
+only session column with no counterpart is `journeyId` — and that one is
+structural, since `journeys` is ours alone.
 **`version = 9`, `exportSchema = true`**, with named `MIGRATION_1_2` through
 `MIGRATION_8_9`. `fallbackToDestructiveMigration()` is banned, and every
 migration is **additive only** — which is why two sets of columns are still in
@@ -1397,21 +1541,25 @@ Eight entities:
 | `beans` | identity + provenance, `status` (`draft`/`saved`), `flavorSource` (`auto`/`manual`), and **eleven flavour columns** |
 | `bean_images` | `position`, `filePath`, `rotation` |
 | `sessions` | brew parameters, `score`, `extraction`, `concentration`, note, **the same eleven flavour columns**, and `flavorNotes` |
-| `sessions.concentration` | −1…+1, how strong the cup was — the second slider in How was it (2026-08-22, direct product request). Null is "not rated", never a balanced zero. **Unlike `waterAlkalinity` it crosses**: the desktop grew `brew_sessions.concentration`, a CLI prompt and a GUI bar the same day, so it is in the bundle and `SyncBundle.VERSION`/`BUNDLE_VERSION` went to **3** |
-| `sessions.waterAlkalinity` | carbonate hardness, ppm as CaCO₃ — the Brew details field that took Water °C's place (2026-08-21, direct product request). **Beside `waterPpm`, not instead of it**: ppm is total dissolved solids, alkalinity is buffering, and two waters at the same TDS read completely differently in the cup. Phone-only, like `waterG` and `waterTempC` — the desktop's `brew_sessions` has no column, so the bundle does not carry it |
-| `sessions.waterTempC` | **retained, no longer surfaced** — the field the line above replaced. Dropping it means rebuilding the table and destroying temperatures a user typed, with no server-side copy to restore from. Unlike `journeys.latitude` it is still *carried*: `SessionDraft` hydrates it and writes it back untouched, so re-saving an older brew keeps it. A pour's temperature was never this column — `session_stages.waterTempC` is, and it is unaffected |
-| `session_stages` | one pour each |
+| `sessions.concentration` | −1…+1, how strong the cup was — the second slider in How was it (2026-08-22, direct product request). Null is "not rated", never a balanced zero. It was the first of the late columns to cross: the desktop grew `brew_sessions.concentration`, a CLI prompt and a GUI bar the same day, taking `SyncBundle.VERSION`/`BUNDLE_VERSION` to **3** |
+| `sessions.waterAlkalinity` | carbonate hardness, ppm as CaCO₃ — the Brew details field that took Water °C's place (2026-08-21, direct product request). **Beside `waterPpm`, not instead of it**: ppm is total dissolved solids, alkalinity is buffering, and two waters at the same TDS read completely differently in the cup. Phone-only for two days; **it crosses since 2026-08-23** (bundle **v4**), together with `waterG`, `waterTempC` and `totalTimeSec` |
+| `sessions.waterTempC` | **retained, no longer surfaced** — the field the line above replaced. Dropping it means rebuilding the table and destroying temperatures a user typed, with no server-side copy to restore from. Unlike `journeys.latitude` it is still *carried*, twice over: `SessionDraft` hydrates it and writes it back untouched, so re-saving an older brew keeps it, and the bundle carries it as `water_temp_c` since v4. A pour's temperature was never this column — `session_stages.waterTempC` is, and it is unaffected |
+| `session_stages` | one pour each. `label` (which pour) and `note` (how it was poured) are two columns and cross as two — `note` as the desktop's `circling`, `label` as `brew_stages.label`, which the desktop grew on 2026-08-23 |
 | `catalogue_items` | crawler cache |
 | `news_items` | feed cache — four fields, no snippet column |
-| `sessions.journeyId` | nullable, indexed — the café a brew was drunk at, which is what makes it a **cup** (§8.6c). **No foreign key, deliberately**: a cascade would delete a brew because the user tidied away a café, so deleting a journey orphans its cups back into ordinary brews. **Sync ignores it** — `sync_tools._SESSION_FIELDS` is an allowlist and `SyncBundle.toSessionEntity` builds by name, so neither side changed and a cup exported to the desktop arrives as an ordinary brew, which is honest since the desktop has no journeys table |
+| `sessions.journeyId` | nullable, indexed — the café a brew was drunk at, which is what makes it a **cup** (§8.6c). **No foreign key, deliberately**: a cascade would delete a brew because the user tidied away a café, so deleting a journey orphans its cups back into ordinary brews (`coffee_can.db`'s `journey_id` copies that, unenforced for the same reason). **Sync carries it by name, not by id** (v4, 2026-08-23): the session goes out with a `journey` key holding the café's name and the café rows travel in `journeys.json`, because the two `journeys.id` sequences are as unrelated as the two `beans.id` ones |
 | `journeys` | `+1`'s cafés: name, `location` (city), `address`, `barista`, `visitedAt`, note — plus `latitude`/`longitude`, retained but no longer read or written (§8.6b) |
 | `journey_images` | `position`, `filePath`, `rotation` — the same contract as `bean_images`, in its own tree under `filesDir/journey_images/` |
 
 **`journeys` is the first table whose shape is ours to choose**, and two
 consequences follow that are easier to state than to rediscover. The sync
-bundle does **not** carry journeys — `coffee_agent/sync_tools.py` has nothing
-to write them into, and inventing a bean-side column for them would be exactly
-the drift the column-for-column rule exists to prevent. And `journey_images/`
+bundle **does** carry journeys, as of 2026-08-23 — but note *how*: rather than
+inventing a bean-side column for them (which would be exactly the drift the
+column-for-column rule exists to prevent), `coffee_can.db` grew matching
+`journeys` / `journey_images` tables and a `brew_sessions.journey_id`, with no
+desktop UI behind any of them. The desktop can hold a café and hand it back; it
+still cannot show you one. A cup travels with its café's **name**, never its
+id, for the same reason beans match by name. And `journey_images/`
 had to be added to `data_extraction_rules.xml` by hand: the Auto Backup
 exclusion names `bean_images/` by path, so a second image tree is *not*
 covered by inheritance.
@@ -1599,7 +1747,7 @@ specific statements in them are now false:
 | `README.md` resolution #19 | bottom navigation declined | A bottom bar ships, driving the pager (§7.1) |
 | `README.md` "Not started" | Camera Capture and Scan Review not started | Both built |
 | `screens.md` §1 | Home calls `BrewSessionDao.countByDate()` | `SessionDao.dailyCounts` |
-| `screens.md` §9 | Profile has avatar / Name / Email / OSS-licence rows | Rules 60 and 103 removed all four; the code correctly has none |
+| `screens.md` §9 | Profile has avatar / Name / Email / OSS-licence rows | **Partly restored 2026-08-23.** Avatar and Name are back on the product owner's instruction, overriding rule 60 (see `legal-accounts.md` rule 60 for the recorded override and its two disclosure costs). Email and the OSS-licence row remain removed — rules 60 and 103 respectively |
 | `api.md` §2 | `/v1/ask` is the AI endpoint | The app calls `/v1/suggest` and `/v1/vision`; `/v1/ask` is forbidden to this client |
 | `AUDIT.md` header | "Nothing here was compiled or run"; "the design is not scheme E" | The app compiles, installs and runs; the scheme E pass landed and type/shape now conform |
 | `../../v1/README.md` | "33 simulated screenshots, 1080×2400"; "All four sections pass" | 45 files, mostly 360×800 Paparazzi output; one colour token and the copy check do not pass |

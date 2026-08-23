@@ -94,6 +94,17 @@ RATE_LIMIT_MAX_REQUESTS = int(os.environ.get("RATE_LIMIT_MAX_REQUESTS", "6"))
 # re-opened and re-recorded before catalogue/news results are served to Play
 # users at all. Neither has happened. See crawler.py.
 CRAWLER_ENABLED = os.environ.get("CRAWLER_ENABLED", "").lower() in {"1", "true", "yes"}
+# The press feeds behind /v1/news. A SEPARATE file from allowlist.json on
+# purpose: that one records the outreach-and-CGU paperwork legal.md rules 2-3
+# demand before a French roaster's *shop* may be crawled, and those rules were
+# scoped to exactly that. A trade publication's RSS feed is a different act
+# under a different regime -- see crawler.py's NEWS SOURCES note.
+CRAWLER_NEWS_SOURCES_PATH = Path(
+    os.environ.get(
+        "CRAWLER_NEWS_SOURCES_PATH", Path(__file__).resolve().parent / "news_sources.json"
+    )
+)
+
 CRAWLER_ALLOWLIST_PATH = Path(
     os.environ.get("CRAWLER_ALLOWLIST_PATH", Path(__file__).resolve().parent / "allowlist.json")
 )
@@ -106,9 +117,9 @@ NEWS_TTL_SECONDS = int(os.environ.get("NEWS_TTL_SECONDS", str(3600)))
 # Rule 18 forbids ever replacing this with a browser string.
 CRAWLER_USER_AGENT = os.environ.get(
     "CRAWLER_USER_AGENT",
-    "CoffeeBeanIndexBot/0.1 (+https://coffeecan.app/bot; bot@coffeecan.app)",
+    "CoffeeBeanIndexBot/0.1 (+https://coffee-can.org/bot; bot@coffee-can.org)",
 )
-CRAWLER_CONTACT_EMAIL = os.environ.get("CRAWLER_CONTACT_EMAIL", "bot@coffeecan.app")
+CRAWLER_CONTACT_EMAIL = os.environ.get("CRAWLER_CONTACT_EMAIL", "bot@coffee-can.org")
 
 
 def configured_providers() -> set[str]:

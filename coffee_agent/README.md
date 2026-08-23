@@ -369,12 +369,18 @@ Two limits worth knowing before you rely on it:
 - **Beans are matched by name**, because that is the only identifier the two
   databases share — coffee-can's `beans.id` and Room's are independent
   sequences. Rename a bean on one device and it imports as a second bean.
-- **Not every field crosses.** The schemas diverged: the Android session has
-  `waterG`/`waterTempC`, which coffee-can's `brew_sessions` has no column
-  for, and coffee-can has `humidity`, which Room has no field for. Room's
-  stage `label` stays behind too (its free `note` maps to coffee-can's
-  `circling`). Those are left out rather than crammed into
-  approximately-right columns.
+- **Everything crosses now** (bundle v4, 2026-08-23). It did not always: the
+  phone's session `waterG`, `waterTempC`, `waterAlkalinity` and `totalTimeSec`
+  had no coffee-can column, `humidity` had one on both sides and was simply
+  missing from the agent's field list, a stage's `label` had nowhere to land,
+  and cafés ("journeys") could not travel at all. coffee-can's schema grew all
+  of it — including `journeys`, `journey_images` and `brew_sessions.journey_id`,
+  which exist purely to receive what the phone sends and have no desktop screen
+  behind them. What is left are two renames rather than losses: the phone's
+  session `filter` is `filter_paper` here, and a stage's `note` is `circling`.
+- **A café travels by name, not by id**, exactly like a bean, and cafés are
+  added but never replaced — there is no desktop screen that could show you two
+  versions of one to choose between.
 
 Bundles carry a version number (`BUNDLE_VERSION`, matching Android's
 `SyncBundle.VERSION`); a bundle from a newer app than this agent understands

@@ -29,3 +29,18 @@ def images_dir(bean_id: int) -> Path:
     path = data_dir() / "images" / f"bean_{bean_id}"
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def journey_images_dir(journey_id: int) -> Path:
+    """Where a cafe's photographs live -- a sibling of images_dir(), not a
+    subdirectory of it.
+
+    Its own tree for the reason the Android app keeps `journey_images/` apart
+    from `bean_images/`: the two id sequences are independent, so
+    `images/bean_3` and a journey 3 sharing that folder would interleave two
+    unrelated sets of photographs and make "delete this bean's pages" delete
+    someone's cafe.
+    """
+    path = data_dir() / "journey_images" / f"journey_{journey_id}"
+    path.mkdir(parents=True, exist_ok=True)
+    return path

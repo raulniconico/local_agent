@@ -6,11 +6,23 @@ anthropic
 openai
 # Google ID token verification for /v1/suggest, /v1/vision and /v1/account --
 # signature, issuer, expiry and audience, against Google's rotating JWKS.
-google-auth
+#
+# The [requests] extra is load-bearing, not decoration: auth.py imports
+# google.auth.transport.requests, and that transport needs the `requests`
+# package. Plain `google-auth` installs and imports fine, then fails at the
+# first real token with a 500 ("The requests library is not installed"), so
+# the gap shows up only once account auth is actually configured and used --
+# never at build or start-up.
+google-auth[requests]
 # The crawler's HTTP client and robots.txt parser (specs/legal.md §3.3-3.6).
 # Only imported when a crawl actually runs, which today is never -- see
 # crawler.py -- but they are declared so enabling it is not also a deploy.
-httpx
+# The [brotli] extra is not optional decoration: Fetcher advertises
+# "Accept-Encoding: gzip, br", and without a brotli decoder httpx hands back
+# undecoded bytes that fail XML parsing at line 1 column 0. Five of the eight
+# news feeds did exactly that. Either install this or stop advertising br --
+# advertising an encoding you cannot read is the bug.
+httpx[brotli]
 protego
 # python:3.12-slim (Dockerfile) doesn't reliably ship the IANA tz database;
 # zoneinfo.ZoneInfo("Europe/Paris") (scheduler.py) falls back to this package

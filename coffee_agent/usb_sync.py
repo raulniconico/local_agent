@@ -258,15 +258,16 @@ def fetch_coffee_data_from_phone(destination: str = "from-phone.zip") -> str:
         return "Couldn't fetch from the phone: adb stopped responding."
 
     try:
-        beans = _read_bundle(target)
+        beans, journeys = _read_bundle(target)
     except ValueError as exc:
         return f"Pulled {target}, but it isn't readable: {exc}"
 
     sessions = sum(len(b.get("sessions", [])) for b in beans)
+    cafes = f", {len(journeys)} cafés" if journeys else ""
     return (
         f"Pulled the phone's log to {target} — {len(beans)} beans, "
-        f"{sessions} sessions. Nothing on this machine has changed yet: run "
-        f"inspect_coffee_bundle on it to see what would."
+        f"{sessions} sessions{cafes}. Nothing on this machine has changed yet: "
+        f"run inspect_coffee_bundle on it to see what would."
     )
 
 

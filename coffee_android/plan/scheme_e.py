@@ -1883,17 +1883,17 @@ def privacy_policy():
         ("Delete account", "Unlinks Google. Your log stays on this phone.", "danger")))
     wf.text(c, 32, 552, "Already uninstalled? You can also delete it at",
             "labelSmall", wf.C["onSurfaceVariant"])
-    wf.text(c, 32, 568, "coffeecan.app/delete", "labelSmall", wf.C["primaryText"])
+    wf.text(c, 32, 568, "coffee-can.org/delete", "labelSmall", wf.C["primaryText"])
 
     wf.section(c, 602, "The full policy")
     wf.card(c, 616, 72)
-    wf.text(c, 32, 646, "coffeecan.app/privacy", "bodyLarge", wf.C["primaryText"])
+    wf.text(c, 32, 646, "coffee-can.org/privacy", "bodyLarge", wf.C["primaryText"])
     wf.text(c, 32, 668, "Always the current version. Tap to open, hold to copy.",
             "labelSmall", wf.C["onSurfaceVariant"])
 
     # Art. 13(2)(d): the user must be told they can complain to a supervisory
     # authority, and France-established means CNIL is it (rule 81).
-    wf.text(c, 20, 716, "Questions: hello@coffeecan.app", "labelSmall",
+    wf.text(c, 20, 716, "Questions: hello@coffee-can.org", "labelSmall",
             wf.C["onSurfaceVariant"])
     wf.text(c, 20, 732, "You can also complain to the CNIL (cnil.fr).", "labelSmall",
             wf.C["onSurfaceVariant"])
