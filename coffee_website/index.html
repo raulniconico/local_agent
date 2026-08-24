@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coffee Can — a notebook for the coffee you brew</title>
+<meta name="description" content="Log every pour-over, watch your taste take shape, and keep the cafés you loved. Coffee Can is a coffee notebook for Android.">
+<meta name="theme-color" content="#34C759">
+<link rel="icon" href="assets/canboy.svg" type="image/svg+xml">
+<meta property="og:title" content="Coffee Can">
+<meta property="og:description" content="A notebook for the coffee you brew.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://coffee-can.org/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <img src="assets/canboy.svg" alt="">
+    <b>Coffee Can</b>
+    <nav>
+      <a href="#brew">Brew</a>
+      <a href="#taste">Taste</a>
+      <a href="#travel">Travel</a>
+      <a href="#privacy">Privacy</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <section class="hero wrap">
+    <img class="hero-mark" src="assets/canboy-v60.svg" alt="Can-boy brewing a pour-over">
+    <h1>A notebook for the coffee <em>you</em> brew.</h1>
+    <p class="lede">
+      Log the pour, the grind and the time. Watch your taste take shape over
+      months. Keep the cafés worth going back to. All of it on your phone,
+      none of it on ours.
+    </p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#brew">See how it works</a>
+      <a class="btn btn-ghost" href="#privacy">What we store</a>
+    </div>
+    <div class="hero-shot">
+      <img src="assets/shot-home.png" width="720" height="1404"
+           alt="The Coffee Can home screen, showing a shelf of beans and a brewing-activity calendar">
+    </div>
+  </section>
+
+  <section class="feature reveal" id="brew">
+    <div class="wrap">
+      <div class="copy">
+        <p class="eyebrow">Every cup</p>
+        <h2>Scan the bag. Log the brew.</h2>
+        <p>
+          Point the camera at a label and the fields fill themselves — origin,
+          process, roaster, roast date. Then log what you actually did: dose,
+          grind, water, and a stage for every pour.
+        </p>
+      </div>
+      <div class="shot">
+        <img src="assets/shot-bean.png" width="720" height="1404"
+             alt="A bean page showing origin, process, roast level and past brews">
+        <img class="mascot" src="assets/canboy-camera.svg" alt="">
+      </div>
+    </div>
+  </section>
+
+  <section class="feature flip reveal" id="taste">
+    <div class="wrap">
+      <div class="copy">
+        <p class="eyebrow">Over time</p>
+        <h2>Your palate, drawn.</h2>
+        <p>
+          Eleven flavour axes, scored per cup and averaged per bean. After a
+          few weeks the radar stops being a novelty and starts being a
+          reference — the shape you keep coming back to.
+        </p>
+      </div>
+      <div class="shot">
+        <img src="assets/shot-radar.png" width="720" height="1404"
+             alt="A flavour radar averaged across nineteen sessions, with eleven axes">
+      </div>
+    </div>
+  </section>
+
+  <section class="feature reveal" id="travel">
+    <div class="wrap">
+      <div class="copy">
+        <p class="eyebrow">Can travel</p>
+        <h2>The cafés you'd go back to.</h2>
+        <p>
+          A Polaroid for every place, with the city and the day you were
+          there. The cups you drank out are marked so they never blur into the
+          ones you made at home.
+        </p>
+      </div>
+      <div class="shot">
+        <img src="assets/shot-travel.png" width="720" height="1404"
+             alt="Can travel, showing a Polaroid of a café in Paris">
+      </div>
+    </div>
+  </section>
+
+  <section class="feature flip reveal" id="read">
+    <div class="wrap">
+      <div class="copy">
+        <p class="eyebrow">Can read</p>
+        <h2>Coffee news, on paper.</h2>
+        <p>
+          Headlines from the trade press, set as newsprint. Source, date and
+          the story's own opening line — then a tap through to the publisher,
+          because the article is theirs to serve.
+        </p>
+      </div>
+      <div class="shot">
+        <img src="assets/shot-news.png" width="720" height="1404"
+             alt="Can read, showing news headlines set as newspaper sheets">
+        <img class="mascot" src="assets/canboy-news.svg" alt="">
+      </div>
+    </div>
+  </section>
+
+  <section class="band reveal" id="privacy">
+    <div class="wrap">
+      <h2>Your log stays on your phone.</h2>
+      <p>
+        Beans, brews, notes and photos live in a database on your device. We
+        do not have a copy. Moving your log to a computer is a file you carry
+        yourself — not an upload.
+      </p>
+      <p>
+        Signing in is optional, and only unlocks the AI features. When it is
+        used, the server keeps an identifier and a counter so the feature can
+        be metered — and nothing you wrote.
+      </p>
+      <div class="pills">
+        <span class="pill">No account needed to log coffee</span>
+        <span class="pill">No ads, no trackers</span>
+        <span class="pill">Sync is a file you carry</span>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <img src="assets/canboy.svg" alt="" width="28" height="28">
+    <small>Coffee Can</small>
+    <span class="sp"></span>
+    <a href="mailto:hello@coffee-can.org">hello@coffee-can.org</a>
+  </div>
+</footer>
+
+<script>
+  // Reveal on scroll. Guarded so the page is fully legible without JS and on
+  // reduced-motion, where the CSS already opts out of the transform.
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      }
+    }, { rootMargin: '0px 0px -12% 0px' });
+    document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+  } else {
+    document.querySelectorAll('.reveal').forEach((el) => el.classList.add('in'));
+  }
+</script>
+</body>
+</html>

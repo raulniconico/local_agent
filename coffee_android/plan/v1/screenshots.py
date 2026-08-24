@@ -1177,7 +1177,17 @@ def bean_new():
 
 
 def bean_detail():
-    """0.2 -- BeanDetailScreen for a saved bean, above the fold."""
+    """0.2 -- BeanDetailScreen for a saved bean, above the fold, IN MODIFY MODE.
+
+    Since 2026-08-23 a saved bean opens **read-only**, matching `0.31`: the
+    scan card, the name field and the whole fields grid down to Note are
+    hidden until "Modify" is pressed, and the button at the foot of `0.2b`
+    reads "Modify" rather than "Save changes" until then. The header keeps
+    showing name, origin, process and roast date, so the information stays on
+    the page even when the inputs do not.
+
+    This frame and `bean_detail_lower` therefore both depict the state *after*
+    Modify. The default view state has no frame of its own yet."""
     c = Canvas("0.2 Bean detail")
     status_bar(c)
     y = top_bar(c, BEAN["name"], back=True, actions=["delete"])
@@ -1219,7 +1229,13 @@ def bean_detail():
 
 def bean_detail_lower():
     """0.2b -- the same screen scrolled past the fold: radar, its caption,
-    the sessions list and the save button."""
+    the sessions list and the save button.
+
+    ALSO MODIFY MODE, for the reason `bean_detail`'s docstring gives: the Note
+    field this page opens with is part of the block a saved bean hides, and
+    "Save changes" is what the foot of the page reads only once Modify has been
+    pressed. In the default state the Note field is absent and that button
+    reads "Modify"."""
     c = Canvas("0.2b Bean detail, lower")
     status_bar(c)
     y = top_bar(c, BEAN["name"], back=True, actions=["delete"])

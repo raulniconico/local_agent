@@ -1149,13 +1149,40 @@ platforms.
     precisely what keeps the app off Play's IP-takedown path, whose process is
     a rights-holder complaint rather than a proactive check. Say so in both
     specs so neither is relaxed on the other's authority.
-74. **[BLOCKER · Both]** **News feed: headline, source name, date and link
-    only.** No snippet beyond the headline, and **specifically no AI-generated
+74. **[BLOCKER · Both — partially overridden 2026-08-24]** **News feed:
+    headline, source name, date and link only.** No snippet beyond the headline, and **specifically no AI-generated
     summary of an article** — a derivative use outside the exception, which
     would also collide with `legal.md`'s TDM analysis. *(Droit voisin des
     éditeurs de presse, arts. L.218-1 et seq. CPI, loi n° 2019-775 transposing
     DSM art. 15: hyperlinks and "very short extracts" are excluded from the
     right; summaries are not.)*
+
+    **[Override, 2026-08-24 — product owner's instruction.]** The card now also
+    carries the publisher's **own standfirst**, and the distinction this rests
+    on is the same one the rule already cites: art. L.211-3-1 CPI excludes
+    *hyperlinks and very short extracts* from the droit voisin, and excludes
+    summaries from that exclusion. So what was added is a **verbatim extract**,
+    and what remains forbidden is unchanged and is the harder half of the rule:
+
+    - **It is the publisher's text, reproduced.** `crawler.py`'s `_excerpt()`
+      reads the feed's own `description`/`summary`, strips markup, and
+      truncates. It is never generated, rewritten, merged, or shortened by a
+      model. **An AI-written summary is still prohibited** — that is the act
+      the exclusion does not cover, and it is also the act that removes the
+      reason to click through, which is the harm the right exists to address.
+    - **Capped at 200 characters, server-side.** `EXCERPT_MAX_CHARS`. The cap
+      is applied in the crawler, not the app, so the untruncated text never
+      leaves that process — an app holding 19 KB of body and displaying 200
+      characters of it would still be holding 19 KB of expression.
+    - **`content:encoded` is never read.** Some feeds ship the whole article in
+      it (19,676 characters on Perfect Daily Grind). `legal.md` §3.8 is "store
+      facts, never expression", and a full body is expression however small the
+      slice displayed from it.
+    - **Boilerplate is dropped, not shown.** Sprudge ships RSS chrome in every
+      `description`; those items carry no excerpt at all rather than a
+      standfirst that says nothing.
+
+    Still no image, and rule 75's hotlinking analysis is untouched by this.
 75. **[BLOCKER · Both]** **Disclose that product photos are hotlinked from each
     roaster's own server**, so opening a listing reveals the user's IP address
     and User-Agent to a third party they have no relationship with. Hotlinking

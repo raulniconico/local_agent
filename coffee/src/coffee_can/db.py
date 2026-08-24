@@ -20,6 +20,14 @@ CREATE TABLE IF NOT EXISTS beans (
     process     TEXT,
     roast_date  TEXT,
     note        TEXT,
+    -- The roast (2026-08-24). Mirrors BeanEntity's four; snake_case here,
+    -- camelCase there, and sync_tools maps between them. No CLI or GUI reads
+    -- these yet -- they exist so a phone -> desktop -> phone round trip does
+    -- not drop them, the same reason `journeys` is here.
+    roast_level    TEXT,
+    color_value    TEXT,
+    weight_loss    TEXT,
+    expansion_rate TEXT,
     status      TEXT NOT NULL DEFAULT 'draft',
     flavor_source TEXT NOT NULL DEFAULT 'auto',
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
@@ -65,6 +73,12 @@ CREATE TABLE IF NOT EXISTS brew_sessions (
     extraction   REAL,
     concentration REAL,
     note         TEXT,
+    -- The roast (2026-08-24). Mirrors BeanEntity's four; snake_case here,
+    -- camelCase there, and sync_tools maps between them.
+    roast_level    TEXT,
+    color_value    TEXT,
+    weight_loss    TEXT,
+    expansion_rate TEXT,
     flavor_notes TEXT,
     status       TEXT NOT NULL DEFAULT 'draft',
     created_at   TEXT NOT NULL DEFAULT (datetime('now')),
@@ -163,6 +177,11 @@ CREATE TABLE IF NOT EXISTS news_items (
     title        TEXT NOT NULL,
     source       TEXT NOT NULL,
     published_at INTEGER,
+    -- The publisher's own standfirst, <=200 chars, added 2026-08-24 with the
+    -- override of specs/legal-accounts.md rule 74. Mirrors
+    -- NewsItemEntity.excerpt; the phone is where it is displayed and this
+    -- table exists so a round trip through the desktop loses nothing.
+    excerpt      TEXT,
     fetched_at   INTEGER NOT NULL
 );
 """.format(flavor_columns="".join(f",\n    {field} REAL" for field in FLAVOR_FIELDS))
@@ -277,6 +296,25 @@ def _migrate(conn: sqlite3.Connection) -> None:
         # the pour was poured, the label says which pour it was, and folding
         # one into the other would lose whichever was written second.
         conn.execute("ALTER TABLE brew_stages ADD COLUMN label TEXT")
+        conn.commit()
+
+    bean_columns = {row[1] for row in conn.execute("PRAGMA table_info(beans)")}
+    for column in ("roast_level", "color_value", "weight_loss", "expansion_rate"):
+        if column not in bean_columns:
+            # The roast block the phone gained on 2026-08-24. No desktop UI
+            # reads these yet -- they exist so a phone -> desktop -> phone round
+            # trip does not drop them, the same reason `journeys` and the
+            # server-cache tables are here.
+            conn.execute(f"ALTER TABLE beans ADD COLUMN {column} TEXT")
+            conn.commit()
+
+    news_columns = {row[1] for row in conn.execute("PRAGMA table_info(news_items)")}
+    if "excerpt" not in news_columns:
+        # The phone gained NewsItemEntity.excerpt with rule 74's 2026-08-24
+        # override. Additive and nullable: an existing cache simply has no
+        # excerpts until the next fetch replaces it, which costs nothing
+        # because the feed is replaced wholesale every time.
+        conn.execute("ALTER TABLE news_items ADD COLUMN excerpt TEXT")
         conn.commit()
 
     _migrate_split_sour_fermented(conn)

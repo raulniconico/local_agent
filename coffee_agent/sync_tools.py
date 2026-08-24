@@ -143,6 +143,10 @@ _JOURNEY_FIELDS = (
 _BEAN_FIELDS = (
     "name", "origin", "variety", "altitude", "roaster", "producer",
     "process", "roast_date", "note", "flavor_source",
+    # The roast block, 2026-08-24. Listed the moment the columns existed --
+    # `humidity` had a column on both sides for months and simply was not here,
+    # so it silently never travelled and nothing failed.
+    "roast_level", "color_value", "weight_loss", "expansion_rate",
 ) + FLAVOR_FIELDS
 
 #: Session fields that exist on both sides -- which, since 2026-08-23, is all

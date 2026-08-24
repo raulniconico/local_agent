@@ -1007,6 +1007,140 @@ def can_boy_sad(c, cx, cy, size):
     c.add('</g>')
 
 
+def can_boy_news(c, cx, cy, size, page=0.0, bob=0.0):
+    """Can-boy sitting in a chair reading the paper -- the News page's header.
+
+    Sitting is carried the same way `can_boy_sad` carries it: by the legs,
+    because a front-facing figure has no profile to bend at the waist. What
+    differs is that these legs are *bent* -- thigh forward, shin dropping to a
+    floor the chair holds them above -- which is what separates "on a chair"
+    from "on the ground".
+
+    THE PAPER SITS BELOW THE WORDMARK, NEVER ACROSS IT. A newspaper held up to
+    read is the natural pose and the wrong one here: it covers the belly, and
+    the belly is where the mark's name is. The wordmark occupies y 50..64 in
+    figure units, so the spread starts at 66 and the arms come down to meet it
+    -- reading on the lap, which still reads as reading.
+
+    THE SPREAD IS FILLED WHITE WITH A BRAND-COLOURED EDGE. Everything else here
+    is a white stroke on the brand disc, so a white sheet laid over it would
+    dissolve into the limbs it overlaps; the coloured edge and the coloured
+    rules are what make it a separate object. Same figure/ground inversion the
+    bag tile uses.
+
+    THE CHAIR IS SCENERY AND DRAWN LIKE IT. Thinner than any limb (2.6 against
+    4.2), and only the parts a front-facing sitter would not hide: a short back
+    above the shoulders, the seat, and legs splayed wider than his own so the
+    two are never confused. A first pass ran the back posts the full height and
+    produced a cage around the can rather than a chair behind it.
+
+    `page` (0..1) lifts and curls the right-hand leaf about the fold, so the
+    idle animation is a page being turned rather than the figure jiggling.
+    `bob` (-1..1) rocks the whole figure about the seat.
+
+    Everything carrying the identity is verbatim from `can_boy`: the can path,
+    the lid ellipse, the pull tab, the round caps and joins, every stroke
+    weight, and the belly wordmark.
+    """
+    g = size / 100.0
+    c.add(f'<g transform="translate({cx - size/2:.2f} {cy - size/2:.2f}) scale({g:.4f})">')
+    c.add(f'<circle cx="50" cy="50" r="50" fill="{wf.BRAND_MARK}"/>')
+
+    # 0.70 rather than the sad pose's 0.74: this pose has a prop below the
+    # body as well as legs, and at 0.74 the feet ran past the disc.
+    c.add('<g transform="translate(50 52) scale(0.70) translate(-50 -50)">')
+    c.add(f'<g transform="rotate({bob * 1.4:.2f} 50 84)">')
+    c.add('<g fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">')
+
+    # THE CHAIR, first, so every stroke lands behind the figure. ARMRESTS,
+    # NOT A BACK: a front-facing sitter hides the backrest almost entirely, and
+    # a first pass that drew back posts either side of the can produced two
+    # handles growing out of it. Armrests at hip height are the one chair part
+    # a front view shows in full, and they read as furniture immediately.
+    # Thinner than any limb (2.6 against 4.2) -- scenery, not anatomy.
+    c.add('<g stroke-width="2.6">')
+    c.add('<path d="M13 70 L23 70"/>')              # armrests
+    c.add('<path d="M77 70 L87 70"/>')
+    c.add('<path d="M14 70 L15 88"/>')              # their supports
+    c.add('<path d="M86 70 L85 88"/>')
+    c.add('<path d="M13 88 L87 88"/>')              # seat, wider than the paper
+    c.add('<path d="M18 88 L15 98"/>')              # legs splayed wider than
+    c.add('<path d="M82 88 L85 98"/>')              # his own, never confusable
+    c.add('</g>')
+
+    # Legs: thigh forward off the seat, shin down to feet that clear the
+    # paper's bottom edge -- a sitter whose feet are hidden is just a torso.
+    c.add('<g stroke-width="4.2">')
+    c.add('<path d="M43 78 Q39 90 38 97"/>')
+    c.add('<path d="M57 78 Q61 90 62 97"/>')
+    c.add('</g>')
+
+    # The can. Verbatim.
+    c.add('<g stroke-width="5.2">')
+    c.add('<path d="M33 27 C 29 41, 29 60, 33 74 C 40 78, 60 78, 67 74 '
+          'C 71 60, 71 41, 67 27"/>')
+    c.add('<ellipse cx="50" cy="24" rx="19" ry="6.5"/>')
+    c.add('</g>')
+    c.add('<g transform="translate(58 12) rotate(-12)" stroke-width="3">')
+    c.add('<ellipse cx="0" cy="0" rx="5.4" ry="3.6"/>')
+    c.add('<path d="M0 3.6 L-0.8 7.6"/>')
+    c.add('</g>')
+
+    # Arms short and tucked, hands meeting the spread near the fold rather
+    # than at its far corners: reaching the outer edges swung them into the
+    # armrests and four things met in the same place.
+    c.add('<g stroke-width="4.2">')
+    c.add('<path d="M32 48 Q21 57 33 66"/>')
+    c.add('<path d="M68 48 Q79 57 67 66"/>')
+    c.add('</g>')
+    c.add('</g>')      # end stroke group
+
+    # Wordmark before the paper: the draw order is the guarantee that the
+    # sheet can never cover the name, not the geometry.
+    c.add('<g transform="translate(50 57) scale(0.5) translate(-63.54 -50.33)" '
+          'fill="#FFFFFF">' + "".join(wf._LOGO_WORD) + '</g>')
+
+    # THE SPREAD.
+    c.add(f'<g transform="translate(0 {-abs(bob) * 0.6:.2f})">')
+    # Capped at 26 deg, not by taste: the leaf's top corner is at y 65 and the
+    # wordmark's baseline is at 64, so a larger swing puts paper over the name
+    # -- the one thing this pose exists to avoid.
+    lift = page * 22.0
+    # Curl lifts the leaf's OUTER corner, and that corner is what actually
+    # reaches the wordmark -- the rotation alone never does. Capped so the
+    # corner bottoms out at y 65, one unit clear of the name.
+    curl = page * 4.0
+
+    # Right leaf first, so the turning page passes behind the left one.
+    c.add(f'<g transform="rotate({-lift:.2f} 50 84)">')
+    c.add(f'<path d="M50 65 L{77 + curl * 0.5:.2f} {69 - curl:.2f} '
+          f'L{77 + curl * 0.5:.2f} {82 - curl * 0.5:.2f} L50 84 Z" '
+          f'fill="#FFFFFF" stroke="{wf.BRAND_MARK}" stroke-width="1.2" '
+          f'stroke-linejoin="round"/>')
+    c.add('</g>')
+
+    # Left leaf.
+    c.add(f'<path d="M50 65 L23 69 L23 82 L50 84 Z" fill="#FFFFFF" '
+          f'stroke="{wf.BRAND_MARK}" stroke-width="1.2" stroke-linejoin="round"/>')
+
+    # Masthead and ruled columns, in brand colour so they read as ink.
+    c.add(f'<g stroke="{wf.BRAND_MARK}" fill="none" stroke-linecap="round">')
+    c.add('<path d="M27 73 L45 71.8" stroke-width="2.6"/>')
+    c.add('<path d="M27 76.5 L45 75.4" stroke-width="1.2"/>')
+    c.add('<path d="M27 79.5 L45 78.5" stroke-width="1.2"/>')
+    c.add('</g>')
+
+    # The fold, last: two white leaves meeting edge to edge have no seam
+    # otherwise, and the spread reads as one card.
+    c.add(f'<path d="M50 65 L50 84" stroke="{wf.BRAND_MARK}" stroke-width="1.4" '
+          f'fill="none"/>')
+    c.add('</g>')      # end spread
+
+    c.add('</g>')      # end bob
+    c.add('</g>')      # end shrink
+    c.add('</g>')
+
+
 def can_boy_v60(c, cx, cy, size, tilt=0.0):
     """Can-boy brewing pour-over -- the empty Sessions block on a bean page
     with nothing logged yet ("no brews yet, go brew one").
@@ -2212,6 +2346,88 @@ def profile():
     return c
 
 
+def news():
+    """-1 Can read: can-boy reading, then newsprint sheets.
+
+    Renamed from "Coffee news" 2026-08-24, matching `+1 Can travel`: the page
+    names are product names in the same family and, like Can travel, the string
+    is deliberately **not translated** in fr or zh.
+
+    ONE PAPER, NOT A LIST (2026-08-24, direct product request). The paper you
+    are on carries the publication's name and the headline; the next shows
+    down to *its* title behind it, dimmed. A peek that revealed only a coloured
+    strip would say "there is more" without saying more of what, which is the
+    whole reason to spend the space on it.
+
+    THE LARGE EMPTY FIELD UNDER THE HEADLINE IS DELIBERATE AND IS ALSO THE
+    OPEN QUESTION. `legal-accounts.md` rule 74 caps this card at headline,
+    source, date and link -- no snippet, no summary -- so there is nothing else
+    permitted to put there today. It is drawn empty rather than padded out
+    because that space is exactly where an article image would go if rule 74
+    were ever revisited, and a card designed around its absence would have to
+    be redrawn to accommodate one.
+    """
+    c = wf.Canvas("Can read — scheme E")
+    wf.status_bar(c)
+    wf.top_bar(c, "Can read", actions=("refresh",))
+
+    can_boy_news(c, W / 2, 172, 108, page=0.45, bob=0.2)
+    wf.text(c, wf.GUTTER, 244, "Updated 24 Aug, 09:12", "labelLarge",
+            wf.C["onSurfaceVariant"])
+
+    # THE LEAD, then a short story, then the faded third -- 0.44/0.28/0.28 of
+    # the run, matching NewspaperCarousel. Sheets, not cards: squared corners,
+    # a folio line (date | nameplate | link mark), the classic double rule, and
+    # a torn bottom edge.
+    def sheet(y, h, src, date, lines, faded=False, standfirst=None, size=None):
+        op = ' opacity="0.45"' if faded else ''
+        c.add(f'<g{op}>')
+        # Square, not rounded: r=0 is the loudest "paper" signal available
+        # against 24dp radii everywhere else in the app.
+        wf.rect(c, wf.GUTTER, y, W - 2 * wf.GUTTER, h, wf.C["cardSurface"], 0,
+                stroke=wf.C["outlineVariant"], sw=1)
+        if not faded:
+            wf.text(c, wf.GUTTER + 14, y + 26, date, "labelSmall", wf.C["onSurfaceVariant"])
+            wf.text(c, W / 2, y + 26, src, "labelSmall", wf.C["onSurface"], "middle")
+            wf.line(c, wf.GUTTER + 14, y + 38, W - wf.GUTTER - 14, y + 38, wf.C["onSurface"], 2)
+            wf.line(c, wf.GUTTER + 14, y + 42, W - wf.GUTTER - 14, y + 42, wf.C["outlineVariant"], 1)
+            ty = y + 66
+        else:
+            ty = y + 30
+        for i, ln in enumerate(lines):
+            wf.text(c, wf.GUTTER + 14, ty + i * (size or 20), ln, "titleMedium",
+                    wf.C["onSurfaceVariant"] if faded else None, size=size)
+        if standfirst:
+            sy = ty + len(lines) * (size or 20) + 10
+            for i, ln in enumerate(standfirst):
+                wf.text(c, wf.GUTTER + 14, sy + i * 16, ln, "bodyMedium",
+                        wf.C["onSurfaceVariant"])
+        # The torn bottom edge, drawn as one deckled polyline.
+        pts, x = [], wf.GUTTER
+        seed = len(src) * 7
+        while x < W - wf.GUTTER:
+            seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+            pts.append(f"{x:.1f} {y + h - (seed % 5):.1f}")
+            x += 11
+        c.add(f'<polyline points="{" ".join(pts)}" fill="none" '
+              f'stroke="{wf.C["outlineVariant"]}" stroke-width="1"/>')
+        c.add('</g>')
+
+    sheet(262, 216, "PERFECT DAILY GRIND", "24 AUG",
+          ["What do the pioneers think", "of specialty coffee's future?"],
+          standfirst=["Key takeaways Specialty coffee is",
+                      "changing. Some of this change",
+                      "promises progress: more meticulous..."],
+          size=17)
+    sheet(262 + 216 + 10, 132, "SPRUDGE", "23 AUG",
+          ["A Twenty Coffee Blend Anyone?", "The Sprudge Roaster's Village..."])
+    sheet(262 + 216 + 10 + 132 + 10, 132, "DAILY COFFEE NEWS", "21 AUG",
+          ["What Is The True Water Cost", "Of A Cup Of Coffee?"], faded=True)
+
+    wf.gesture_bar(c)
+    return c
+
+
 PAGES = [("00w_welcome.svg", welcome),
          ("00_home.svg", home),
          ("00_home_empty.svg", home_empty),
@@ -2224,6 +2440,7 @@ PAGES = [("00w_welcome.svg", welcome),
          ("0.2b_empty.svg", bean_detail_lower_empty),
          ("-1w_can_drink_intro.svg", can_drink_intro),
          ("-1_can_drink.svg", can_drink),
+         ("-1_news.svg", news),
          ("+1_sessions.svg", sessions),
          ("+1_sessions_empty.svg", sessions_empty),
          ("+1.1_log_brew.svg", log_brew),

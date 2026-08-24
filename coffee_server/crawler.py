@@ -61,6 +61,7 @@ be written against a specific site with its allowlist entry in hand.
 import json
 import logging
 import random
+import re
 import threading
 import time
 import xml.etree.ElementTree as ET
@@ -489,6 +490,57 @@ def _refresh_catalogue() -> _Cached:
     return _Cached(items=items, fetched_at=now)
 
 
+#: Feed `description` values that are chrome rather than an excerpt. Sprudge
+#: ships its RSS boilerplate in every item ("This article is from the coffee
+#: website Sprudge at ... This is the RSS feed version"), and rendering that as
+#: a standfirst on a third of the cards is worse than rendering nothing. Match
+#: on the phrase, not the publisher, so a second feed that does the same thing
+#: is caught without a code change.
+_BOILERPLATE = (
+    "this is the rss feed version",
+    "this article is from the coffee website",
+    "read the full story",
+    "continue reading",
+    "the post appeared first on",
+)
+
+#: `legal-accounts.md` rule 74's override caps this. 200 characters is a
+#: standfirst, not an article, and the cap is applied HERE rather than in the
+#: app so that the untruncated text never leaves this process -- an app that
+#: received 19KB of body and displayed 200 characters of it would still be
+#: holding 19KB of someone's copyrighted expression.
+EXCERPT_MAX_CHARS = 200
+
+_TAGS = re.compile(r"<[^>]+>")
+_WS = re.compile(r"\s+")
+
+
+def _excerpt(raw: Optional[str]) -> Optional[str]:
+    """The publisher's OWN standfirst, cleaned and capped -- never a summary.
+
+    This reproduces text the publisher chose to put in a syndication feed. It
+    is deliberately not generated, rewritten, shortened by a model, or merged
+    across items: `legal-accounts.md` rule 74's override permits a very short
+    verbatim extract (which art. L.211-3-1 CPI excludes from the droit voisin)
+    and permits nothing else. If you are ever tempted to "improve" this by
+    asking a model to condense it, that is the exact act the exclusion does
+    not cover.
+    """
+    if not raw:
+        return None
+    text = _WS.sub(" ", _TAGS.sub(" ", raw)).strip()
+    if not text:
+        return None
+    low = text.lower()
+    if any(marker in low for marker in _BOILERPLATE):
+        return None
+    if len(text) <= EXCERPT_MAX_CHARS:
+        return text
+    # Cut on a word boundary so the ellipsis never lands mid-word.
+    cut = text[:EXCERPT_MAX_CHARS].rsplit(" ", 1)[0].rstrip(" ,;:-—–")
+    return (cut or text[:EXCERPT_MAX_CHARS].rstrip()) + "…"
+
+
 def _refresh_news() -> _Cached:
     """Poll each allowlisted feed once, conditionally.
 
@@ -557,12 +609,21 @@ def _refresh_news() -> _Cached:
                 link = _child_text(entry, "link") or _child_attr(entry, "link", "href")
                 if not title or not link:
                     continue
+                # `description`/`summary` only. NOT `content:encoded`, which
+                # carries the whole article on some feeds (19KB on Perfect
+                # Daily Grind) -- legal.md 3.8 is "store facts, never
+                # expression", and a full body is expression however short the
+                # slice displayed from it.
+                excerpt = _excerpt(
+                    _child_text(entry, "description") or _child_text(entry, "summary")
+                )
                 items.append(
                     {
                         "title": " ".join(title.split()),
                         "source": source.display_name or source.domain,
                         "url": link,
                         "published_at": _published_at(entry),
+                        "excerpt": excerpt,
                     }
                 )
 

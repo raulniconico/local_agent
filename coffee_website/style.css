@@ -1,0 +1,156 @@
+/* Coffee Can — coffee-can.org
+ *
+ * Tokens copied from coffee_android/v1/.../theme/Theme.kt, not eyeballed: the
+ * site and the app are the same product, and a brand green that is one step
+ * off reads as a knock-off of your own app. See check_design.py for the same
+ * argument applied between the app and the deck.
+ */
+:root {
+  --brand:  #34C759;
+  --ink:    #1B241C;
+  --muted:  #515D51;
+  --line:   #DCECDD;
+  --paper:  #FFFFFF;
+  --wash:   #EAF5EA;
+  --deep:   #0B2E12;
+  --radius: 24px;
+  --gutter: clamp(20px, 5vw, 40px);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: Fredoka, ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* `height: auto` is not optional here: every shot carries explicit width and
+ * height attributes (which is what stops the page reflowing as they load), and
+ * with only `max-width` constrained the width shrinks while the height stays
+ * at its attribute value -- a 720x1404 phone rendered as a 280x1404 ribbon. */
+img, svg { display: block; max-width: 100%; height: auto; }
+a { color: inherit; }
+
+.wrap { width: min(1120px, 100% - var(--gutter) * 2); margin-inline: auto; }
+
+/* --- the frosted bar, the same idea the app's chrome uses ---------------- */
+header {
+  position: sticky; top: 0; z-index: 20;
+  backdrop-filter: saturate(180%) blur(18px);
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+header .wrap { display: flex; align-items: center; gap: 14px; height: 60px; }
+header img { width: 32px; height: 32px; }
+header b { font-weight: 600; letter-spacing: -0.01em; }
+header nav { margin-left: auto; display: flex; gap: clamp(14px, 3vw, 30px); }
+header nav a {
+  text-decoration: none; color: var(--muted); font-size: 15px;
+  transition: color .18s ease;
+}
+header nav a:hover { color: var(--ink); }
+
+/* --- hero ---------------------------------------------------------------- */
+.hero { text-align: center; padding: clamp(56px, 11vw, 128px) 0 0; }
+.hero-mark { width: clamp(128px, 22vw, 190px); margin: 0 auto clamp(24px, 4vw, 40px); }
+h1 {
+  font-size: clamp(40px, 8.2vw, 88px);
+  line-height: 1.03;
+  letter-spacing: -0.035em;
+  font-weight: 600;
+  max-width: 16ch;
+  margin-inline: auto;
+}
+h1 em { font-style: normal; color: var(--brand); }
+.lede {
+  margin: clamp(18px, 3vw, 28px) auto 0;
+  max-width: 54ch;
+  font-size: clamp(17px, 2.1vw, 21px);
+  color: var(--muted);
+}
+.cta { margin-top: clamp(28px, 4vw, 40px); display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn {
+  display: inline-block; text-decoration: none; font-size: 16px;
+  padding: 13px 26px; border-radius: 999px;
+  transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
+}
+.btn-primary { background: var(--brand); color: #fff; box-shadow: 0 6px 20px rgba(52,199,89,.32); }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(52,199,89,.4); }
+.btn-ghost { border: 1px solid var(--line); color: var(--ink); }
+.btn-ghost:hover { background: var(--wash); }
+
+/* the hero device, tilted just enough to read as an object */
+.hero-shot {
+  margin: clamp(44px, 7vw, 84px) auto 0;
+  width: min(300px, 74vw);
+  perspective: 1400px;
+}
+.hero-shot img {
+  border-radius: 34px;
+  border: 1px solid var(--line);
+  box-shadow: 0 30px 70px rgba(11,46,18,.16), 0 6px 18px rgba(11,46,18,.07);
+  transform: rotateX(6deg);
+}
+
+/* --- feature rows -------------------------------------------------------- */
+.feature { padding: clamp(72px, 12vw, 150px) 0; }
+.feature + .feature { border-top: 1px solid var(--line); }
+.feature .wrap {
+  display: grid; gap: clamp(32px, 6vw, 80px); align-items: center;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 860px) {
+  .feature .wrap { grid-template-columns: 1fr 1fr; }
+  .feature.flip .copy { order: 2; }
+}
+.eyebrow {
+  font-size: 13px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--brand); font-weight: 600; margin-bottom: 14px;
+}
+h2 {
+  font-size: clamp(28px, 4.6vw, 46px); line-height: 1.1;
+  letter-spacing: -0.03em; font-weight: 600; max-width: 18ch;
+}
+.feature p { margin-top: 16px; color: var(--muted); font-size: clamp(16px, 1.9vw, 18px); max-width: 46ch; }
+.shot { position: relative; }
+.shot img {
+  border-radius: 30px; border: 1px solid var(--line);
+  box-shadow: 0 24px 56px rgba(11,46,18,.14);
+  margin-inline: auto; width: min(280px, 70vw);
+}
+.shot .mascot {
+  position: absolute; width: 96px; right: -6px; bottom: -18px;
+  filter: drop-shadow(0 10px 22px rgba(11,46,18,.18));
+}
+
+/* --- privacy band -------------------------------------------------------- */
+.band { background: var(--wash); padding: clamp(64px, 10vw, 120px) 0; text-align: center; }
+.band h2 { margin-inline: auto; }
+.band p { margin: 16px auto 0; color: var(--muted); max-width: 56ch; font-size: clamp(16px, 1.9vw, 18px); }
+.pills { margin-top: 30px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.pill {
+  background: var(--paper); border: 1px solid var(--line);
+  padding: 9px 16px; border-radius: 999px; font-size: 14px; color: var(--muted);
+}
+
+footer { padding: clamp(44px, 7vw, 72px) 0; border-top: 1px solid var(--line); }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; }
+footer .sp { margin-left: auto; }
+footer a { color: var(--muted); text-decoration: none; font-size: 15px; }
+footer a:hover { color: var(--ink); }
+footer small { color: var(--muted); font-size: 14px; }
+
+/* --- reveal on scroll ---------------------------------------------------- */
+.reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
+.reveal.in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .btn, header nav a { transition: none; }
+}

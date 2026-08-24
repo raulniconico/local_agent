@@ -156,14 +156,23 @@ class CatalogueResponse(BaseModel):
 
 
 class NewsItem(BaseModel):
-    """Headline, source, date, link. Nothing else, ever: no snippet beyond the
-    headline and specifically no AI-generated summary (`legal-accounts.md`
-    rule 74 -- droit voisin, arts. L.218-1 et seq. CPI)."""
+    """Headline, source, date, link -- and since 2026-08-24 the publisher's own
+    standfirst, capped at 200 characters.
+
+    `legal-accounts.md` rule 74 originally permitted the first four only. The
+    override permits `excerpt` on one condition that is not negotiable: it is
+    the publisher's own words, reproduced verbatim from their feed's
+    `description`, truncated and nothing else. **A generated, rewritten or
+    model-condensed summary is still forbidden** -- the droit voisin exclusion
+    (arts. L.218-1 et seq. CPI) covers hyperlinks and very short extracts, and
+    a summary is neither.
+    """
 
     title: str
     source: str
     url: str
     published_at: Optional[int] = None
+    excerpt: Optional[str] = None
 
 
 class NewsResponse(BaseModel):
