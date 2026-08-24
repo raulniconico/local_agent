@@ -630,8 +630,15 @@ rather than shipped as frozen pictures**, so the poses can move.
   **pour-over** (rest and tilted), **shutter-flash** (the scan prompt), and
   **heartbreak** (whole and settled — empty and error states).
 - **The images strip** (`ImagesStrip`, shared by `0.1`, `0.2` and the brew/cup
-  form) carries **two gestures on one long press** (2026-08-23, direct product
-  request). Long-press *and move* drags a photo to reorder the strip; long-press
+  form) sizes its tiles to **three to a line** (`ImagesPerLine`, 2026-08-24,
+  direct product request). The tile is not a constant: `BoxWithConstraints`
+  divides the width the strip was given by three, less the two `ImageGap`s, so
+  the third photograph ends flush with the gutter on any handset rather than
+  landing wherever an 88dp tile happened to fall. `ImageTile` survives as the
+  **floor** for a container too narrow for that. The drag's step pitch follows
+  the measured tile, or a reorder would displace at the wrong distance on every
+  screen but the one it was tuned on. It carries **two gestures on one long
+  press** (2026-08-23, direct product request). Long-press *and move* drags a photo to reorder the strip; long-press
   *and release* opens a menu with **Delete photo**. Both come from one
   `detectDragGesturesAfterLongPress` — it fires `onDragStart` the moment the
   press lands, and the release decides which act it was — because a separate
@@ -1195,6 +1202,22 @@ One café: name, visit date, city, **address**, **barista**, note, up to
 three photographs, and the **Cups** block. No scan card (a café has no label)
 and no radar (a journey has no flavour).
 
+**Its app bar is frosted, and has no rule under it** (2026-08-24, direct
+product report: the header "doesn't have shade and transparent", and "its
+boundary line should be removed"). It was the last bar on the journey path
+still painting an opaque strip and closing it with a `TopBarDivider` — the
+exact seam `axisChromeScrim()` exists to remove, and one `+1` had already
+dropped. The two pages are meant to read as one place, so the bar you push
+from and the bar you land on cannot be different objects. The graded scrim
+**replaces** the divider rather than joining it: the frost holds for most of
+the bar's height and releases over the last third, so the page emerges from
+under the bar instead of starting at a line, and drawing both would be a soft
+edge with a hard one on top of it. The content column spends the bar's height
+as a spacer *inside* its scroll rather than as viewport padding — the same call
+`JourneysScreen`'s list makes, and for the same reason: top padding fills the
+strip behind a translucent bar with the page's own background, which would put
+the frost over a flat colour and make it a solid bar again.
+
 **Swipe right to go back to `+1`** (2026-08-23, direct product request). This
 page is a push on top of the axis, and the axis is horizontal — Can travel is
 the page you came from, so dragging the café rightwards putting it back is a
@@ -1529,12 +1552,50 @@ through the draft (§9); it simply has no input any more, and the pour stages
 below still ask per pour — which is where a temperature that changes mid-brew
 was always recorded.
 
-**Bean details sits above Brew details** (`BeanDetailsSection`, 2026-08-21,
-direct product request). It shows **one** input, the bean's name, and
-**More details** as the section heading's own trailing action; pressing that
-reveals `0.1`'s own `BeanFieldsGrid` (origin, variety, altitude, roaster,
-producer, process, roast date, note) and `ImagesStrip` beneath it, with the
-photo sheet and the roast-date picker wired exactly as on `0.1`.
+**The title header pins, frosted, exactly as `0.2`'s does** (2026-08-24,
+direct product request: on a new cup and on a new session "the header section
+should have a shade and reside on top effect just as the title header in bean
+profile page"). The bean's name freezes into a strip at the top of the window
+the moment the headline has travelled under the status bar, over
+`axisChromeScrim()` + `axisChromeSheen()` so the photo and the panel pass
+beneath it. `titleTopPx` is **measured**, not inferred from the scroll offset:
+the hero shrinks before the panel moves, so a threshold on the offset fires at
+the wrong time on a photo with a different aspect. The strip is inset 72dp at
+both ends to clear the floating back and share discs — it is a label, not a
+replacement top bar, and it must not land on the controls already up there.
+`0.2` and `0.31` are the same shape of page, so this is deliberately the same
+construction and not a similar one.
+
+**Bean details sits above Brew details — on a bean that still has to be named**
+(`BeanDetailsSection`, 2026-08-21; gated 2026-08-24). It shows **one** input,
+the bean's name, and **More details** as the section heading's own trailing
+action; pressing that reveals `0.1`'s own `BeanFieldsGrid` (origin, variety,
+altitude, roaster, producer, process, roast date, note) and `ImagesStrip`
+beneath it, with the photo sheet and the roast-date picker wired exactly as on
+`0.1`.
+
+**A brew of a bean out of the can draws none of it** (2026-08-24, direct
+product request: "when add new session in an already created bean, remove bean
+details in the add session page — the details are written on the header
+section"). On that path the block was eight capsules and a photo strip
+restating a bean the user picked *by name* two taps earlier, sitting between
+the headline and the brew fields they came for. `BeanHeaderSummary` — `0.2`'s
+own summary lines, the same composable, so the two pages state a bean's
+identity in one voice — takes its place: origin · process · roast level, then
+the roast date. Nothing is lost, because everything the block could show that
+those two lines cannot is an *input*, and inputs for a bean belong on the bean.
+
+The test is `beanNamed`, and it is **emptiness, not provenance** — the same
+rule `leaveWithoutSaving` applies. Nothing is threaded down to say "this came
+from vibe brewing"; a bean with no name is one this form has to be able to
+name, whatever route produced it, which keeps vibe brewing on the full block
+without it having to announce itself. It is read off the **stored row at
+hydration**, never off `beanDraft`, because the draft's name changes as the
+user types and a live test would tear the section off the page mid-word on the
+one path that needs it most. **A cup keeps the block whatever its bean is
+called** (`cup ||`): `photosOutsideFold` exists because a cup's photograph is
+the point and there is never one yet, so dropping the block on a saved cup
+would take the only "+" tile with it.
 
 **It is a toggle, and it lives on the heading** (2026-08-21, direct product
 request). Open, the action reads **Less details** and a second press folds the
@@ -1552,10 +1613,10 @@ than as one more control in the form's stack.
 no name — vibe brewing creates a blank row so the session has something to
 belong to, and a cup (§8.6c) is a coffee this phone has never seen — and until
 this block existed neither could say what the coffee *was* without leaving the
-form. *Why it starts collapsed on every path,* including a bean whose fields
-are full: this is a brew form, the block is eight optional inputs plus a photo
-strip, and opening it pushes Brew details a screen and a half down for the
-commonest way in.
+form. *Why it starts collapsed on the paths that still draw it:* the block is eight
+optional inputs plus a photo strip, and opening it pushes Brew details a screen
+and a half down. (Until 2026-08-24 that argument also had to cover a bean whose
+fields are full, because the block was drawn there too; now it simply is not.)
 
 The bean draft follows the same discipline as the session beside it — typing
 reaches Room only on Save, it counts towards `dirty`, and it locks with the

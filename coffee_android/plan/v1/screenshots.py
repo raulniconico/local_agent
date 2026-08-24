@@ -1677,6 +1677,38 @@ def sessions_background(c: Canvas):
         y += 60
 
 
+#: How many photographs fill one line of an images strip -- `ImagesPerLine`
+#: in BeanDetailScreen.kt, which is also what fixes the tile's size.
+IMAGES_PER_LINE = 3
+
+#: The gap between two tiles -- `ImageGap`.
+IMAGE_GAP = 8
+
+
+def image_tile():
+    """One `ImagesStrip` tile: the gutter-to-gutter width, divided three ways.
+
+    Mirrors `ImagesStrip`'s own `BoxWithConstraints` arithmetic. The app takes
+    `maxWidth` from whatever column it was dropped into, which on every screen
+    that draws one is the page's gutters -- so the deck can compute it from
+    [W] and [GUTTER] and land on the same number."""
+    return ((W - 2 * GUTTER) - IMAGE_GAP * (IMAGES_PER_LINE - 1)) / IMAGES_PER_LINE
+
+
+def bean_summary(c: Canvas, y, bean):
+    """`BeanHeaderSummary` -- what the coffee was, in two lines of prose.
+
+    `0.2` has drawn this under its headline since the roast level joined it;
+    since 2026-08-24 `0.31` draws it too, on the one path where it replaced a
+    form (see [bean_block]). Origin, process and roast level `·`-joined, then
+    the roast date on a line of its own."""
+    c.text(GUTTER, y + 14, " · ".join([bean["origin"], bean["process"]]),
+           "bodyMedium", C["onSurfaceVariant"])
+    c.text(GUTTER, y + 32, f"Roasted {bean['roast']}", "bodyMedium",
+           C["onSurfaceVariant"])
+    return y + 48
+
+
 def bean_block(c: Canvas, y, name="", photos=False):
     """`0.31`'s Bean details block (BeanDetailsSection), added 2026-08-21.
 
@@ -1690,6 +1722,15 @@ def bean_block(c: Canvas, y, name="", photos=False):
     than a text button under the field, and it is a toggle: open, it reads
     "Less details". Collapsed is the state every frame here draws.
 
+    A NAMED BEAN NO LONGER DRAWS IT AT ALL (2026-08-24, direct product
+    request). Two of the three ways into `0.31` arrive on a bean with no name
+    -- vibe brewing and a cup -- and this block is how they name it. The third
+    arrives on a bean the user picked *by name*, where a form asking what the
+    coffee was is asking a question answered before the screen opened; that
+    path draws [bean_summary] instead. So the frames that still call this are
+    the two blank-bean ones, and `+1.2_cup_profile` is the only one with
+    `photos`.
+
     `photos=True` is `+1.2`'s case and only its case (2026-08-23,
     BeanDetailsSection's `photosOutsideFold`): a cup's images strip is drawn
     ABOVE the fold, since a cup is the one path where the photograph is the
@@ -1700,21 +1741,29 @@ def bean_block(c: Canvas, y, name="", photos=False):
     y = field(c, y, "Bean name", name)
     if photos:
         y = section(c, y + 6, "Images")
-        # ImagesStrip's add tile: 88dp, R_THUMB, secondaryContainer, a plus
-        # over the label. No thumbnails beside it -- a new cup has none.
-        c.rect(GUTTER, y, 88, 88, C["secondaryContainer"], R_THUMB)
-        cx, cy = GUTTER + 44, y + 36
+        # ImagesStrip's add tile, R_THUMB, secondaryContainer, a plus over the
+        # label. No thumbnails beside it -- a new cup has none.
+        #
+        # THE TILE IS THE COLUMN'S WIDTH DIVIDED BY THREE (2026-08-24), not the
+        # 88dp it was: `ImagesPerLine` photographs and the gaps between them
+        # are exactly the strip's width, so the third one ends flush with the
+        # gutter. The deck has to divide the same way or it draws a tile size
+        # no handset produces.
+        t = image_tile()
+        c.rect(GUTTER, y, t, t, C["secondaryContainer"], R_THUMB)
+        cx, cy = GUTTER + t / 2, y + t / 2 - 8
         c.path(f"M{cx - 8} {cy} h16 M{cx} {cy - 8} v16",
                stroke=C["onSecondaryContainer"], sw=2)
-        c.text(cx, y + 66, "Add img", "labelSmall", C["onSecondaryContainer"], "middle")
-        y += 88
+        c.text(cx, y + t / 2 + 22, "Add img", "labelSmall",
+               C["onSecondaryContainer"], "middle")
+        y += t
     return y + 8
 
 
 def brew_background(c: Canvas):
     status_bar(c)
     y = top_bar(c, BEAN["name"], back=True)
-    y = bean_block(c, y, BEAN["name"])
+    y = bean_summary(c, y, BEAN)
     # Two actions since 2026-08-22: "Ask AI", and the fold. A brew made at
     # home opens with the section *open* -- the dripper, the grind and the
     # pours are what the form is for -- so the label reads "Less details"
@@ -1735,10 +1784,12 @@ def brew():
     c = Canvas("+1.1 Log a brew")
     status_bar(c)
     y = top_bar(c, BEAN["name"], back=True)
-    # What the coffee was, before how it was brewed (2026-08-21). "Ask AI"
-    # survives *here* and nowhere else: it sends the bean, and this is the one
-    # path whose bean was named before the form opened.
-    y = bean_block(c, y, BEAN["name"])
+    # What the coffee was, before how it was brewed (2026-08-21) -- as two
+    # lines of prose since 2026-08-24, not as a form. This is the one path
+    # whose bean was named before the form opened, which is both why the
+    # editable block went (there is nothing here to name) and why "Ask AI"
+    # survives here and nowhere else (there is a bean to ask about).
+    y = bean_summary(c, y, BEAN)
     y = section(c, y, "Brew details", action="Ask AI")
 
     # 16 of card padding, the 52dp brewed row, then four 46dp capsule pairs
