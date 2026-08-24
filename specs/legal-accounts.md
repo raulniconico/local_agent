@@ -1425,6 +1425,51 @@ platforms.
       or SSPL dependency is a stop-ship rather than a notice question, and that
       cannot be known until the inventory exists.
 
+### 3.8a Server sync — a gated test, not a shipped feature (2026-08-24)
+
+> **This section describes an exception to §3.8 that exists in the code and
+> must not reach a public build without the work below being done first.**
+
+`coffee_server` gained `GET /v1/sync/status`, `GET /v1/sync` and
+`POST /v1/sync` (`specs/coffee-server.md` §3.2f), which store **one opaque
+`SyncBundle` zip per account** — the user's coffee log and its photos. That is
+user content held server-side, which §3.8's rules 58–103 say the shipped
+architecture does not do, and which the app's own privacy screen denies in
+three languages.
+
+**Why it is not a violation today, and exactly what makes that true:**
+
+- The endpoints are gated on `config.SYNC_ALLOWED_EMAILS`, an allowlist of
+  **verified** Google `email` claims. Empty is the default and is what
+  production runs; empty means every one of them returns **404**, as if the
+  route did not exist.
+- The gate is enforced **server-side** (`auth.sync_allowed`), not in the app.
+  The app cannot enforce it — rule 60 keeps email addresses off the device — and
+  a client-side allowlist is not a gate, since anyone can rebuild an app.
+- The single allowlisted address is the developer's own. **The only data
+  subject is the controller**, which is what keeps this out of the
+  controller/processor analysis in §2 rather than merely arguing about it.
+
+**What must happen before a second address is added, or before this ships:**
+
+1. The privacy policy and the app's privacy screen stop saying no user content
+   reaches the server, in all three languages.
+2. The Play **Data safety** form re-declares: coffee logs and photos become
+   *collected* and *transferred*, with a retention and deletion story.
+3. The data inventory, the retention schedule and the DPA position are redone —
+   rule 105's tripwire fires on this by its own terms ("any change to what the
+   server stores").
+4. Rule 62's "no Auto Backup" reasoning is revisited, since a server copy
+   changes what losing the phone means.
+
+**Already done, and not to be undone:** `DELETE /v1/account` deletes the stored
+bundle (`sync_store.delete`). An Art. 17 erasure that left the user's whole
+coffee log on disk would be the request answered with a lie.
+
+**Not a UGC surface.** Rule 104 explicitly exempts same-user cross-device sync,
+which is all this is: one account, its own bundle, no route from one account to
+another's.
+
 ### 3.9 Tripwires — what re-opens this spec
 
 > Renumbered from 58–60 on 2026-08-13 so §3.8's architecture rules could take

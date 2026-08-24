@@ -175,6 +175,7 @@ docker run -d --name coffee-server-app --restart unless-stopped \
   -p "$BIND" \
   -v /home/ec2-user/coffee_server/data:/data \
   -e ACCOUNT_DB_PATH=/data/accounts.db \
+  -e SYNC_DIR=/data/sync_blobs \
   --env-file .env coffee-server
 REMOTE
 

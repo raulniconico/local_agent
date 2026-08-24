@@ -30,7 +30,7 @@ import json
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
 import accounts
@@ -39,7 +39,8 @@ import crawler
 import prompts
 import providers
 import scheduler
-from auth import meter, require_account, require_api_key, require_read_key
+import sync_store
+from auth import meter, require_account, require_api_key, require_read_key, sync_allowed
 from schemas import (
     AccountResponse,
     AskRequest,
@@ -305,7 +306,89 @@ def delete_account(sub: str = Depends(require_account)) -> dict:
     and what the in-app copy has to keep saying plainly.
     """
     accounts.delete(sub)
+    # The test-only bundle goes with it. On a production deployment this is a
+    # no-op because nothing was ever stored; where sync is switched on, an
+    # erasure request that left the user's whole coffee log on the disk would
+    # be Art. 17 answered with a lie.
+    sync_store.delete(sub)
     return {"status": "deleted", "local_data": "untouched; it is on the device and this server has no copy"}
+
+
+# ------------------------------------------------------- server sync (test) --
+#
+# OFF UNLESS `SYNC_ALLOWED_EMAILS` NAMES YOU, and 404 for everyone else -- see
+# `auth.sync_allowed` for why the gate is on this side and why it is a 404.
+#
+# This is the only part of this server that holds user content, and it exists
+# to try phone-to-phone sync before deciding whether to reopen
+# `specs/legal-accounts.md` §3.8 and ship it. Read `sync_store`'s docstring
+# before touching any of it.
+#
+# THE SERVER IS A DUMB BLOB STORE AND MUST STAY ONE. It takes the same
+# `SyncBundle` zip the app already writes for desktop sync and hands it back
+# unread. Merging happens on the phone, which is the only place that can ask
+# the user what to do about a conflict -- and keeping the merge there keeps one
+# format, one version number and one set of rules across all three programs
+# (`data/SyncBundle.kt`, `coffee_agent/sync_tools.py`, and this).
+
+
+@app.get("/v1/sync/status", dependencies=[Depends(require_api_key)])
+def sync_status(sub: str = Depends(sync_allowed)) -> dict:
+    """Whether this account may sync, and whether anything is stored for it.
+
+    The app calls this to decide whether to draw the button at all. Reaching a
+    200 here *is* the answer -- an account that is not allowlisted gets the
+    same 404 as one hitting a server where the feature does not exist.
+    """
+    payload = sync_store.load(sub)
+    return {"enabled": True, "has_bundle": payload is not None, "bytes": len(payload or b"")}
+
+
+@app.get("/v1/sync", dependencies=[Depends(require_api_key)])
+def sync_download(sub: str = Depends(sync_allowed)) -> Response:
+    """This account's stored bundle, byte for byte.
+
+    204 rather than 404 when nothing is stored: "you have never uploaded" is a
+    normal first-run state on a new phone, and the client renders it as "there
+    was nothing to pull" rather than as a failure. A 404 here would be
+    indistinguishable from the not-allowlisted 404 the gate returns.
+    """
+    payload = sync_store.load(sub)
+    if payload is None:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return Response(content=payload, media_type="application/zip")
+
+
+@app.post("/v1/sync", dependencies=[Depends(require_api_key)])
+async def sync_upload(request: Request, sub: str = Depends(sync_allowed)) -> dict:
+    """Replaces this account's stored bundle with the request body.
+
+    The body is read as raw bytes rather than multipart: the client already has
+    a zip on disk and there is exactly one part, so a multipart wrapper would
+    be a second encoding to get wrong on two sides.
+
+    THE SIZE CHECK RUNS BEFORE THE WRITE, not after, and does not trust
+    Content-Length -- that header is whatever the client said. `request.body()`
+    is bounded by the ASGI server's own limits, so this is the belt to that
+    braces: it refuses an oversized payload rather than letting it land on the
+    disk and deleting it afterwards.
+    """
+    payload = await request.body()
+    if not payload:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "empty body")
+    if len(payload) > config.SYNC_MAX_BYTES:
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            f"bundle is {len(payload)} bytes; the limit is {config.SYNC_MAX_BYTES}",
+        )
+    # A bundle is a zip and nothing else is accepted. This is a sanity check on
+    # a client bug, not a security boundary -- the bytes are never unpacked
+    # here -- but storing something that is not a bundle would only fail later,
+    # on another device, where it is much harder to work out why.
+    if payload[:2] != b"PK":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "body is not a zip")
+    sync_store.store(sub, payload)
+    return {"status": "stored", "bytes": len(payload)}
 
 
 # ---------------------------------------------------------------- utilities --

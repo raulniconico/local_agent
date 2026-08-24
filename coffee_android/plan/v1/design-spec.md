@@ -691,8 +691,15 @@ why every page is numbered rather than named:
 
 ```
    -1            00            +1             +2
-  News    ←→   HOME    ←→  Can travel  ←→  Profile
+  News    ←→   HOME    ←→  Can travel  ←→   I can
 ```
+
+**`+2` is called "I can"** (2026-08-24, direct product request; it was
+"Profile"). Untranslated in all three locales, like `Can travel` and `read`
+before it — the name is a pun on the mascot and a translation of it is just a
+different word. `profile_title` and `nav_profile` both carry it; the route
+constant, the `AxisPage` entry and §8.9's number are unchanged, since renaming
+a page is not moving it.
 
 Implemented as one `HorizontalPager` over those four pages (`ui/Axis.kt`), with
 every `0.x` page pushed on top of it.
@@ -724,6 +731,87 @@ for a screen reader and drew nothing for anyone else.
 `pagerState.currentPage`, so swiping moves the bar and tapping animates the
 pager. One source of truth, and the gesture the deck designed around still
 works.
+
+**Four glyphs, no words** (2026-08-24, direct product request). The tabs lost
+their labels, and three of the four Material icons went with them:
+
+| tab | glyph | replaced |
+| --- | --- | --- |
+| `-1` read | `ic_nav_news` — a sheet, a masthead band, three lines | `Icons.Filled.Newspaper`, whose folded corner and unequal blocks silt up at 22dp |
+| `00` Home | `ic_brand_wordmark` — the shipped mark's "Can", no disc | `Icons.Filled.Home` |
+| `+1` Can travel | `ic_nav_polaroid` — a Polaroid *camera*: body, viewfinder hump, lens, flash | `Icons.Filled.Luggage`, which named the metaphor rather than the page |
+| `+2` I can | `Icons.Filled.Person` | — the one place the generic glyph is right |
+
+The travel glyph was a *print* first — a portrait frame with the caption
+border at the foot — and was replaced by the camera the same day: the page's
+own FAB draws a Polaroid camera, so the tab and the button now show one object
+at two sizes.
+
+Two consequences worth stating. **The four `nav_*` strings must stay**: they
+moved onto each icon's `contentDescription`, so the bar is still named for a
+screen reader, and deleting them as unused would leave four unlabelled
+buttons. And **the wordmark is laid out large, not drawn small and scaled**:
+its lettering fills 62×36 of a 128-unit box, so at a 22dp icon size it renders
+6dp of ink beside 22dp glyphs. The first fix was `Modifier.scale(2.1f)` and it
+came back visibly blurry — `scale` is a draw-time graphics-layer transform, so
+the vector was rasterised at 22dp and *then* magnified. `AxisWordmark` (56dp)
+gives the Icon a larger layout size instead, so the rasteriser works at that
+size; forking the generated drawable to crop it would also work and would then
+drift.
+
+**The selected shape is one layer painted behind the row, and the four shapes
+tile the capsule** (2026-08-24, direct product request). Home and Can travel —
+the two tabs flanking the `+` — take a **full-height circle**, touching the
+capsule's top and bottom edge. `read` and `I can` take **what is left at each
+end**: the capsule's own rounded cap on the outside, and on the inside the
+near half of the neighbouring circle, *concave*, so the pieces interlock with
+neither seam nor gap.
+
+**The two glyphs beside the `+` sit closer to it than a square slot allows.**
+`AxisMidTab` is 48dp while their indicator circle stays `AxisBarHeight`, so
+the circle overhangs its own slot by 6dp a side and laps over its neighbours.
+Nothing breaks when it does: the `+` disc draws on top of it, the indicator
+subtracts that disc anyway, and the end shapes take their closing arc from the
+circle's *centre* rather than from any slot edge. Every centre in
+`drawAxisIndicator` is computed from `AxisMidTab`, so the two cannot disagree.
+
+**Home and Can travel also claim the space around the `+`.** Two full-height
+circles in adjacent slots are tangent at one point, so the space
+between them is a pair of curved slivers that no indicator could otherwise
+fill — they showed as nicks bitten out of the bar beside the `+`. The selected
+shape now runs as a band from its own circle's **centre** to the `+`'s, minus
+whatever is standing in that slot. Starting at the centre rather than at the
+slot edge is the detail that matters: claiming only the slot met the circle at
+a tangent point, which has no width, and left a hole on each side of the join.
+
+**The `+` spans the bar's full height and is the same button on every page.**
+It logs a brew, everywhere. That was arrived at the long way: for two revisions
+it changed on `+1` — first to a white camera glyph, then to a white disc
+holding the full-colour Polaroid camera, with the action switching to "start a
+journey" so the button would not show one thing and do another. Reverted to one
+green `+`, which also gives back what the switch cost: while `+1` owned this
+slot, logging a brew was the one action unreachable from the page you were on.
+`+1` has its own camera FAB for its own action.
+
+**Nothing in the bar ripples.** The default `indication` washed a grey circle
+over a glyph on touch, which on a translucent capsule read as a smudge rather
+than as feedback — and the selected shape moving under the finger already is
+the feedback. `indication = null` on every tab and on the centre button;
+`PolaroidCamera` gained a `ripple` parameter for its copy in the bar and keeps
+the ripple everywhere else, where it is a FAB on a page. `Role.Tab` and the
+selected state are still reported, so nothing is lost to TalkBack.
+
+The whole construction rests on one coincidence: the capsule's cap radius and
+a full-height circle's radius are both `h / 2`, so every edge in the indicator
+is an arc of the same radius and an end piece's closing arc is literally the
+same arc as its neighbour's outer edge. It is drawn in `drawAxisIndicator`
+rather than as a per-tab `Modifier.background(shape)` because that closing arc
+is centred on a point inside the *next* tab, which a tab-local shape cannot
+reach. The row consequently carries **no padding of its own** — the capsule's
+bounds and the row's bounds are the same rectangle, which is what lets an
+indicator reach the top and bottom edges. Slots are `AxisEndTab` (54dp),
+`AxisBarHeight` square, `AxisBarHeight` square (the `+`), `AxisBarHeight`
+square, `AxisEndTab`.
 
 This supersedes `README.md` resolution #19, which declined bottom navigation.
 
@@ -769,6 +857,18 @@ States: list, offline (heartbreak mascot, "Try again"), unavailable. Real
 headlines remain gated on `CRAWLER_ENABLED` + allowlist + rule 72, so the
 shipped state is the "no feed yet" branch.
 
+**The sheets sit in `NewsGutter`, now `Gutter / 2` — 8dp.** Three values in
+one afternoon (2026-08-24), each a direct request to go narrower: 150% of
+`Gutter`, then `Gutter`, then half of it. 24dp took enough width out of a
+column of newsprint that headlines wrapped a word early; 8dp is the floor,
+since below it the sheet's edge and the screen's edge stop reading as two
+different things. It stays its own token: this margin has now been tuned
+alone three times while every other screen kept `Gutter`, and folding it back
+would silently widen the next edit to the whole app.
+
+**The reading mascot is 160dp**, like every other page mascot since
+2026-08-24; it was 108.
+
 ### 8.3 `00` Home
 
 Bean shelf (each row: `BeanIcon`, name, process · roast date, brew-count pill,
@@ -811,6 +911,29 @@ splash and the sign-in page, so a third appearance here made the first screen
 after the splash look like the splash again) — over the headline, one
 sentence and a CTA carrying the deck's idle wiggle (1000ms shake, 4000ms rest).
 Search is the shelf heading's action.
+
+**The empty state is anchored from the top, not centred, and it shares that
+anchor with `+1_can_travel_empty`** (2026-08-24, direct product request: "too
+low, make it upper and align their position"). Two rules, both stated on
+`ui/Axis.kt`'s `AxisEmptyTopFraction`. First, the column is padded clear of the
+floating bar by `AxisBarClearance` — an axis page's content area deliberately
+runs *under* that bar, so a column filling it measures against a bottom edge
+nobody can see and lands about half the bar's height low. Second, the mascot
+centres inside a fixed `AxisEmptyMascotSlot` whose top sits at
+`AxisEmptyTopFraction` of the content height, so the two poses land on one
+centreline and both headlines on one baseline. The slot was 184dp while the
+two poses were 160 and 184; since 2026-08-24 **every page mascot is 160dp**
+(direct product request: one size, Home's) and the slot is 160 with them. It
+is kept even though both poses now fill it exactly — it is what made them
+agree when they differed, and what will keep them agreeing if one is resized
+alone. The one figure that is *not* 160 is `0.1`'s scan-card camera pose, at
+108dp: it sits inside a card above a title, body, button and hint rather than
+being the page, and growing it pushes a form apart.
+Centring cannot do that: the two blocks are unequal — this one carries a CTA
+button — so centring landed the discs **36dp apart** (measured off the
+`homeEmpty` / `journeysEmpty` goldens, which render in dp) and the mascot
+hopped on the swipe between them. Anchored, both centre at 299.5dp; the fix
+also raised Home's disc by 47dp and Can travel's by 83dp.
 
 **The top bar carries one worded action, "History"**, and it **pushes** `0.3`
 Sessions (2026-08-19, direct product request). It was a pager move for as long
@@ -954,6 +1077,14 @@ splay lands inside it, and the chin is 46dp because two caption lines measure
 list into twos and reading the month off the first of each pair files a 31 July
 journey under August whenever a month ends on an odd count.
 
+**The FAB and its "Tap me" were removed on 2026-08-24 and restored the same
+day.** For one revision the axis bar's centre slot was the only camera and
+carried the mark; the mark had nowhere to hang but the page above the capsule,
+where it read as a label on the page rather than on the button. The bar keeps a
+camera of its own — a white disc with the camera inside it, §7.1 — so **`+1`
+offers the action twice on purpose**: once in the chrome, once as the object
+the page is about.
+
 **The FAB is the Polaroid camera** (`PolaroidCameraButton`, 2026-08-20, direct
 product request) — the same drawing `+1.1` uses at a third the size, 60dp of
 box putting its body at roughly a Material FAB's 56dp span. A Material FAB is
@@ -1012,6 +1143,18 @@ heading would sit directly above an unlocalised caption — "août 2026" over
 | A hairline border on the print paper | Works, but reads as a bordered card rather than as paper. The ground solves it without touching the object |
 
 ### 8.6a `0.3` Sessions / History
+
+**Empty state: the heartbreak mascot at 160dp** (2026-08-24, direct product
+request; it was the pour-over pose at 184dp). Note what this shares: the same
+figure is `-1`'s "feed would not load" state, so it now carries two meanings.
+The reading that reconciles them is the one this page wants — an empty log is
+a small sadness, and the mascot is disappointed on the user's behalf rather
+than reporting a fault. The copy is unchanged and still says plainly that
+nothing is here yet, which is what stops it reading as an error.
+`plan/v1/screenshots.py`'s `sessions_empty()` frame **still draws the
+pour-over and cannot be fixed from that file**: there is no `ic_mascot_sad`
+drawable for `_vector()` to read, because `CanBoySad` is Compose draw calls
+only. Read the Kotlin for this screen, not the deck.
 
 **A cup's row is green** — `JourneyGround`, the exact ground `+1` and `+1.1`
 lie on (2026-08-20, direct product request). A cup is a session with a café
@@ -1483,12 +1626,29 @@ clock icon, tapping anywhere on the field opens `DurationPickerDialog`. It
 writes `m:ss`; `parseSeconds` still accepts `"105"` and `"1m45"` for AI
 suggestions and older rows.
 
-### 8.9 `+2` Profile
+### 8.9 `+2` I can
 
 Two states, signed out and signed in. The mark, the state line — *"Your beans
 and sessions stay on this phone. Sign in for AI label reading and coffee
 news."* — and the sign-in button. Then **About & legal**: Language, Sync with
 desktop, Privacy Policy, How we use AI, and the account controls.
+
+**The sync dialog has a third row on one account only.** "Sync with server
+(test)" appears when `AiGateway.syncAvailable` returns true, which happens only
+for the account `coffee_server`'s `SYNC_ALLOWED_EMAILS` names — see
+`specs/legal-accounts.md` §3.8a and `specs/coffee-server.md` §3.2f. It is
+`null`-gated rather than boolean-gated so the row cannot be drawn without an
+action behind it, and it sits *below* the two file rows because those are the
+shipped feature and this tests a different architecture: one where the server
+holds a copy of the log, which the two above exist specifically to avoid.
+
+Tapping it runs **pull, merge, push** — importing the remote bundle before
+uploading, so two devices alternating converge instead of overwriting each
+other. The merge is `SyncBundle.importFrom`, the same one desktop sync uses,
+with the same guarantee and the same limitation: it never overwrites, so an
+edit made on the other phone does not travel. A failure (offline, not
+allowlisted, server down) hides the row rather than raising an error, because
+its only consumer is a button's visibility.
 
 ### 8.10 `+2.2a` Privacy · `+2.3` Data access · `+2.4` Delete account
 

@@ -156,6 +156,21 @@ TOPBAR_H = 64
 STATUS_H = 28
 BAR_BOTTOM = STATUS_H + TOPBAR_H     # first free y under the app bar
 
+# ui/Axis.kt's empty-state anchor, restated. An axis page's content area runs
+# *under* the floating bar, so an empty state has to be padded clear of it
+# (`AxisBarClearance`) and then anchored from the top rather than centred --
+# `0_home_empty` and `+1_can_travel_empty` are one horizontal swipe apart and
+# their mascot discs must share a centreline, which centring cannot give them
+# because Home's block carries a CTA button and Can travel's does not.
+# EMPTY_SLOT is the fixed box both poses centre inside, so a 160dp figure and a
+# 184dp one land on that line. Keep these three in step with Axis.kt.
+BAR_CLEARANCE = 104                  # nav inset + AxisBarHeight 60 + 2 margins
+EMPTY_SLOT = 184                     # AxisEmptyMascotSlot
+EMPTY_TOP_FRACTION = 0.22            # AxisEmptyTopFraction
+EMPTY_SLOT_TOP = BAR_BOTTOM + (H - BAR_CLEARANCE - BAR_BOTTOM) * EMPTY_TOP_FRACTION
+EMPTY_MASCOT_CY = EMPTY_SLOT_TOP + EMPTY_SLOT / 2   # both discs, one centreline
+EMPTY_HEADLINE_Y = EMPTY_SLOT_TOP + EMPTY_SLOT + 16  # both headlines, one line
+
 AXES = ["Fruity", "Floral", "Tea-like", "Sweet", "Nutty/Cocoa", "Spices",
         "Roasted", "Cereal", "Green/Veg", "Sour", "Fermented"]
 # components/RadarChart.kt ShortFlavorAxes -- passed at all three in-app charts
@@ -1119,10 +1134,12 @@ def home_empty():
     # THE BREWING MASCOT, NOT THE LOCKUP (2026-08-19). The wordmark opens the
     # splash and the sign-in page, so repeating it here made the first screen
     # after the splash look like the splash again; the pour-over pose is what
-    # `0.3`'s own empty state uses, one size up. Arrangement.Center over the
-    # 160dp figure and its 16dp spacer.
-    cy = (BAR_BOTTOM + H) / 2 - 40 + 78
-    illustration(c, "ic_mascot_pour_over", W / 2, cy - 96, 160)
+    # `0.3`'s own empty state uses, one size up.
+    #
+    # The 160dp figure centres in the 184dp EMPTY_SLOT, which is what puts it
+    # on `+1_can_travel_empty`'s centreline rather than 12dp above it.
+    cy = EMPTY_HEADLINE_Y
+    illustration(c, "ic_mascot_pour_over", W / 2, EMPTY_MASCOT_CY, 160)
     c.text(W / 2, cy, "No beans yet", "headlineMedium", anchor="middle")
     c.wrap(W / 2, cy + 34, "Add the bag you're brewing this week and start "
            "keeping the log.", W - 80, "bodyLarge", C["onSurfaceVariant"],
@@ -1283,8 +1300,8 @@ def bean_detail_lower_empty():
     y += 300 + 24
 
     y = section(c, y, "Sessions", action="New brew")
-    illustration(c, "ic_mascot_pour_over", W / 2, y + 8 + 66, 132)
-    c.text(W / 2, y + 8 + 132 + 12 + 11, "No brews logged for this bean yet.",
+    illustration(c, "ic_mascot_pour_over", W / 2, y + 8 + 80, 160)
+    c.text(W / 2, y + 8 + 160 + 12 + 11, "No brews logged for this bean yet.",
            "bodyMedium", C["onSurfaceVariant"], "middle")
     gesture_bar(c)
     return c
@@ -1583,15 +1600,24 @@ def sessions():
 
 
 def sessions_empty():
-    """0.3_sessions_empty -- SessionsScreen.SessionsEmpty, with the pour-over
-    mascot at 184dp above the headline. Nothing else is on this page.
+    """0.3_sessions_empty -- SessionsScreen.SessionsEmpty. Nothing else is on
+    this page.
 
-    The same pose now opens Home's empty state too, one size down."""
+    THE POSE HERE IS WRONG AND CANNOT BE MADE RIGHT FROM THIS FILE. Since
+    2026-08-24 the app draws the *heartbreak* pose on this screen (direct
+    product request); this frame still draws the pour-over, because there is
+    no `ic_mascot_sad.xml` for `_vector()` to read -- `CanBoySad` is Compose
+    draw calls only, in the same category as `can_boy_eiffel`, which is the
+    one figure this file copies by hand. Porting it is a real job and nothing
+    checks the result, so it is recorded here rather than faked: read the
+    Kotlin, not this frame, for what that screen shows.
+
+    The size is right: 160dp, the one page-mascot size since 2026-08-24."""
     c = Canvas("0.3 Sessions, empty")
     status_bar(c)
     top_bar(c, "Sessions", back=True)
     cy = (BAR_BOTTOM + H) / 2 - 20 + 100
-    illustration(c, "ic_mascot_pour_over", W / 2, cy - 134, 184)
+    illustration(c, "ic_mascot_pour_over", W / 2, cy - 134, 160)
     c.text(W / 2, cy, "No brews yet", "headlineMedium", anchor="middle")
     c.wrap(W / 2, cy + 34, "Every brew you log lands here, newest first. "
            "Tap + to add one.", W - 80, "bodyLarge", C["onSurfaceVariant"],
@@ -1898,8 +1924,10 @@ def can_travel_empty():
     c.rect(0, 0, W, H, C["surfaceContainerLow"])
     status_bar(c)
     top_bar(c, "Can travel")
-    cy = (BAR_BOTTOM + H) / 2 - 20 + 100
-    can_boy_eiffel(c, W / 2, cy - 134, 184)
+    # 160dp, like every other page mascot since 2026-08-24; EMPTY_SLOT centres
+    # it, which is what keeps it on `00_home_empty`'s centreline.
+    cy = EMPTY_HEADLINE_Y
+    can_boy_eiffel(c, W / 2, EMPTY_MASCOT_CY, 160)
     c.text(W / 2, cy, "No journeys yet", "headlineMedium", anchor="middle")
     c.wrap(W / 2, cy + 34, "Log the caf\u00e9s you go to. Tap the camera to "
            "add the first one.", W - 80, "bodyLarge", C["onSurfaceVariant"],
@@ -2204,9 +2232,9 @@ def profile_empty():
     method, so the first sign-in is the account creation. The list is titled
     "About & legal" and the version row holds the slot Delete account takes
     when there is an account."""
-    c = Canvas("+2 Profile, signed out")
+    c = Canvas("+2 I can, signed out")
     status_bar(c)
-    y = top_bar(c, "Profile", back=True)
+    y = top_bar(c, "I can", back=True)
     y += 24
     # The mark, 88dp, wordmark + tagline: ProfileScreen.kt's signed-out branch
     # now opens with CoffeeCanLogo, which draws the shipped icon.svg's own
@@ -2254,9 +2282,9 @@ def profile():
     The avatar is Google's own profile photo, fetched from Google's CDN --
     the app's only request to a host other than the gateway. Drawn here as a
     filled disc because the deck has no network either."""
-    c = Canvas("+2 Profile, signed in")
+    c = Canvas("+2 I can, signed in")
     status_bar(c)
-    y = top_bar(c, "Profile", back=True, action_text="Log out")
+    y = top_bar(c, "I can", back=True, action_text="Log out")
     y += 24
     c.circle(W / 2, y + 44, 44, fill=C["outlineVariant"])
     y += 88 + 16

@@ -72,6 +72,36 @@ MAX_IMAGE_BYTES = int(os.environ.get("MAX_IMAGE_BYTES", str(6 * 1024 * 1024)))
 GOOGLE_CLIENT_IDS = [c.strip() for c in os.environ.get("GOOGLE_CLIENT_IDS", "").split(",") if c.strip()]
 ACCOUNT_DB_PATH = Path(os.environ.get("ACCOUNT_DB_PATH", Path(__file__).resolve().parent / "accounts.db"))
 
+# ----------------------------------------------------------- server sync ----
+# A TEST FEATURE, OFF UNLESS EXPLICITLY ALLOWLISTED, AND IT IS THE ONE PLACE
+# THIS SERVER HOLDS USER CONTENT.
+#
+# Everything else here is stateless with respect to what the user writes: the
+# only per-user row is the metering record, and `specs/legal-accounts.md` §3.8
+# binds the *shipped* architecture to no user content server-side -- which is
+# what the app's privacy screen tells users, in three languages, and what the
+# Play Data safety form declares. Device-to-device sync through here would flip
+# the developer to data controller for coffee logs.
+#
+# This exists so that architecture can be tried before it is committed to, on
+# the developer's own account only. SYNC_ALLOWED_EMAILS is an allowlist of
+# verified Google `email` claims; empty (the default, and what production
+# ships) means every sync endpoint 404s as if it did not exist. Adding an
+# address to it is a decision with legal consequences for whoever is added --
+# do not add a second one without reopening §3.8.
+SYNC_ALLOWED_EMAILS = {
+    e.strip().lower()
+    for e in os.environ.get("SYNC_ALLOWED_EMAILS", "").split(",")
+    if e.strip()
+}
+
+# One bundle per account, named by a hash of the `sub` -- see sync_store.py.
+SYNC_DIR = Path(os.environ.get("SYNC_DIR", Path(__file__).resolve().parent / "sync_blobs"))
+
+# A bundle is a zip of a coffee log with its photos, so this is generous; it is
+# here to stop a bad or hostile client filling the disk, not to shape a feature.
+SYNC_MAX_BYTES = int(os.environ.get("SYNC_MAX_BYTES", str(64 * 1024 * 1024)))
+
 # Per-account daily caps, counted per operation and reset on a rolling UTC day.
 # These are abuse cutoffs, not product limits: a person logging their morning
 # brew hits neither.

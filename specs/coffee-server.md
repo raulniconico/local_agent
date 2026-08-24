@@ -345,6 +345,74 @@ What did **not** get relaxed: robots.txt, the per-host delay, conditional GETs a
 
 `/v1/catalogue` carries a `rubric` object alongside its items — the art. D.111-16 ranking/links/exhaustiveness/frequency disclosure — served with the data so the catalogue screen renders it without French consumer law being compiled into an APK, and so correcting it is a deploy rather than a release (`legal-accounts.md` rule 76).
 
+### 3.2f `GET /v1/sync/status`, `GET`/`POST /v1/sync` — server sync (**test only**)
+
+**This is the only part of this server that holds user content, and it is off
+unless an account is explicitly allowlisted.** Everything else here is
+stateless with respect to what the user writes: the only per-user row is the
+metering record. `specs/legal-accounts.md` §3.8 binds the *shipped*
+architecture to no user content server-side — which is what the Android app's
+privacy screen says in three languages, and what the Play Data safety form
+declares. Desktop sync is a file the user carries between their own two devices
+precisely so the developer never holds a copy.
+
+These three endpoints exist so phone-to-phone sync can be **tried** before
+anyone decides whether to reopen §3.8 and ship it. See `sync_store.py`'s
+docstring and `legal-accounts.md` §3.8a.
+
+| | |
+| --- | --- |
+| Auth | `X-API-Key` **and** `Depends(auth.sync_allowed)` |
+| Gate | the verified Google `email` claim must be in `SYNC_ALLOWED_EMAILS`, and `email_verified` must be true |
+| Metered | no — not an AI operation, and not billed |
+
+**The gate is here, not in the client, and it answers 404.** The Android app
+never learns its own email address (`account/GoogleAuth.kt`, `legal-accounts`
+rule 60), so it cannot make this decision; and a client-side allowlist would be
+no gate at all, since anyone can rebuild an app. 404 rather than 403 for both
+"not allowlisted" and "feature off" (`SYNC_ALLOWED_EMAILS` empty, the default
+and what production runs): a 403 would advertise a private feature to everyone
+who probed for it. `email_verified` is required as well as `email`, because an
+unverified claim is a string the account holder typed.
+
+```
+GET  /v1/sync/status  ->  200 {"enabled": true, "has_bundle": bool, "bytes": int}
+GET  /v1/sync         ->  200 application/zip  |  204 (nothing stored yet)
+POST /v1/sync         <-  raw application/zip  ->  200 {"status": "stored", "bytes": int}
+```
+
+**The server is a dumb blob store and must stay one.** It takes the same
+`SyncBundle` zip the Android app already writes for desktop sync
+(`data/SyncBundle.kt`, `coffee_agent/sync_tools.py` on the other side) and
+hands it back unread — one bundle per account, replacing the last. It does not
+parse, merge or version-check the contents. **The merge happens on the phone**,
+which is the only place that can ask the user anything, and keeping it there
+keeps one format, one version number and one set of merge rules across all
+three programs.
+
+The client's cycle is **pull, merge, push**, in that order: importing the
+remote bundle *before* uploading means the copy it sends back already contains
+what the other phone added, so two devices alternating converge. Uploading
+first would make the last phone to sync the winner. The merge is
+`SyncBundle.importFrom`, which never overwrites — a bean whose name is already
+present is skipped and counted (a real limitation shared with the file route:
+an edit made on the other phone does not travel).
+
+Other properties worth keeping:
+
+- **204, not 404, when nothing is stored.** "You have never uploaded" is a
+  normal first run on a new phone, and a 404 there would be indistinguishable
+  from the gate's own 404.
+- **Blobs are named by `sha256(sub)`, not by `sub`.** The account id is
+  pseudonymous personal data (rule 61) and a directory listing is the easiest
+  place in a deployment to leak one by accident.
+- **Writes are `tempfile` + `os.replace`.** A phone that drops its connection
+  mid-upload would otherwise leave a truncated zip where its whole log was.
+- **`DELETE /v1/account` deletes the bundle too** — Art. 17 answered with the
+  log still on disk would be a lie.
+- Body must start with `PK` and fit `SYNC_MAX_BYTES` (default 64 MB), checked
+  before anything is written.
+
 ### 3.3 Internal API (`providers.py`)
 
 ```python
@@ -403,6 +471,9 @@ Text extraction differs by shape: Anthropic returns content blocks, joined with 
 | `CRAWLER_ALLOWLIST_PATH` | no | `coffee_server/allowlist.json` | Roaster permissions. Empty today |
 | `CRAWLER_NEWS_SOURCES_PATH` | no | `coffee_server/news_sources.json` | Press RSS feeds. **A separate file from the allowlist on purpose** — see §3.2e |
 | `CATALOGUE_TTL_SECONDS` / `NEWS_TTL_SECONDS` | no | `86400` / `7200` | |
+| `SYNC_ALLOWED_EMAILS` | no | *(empty)* | **The server-sync test gate — §3.2f.** Comma-separated verified Google email addresses. Empty (the default, and what production runs) makes every sync endpoint 404 as if it did not exist. **Adding an address has legal consequences for whoever is added**: it makes the developer a data controller for that person's coffee log. Do not add a second one without reopening `legal-accounts.md` §3.8 |
+| `SYNC_DIR` | no | `coffee_server/sync_blobs` | Where the per-account bundles live, named `sha256(sub).zip`. **Needs the same bind-mount treatment as `ACCOUNT_DB_PATH`** if the feature is ever used on a deployed instance, or every deploy's `docker rm -f` throws the bundles away |
+| `SYNC_MAX_BYTES` | no | `67108864` | Upload cap. A bundle is a zip of a log plus its photos, so this is generous; it is there to stop a bad client filling the disk |
 | `CRAWLER_USER_AGENT` | no | `CoffeeBeanIndexBot/0.1 (+https://coffee-can.org/bot; bot@coffee-can.org)` | `specs/legal.md` rule 17 requires it to be truthful with a contact that resolves; **rule 18 forbids ever replacing it with a browser string** |
 | `CRAWLER_CONTACT_EMAIL` | no | `bot@coffee-can.org` | Sent as the `From` header |
 

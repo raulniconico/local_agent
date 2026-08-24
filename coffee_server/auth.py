@@ -48,7 +48,12 @@ def require_read_key(x_api_key: str = Header(default="", alias="X-API-Key")) -> 
 
 
 def _verify_google_id_token(token: str) -> str:
-    """Returns the `sub` claim, or raises HTTPException.
+    """Returns the `sub` claim, or raises HTTPException."""
+    return _verify_google_id_token_claims(token)["sub"]
+
+
+def _verify_google_id_token_claims(token: str) -> dict:
+    """The verified claim set, or raises HTTPException.
 
     Verified with Google's own library rather than by hand: signature against
     Google's rotating JWKS, issuer, expiry, and -- the one everybody forgets --
@@ -78,12 +83,54 @@ def _verify_google_id_token(token: str) -> str:
             claims = google_id_token.verify_oauth2_token(token, request, client_id)
         except ValueError:
             continue
-        sub = claims.get("sub")
-        if not sub:
+        if not claims.get("sub"):
             break
-        return sub
+        return claims
 
     raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid Google ID token")
+
+
+def sync_allowed(authorization: str = Header(default="", alias="Authorization")) -> str:
+    """FastAPI dependency for the test-only sync endpoints: returns the caller's
+    `sub`, or refuses.
+
+    THE GATE IS HERE AND NOT IN THE APP, deliberately. The Android client never
+    learns its own email address -- `account/GoogleAuth.kt` reads `sub` out of
+    the ID token and drops the rest, because `legal-accounts.md` rule 60 keeps
+    email addresses off the device. The email claim only exists somewhere that
+    already verifies the token, which is here. A client-side allowlist would
+    also be no gate at all: anyone could rebuild the app without it, whereas
+    this one is checked against a signature Google issued.
+
+    404, NOT 403, WHEN THE FEATURE IS OFF. With `SYNC_ALLOWED_EMAILS` empty --
+    the default, and what production runs -- these endpoints must be
+    indistinguishable from endpoints that do not exist; a 403 would advertise a
+    private feature to everyone who probed for it.
+
+    `email_verified` is required as well as `email`: an unverified claim is a
+    string the account holder typed, and matching an allowlist against it would
+    let anyone who typed the right address in sync as the developer.
+    """
+    if not config.SYNC_ALLOWED_EMAILS:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "not found")
+
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "missing Authorization: Bearer <Google ID token>",
+        )
+
+    claims = _verify_google_id_token_claims(token)
+    email = (claims.get("email") or "").strip().lower()
+    if not email or not claims.get("email_verified"):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "not found")
+    if email not in config.SYNC_ALLOWED_EMAILS:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "not found")
+
+    sub = claims["sub"]
+    accounts.touch(sub)
+    return sub
 
 
 def require_account(authorization: str = Header(default="", alias="Authorization")) -> str:
