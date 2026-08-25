@@ -199,7 +199,8 @@ role because the next rung up, `titleLarge` at 22sp, is what the axis's app
 bars draw their titles with, and a heading at exactly the screen title's size
 flattens the hierarchy instead of sharpening it. The constant is
 `SectionHeadingSize` beside the composable; `screenshots.py`'s `section()`
-carries the same number.
+carries the same number, and `SECTION_GAP` beside it carries
+`SectionHeaderGap` (§4.2).
 
 **Three app bars moved up with it.** `+2.2a` Privacy, `+2.2b` How we use AI and
 `0.1` Add bean drew their titles at `titleMedium` while the other six used
@@ -258,17 +259,80 @@ is the deck's own number and Compose clamps to half the shorter side anyway.
 | Token | Value | Meaning |
 | --- | --- | --- |
 | `Gutter` | 16dp | the page gutter — **every** scrolling column pads by this |
-| `ShelfCardHeight` | 96dp | one height for every card on Home and Sessions |
-| `ShelfTile` | 80dp | the artwork inside that card |
+| `SectionHeaderGap` | 16dp | every section heading to its content, on every page |
+| `SectionSpacing` | 20dp | the end of one section to the next section's heading |
+| `ShelfCardHeight` | 124dp | Home's bean card: `ShelfTile` plus `ShelfCardPadV` above and below |
+| `ShelfTile` | 104dp | the artwork inside that card |
+| `SessionCardHeight` | 80dp | a brew row: `SessionGlyph` plus the same padding |
+| `SessionGlyph` | 64dp | the dripper disc inside that row |
 | `ShelfCardPadH` / `PadV` | 12dp / 8dp | card padding |
+| `RadarLabelTrim` | 20dp | label band a *static* radar's box may stop paying for |
+| `ContributionCalendarHeight` | 169dp | derived, not chosen — see `GridTop` |
 
 `Gutter` is not a Material metric and not a per-screen decision: it is why a
 card edge lines up with a section heading lines up with a divider on every
 screen. It was 20dp in the first build, which compounded with the type scale
 into a measurable density gap.
 
-`ShelfCardHeight` exists so Home's bean card and Sessions' brew card stay the
-same size **by construction** rather than by two numbers that happen to agree.
+**`SectionHeaderGap` is one number for the whole app** (2026-08-24, direct
+product request: "unify all section-title margin in all the pages, use the
+Images section margin by default"). 16dp, because that is what the images strip
+had always shown. `SectionHeader` emits it itself; **callers must not add a
+`Spacer` after a heading**, which is how three different gaps came to exist —
+8dp from the composable, 16 wherever a caller added its own, and 20 on any
+heading carrying a verb. That last one was invisible in the source: a
+`TextButton` is 48dp tall (Material 3 floors a clickable `Surface` at the
+minimum interactive size) against a 24dp text box, and the Row centres both, so
+an action left 12dp of dead space under its heading. `SectionHeader` now
+*subtracts* that slack from the gap rather than letting it add to it — the
+button keeps its full touch target and "Sessions" ends the same distance above
+its list as "Images" does above its photographs. It is measured from the text
+box, not the ink, so the gap cannot depend on whether a heading happens to end
+in a descender.
+
+**`RadarLabelTrim` is a layout trim, never a drawing one** (2026-08-24). The
+chart's box is square because the net is round, and the net's radius reserves
+34% of the half-box for the label ring. Horizontally that band is spent in
+full — "Green" sits at nine o'clock and needs every dp of it. Vertically it is
+spent on one 9sp word, so the topmost label's ink starts ~27dp below the box's
+own top edge, and the reader sees that as the heading floating above the chart.
+A static call site may therefore give the box a height 2×`RadarLabelTrim`
+shorter and let the chart overflow it: the chart still measures and draws at
+its declared `size`, and what the card clips is white space. Nothing in
+`drawRadar` changes, which is what keeps `ShareCard`'s copy of it in step.
+
+**The brew form's chart is the one that cannot have it.** It **zooms and
+carries notes** — either puts ink where the trim assumes white — so it pays the
+full band and gives back only its card's 12dp of top padding.
+
+Home's took two attempts, and the reason is worth keeping. The first try
+failed: while "Average across N sessions" was pinned inside that card's
+top-left corner, pulling the chart up 20dp brought "Ferment" onto the caption's
+line. **The trim and a corner label want the same 20dp.** The caption moved to
+the heading's own `caption` slot — which is what `SectionHeader` documents that
+slot for, and where `screenshots.py` had been drawing it all along, so the app
+was the half that had wandered — and only then was the band actually free.
+
+**`SectionSpacing` is the other half of a section's rhythm** (2026-08-24,
+direct product report: on `+1.1` "the margin between section is not being
+respected"). It was five numbers — Home 24, Privacy / How-we-use-AI / the brew
+form 20, Profile 28, the bean panel 24, and **`+1.1` 4**, which is why "The
+visit" sat almost on the address row while every other page gave its headings
+room. Twenty now, everywhere. Unlike `SectionHeaderGap` it stays on the
+callers rather than folding into `SectionHeader`: a heading that *opens* a page
+has nothing above it to be spaced from (`+1.1`'s "Café", `0.2`'s "Basics"), and
+a composable that always paid it would indent those for nothing. What the token
+buys is that one grep finds every one of them.
+
+**`ShelfCardHeight` and `SessionCardHeight` share a rule, not a number**
+(corrected 2026-08-24). Both are *their own artwork plus `ShelfCardPadV` above
+and below*, which is what makes Home's bean card and a brew row the same kind
+of object. The brew row used to literally *be* `ShelfCardHeight`, on the
+reasoning that one constant keeps them in step — but that constant is sized for
+a 104dp photo tile and a brew row's artwork is a 64dp disc, so it bought 22dp
+of empty space above the disc and 22 below, on a row with no card colour to
+make that read as padding. Measured on a device, it put the Sessions heading
+51dp above its own list against the images strip's 16.
 
 ### 4.3 Window insets — the one rule Paparazzi cannot catch
 
@@ -884,6 +948,24 @@ from**), "See all N beans", **Brewing activity** contribution calendar, and
 **My flavor** — an eleven-axis radar averaged across every session, labelled
 with the session count.
 
+**"Average across N sessions" is the heading's caption, not a corner label**
+(2026-08-24). It spent a week pinned inside the radar card's top-left, so that
+it read as the chart's own caption rather than a page-level line; that corner is
+also the only place `RadarLabelTrim` (§4.2) can give back, and while the caption
+held it this heading sat 41dp above its chart. `SectionHeader`'s `caption` slot
+is where the composable documents it belonging and where the deck had been
+drawing it, so the move put the two back in step and let the chart come up.
+Absent, not blank, when nobody has scored anything.
+
+**The calendar's card is `ContributionCalendarHeight`, and that is derived**
+(§4.2). The component draws in the card's own coordinates and takes no padding
+modifier, so the card has to track its geometry exactly rather than be a guess.
+Its `GridTop` came down from 32 to 20 on 2026-08-24 and the card from 184 to
+169 with it: at 32 × `Enlarge` the band above the month row was 41.6dp of card
+for one 11sp line, and against a white page with no card edge to say otherwise
+the reader saw it as the Brewing-activity heading floating rather than as the
+calendar's padding.
+
 **A bean that came from a café is not on this shelf** (2026-08-22, direct
 product request). `+1.2` writes a real `BeanEntity` so a cup has something to
 belong to (§8.6c), but that row records *what you drank out*, not a bag you
@@ -959,6 +1041,15 @@ The largest screen in the app (1400 lines). One bean, created or edited.
 
 - **Photo hero** (`PhotoHeroPage`) — the bag photo, draggable panel, Images
   strip, zoomable viewer.
+- **Header** — the bean's name at 26sp, then `BeanHeaderSummary` (§8.8), and
+  **no rule under it** (2026-08-24, direct product report: "the header lower
+  boundary line is not removed"). The hairline there was left over from when
+  this page had a real app bar and had stopped meaning anything: the panel is
+  pulled up over a photograph with its own drag handle and rounded corners, so
+  the header is already bounded by the shape it sits in, and a line under it
+  read as chrome divided from content on a page that has no chrome there — the
+  same argument that took `TopBarDivider` off `+1.1` the same day. What
+  separates the header from the first section is `SectionSpacing` (§4.2).
 - **Scan card** — "Scan the label to update these fields", with offline and
   consent-blocked variants.
 - **Fields** — name as an outlined box; origin, variety, altitude, roaster,
@@ -1186,7 +1277,9 @@ same brew looked like two kinds of record depending on which screen you
 reached it from. One composable now, with the two callers varying **the two
 strings and nothing else**: History titles the row with the bean and trails
 the date, while `0.2` is already one bean's page, so the date is the title and
-there is nothing left to trail. Same `ShelfCardHeight` as Home's shelf card,
+there is nothing left to trail. `SessionCardHeight` — the same
+*construction* as Home's shelf card and, since 2026-08-24, not the same number
+(§4.2) —
 because a brew and a bean are deliberately the same object.
 
 Every brew across every bean, newest first, with the dripper glyph at 64dp,

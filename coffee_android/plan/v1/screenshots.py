@@ -343,9 +343,22 @@ def top_bar(c: Canvas, title, back=False, title_style="titleMedium",
     return y + TOPBAR_H
 
 
+#: `SectionSpacing` -- the gap between the end of one section and the heading
+#: of the next. 20 since 2026-08-24, when it replaced five different literals
+#: across the app (4 on `+1.1`, which is what the report was about; 20, 24 and
+#: 28 elsewhere). A heading that opens a page does not pay it.
+SECTION_SPACING = 20
+
+#: `SectionHeaderGap` -- the one gap between any section heading and its
+#: content, on every page. 16 since 2026-08-24, taken from what the Images
+#: strip had always shown; before that the app had three values at once and
+#: the deck only ever drew the smallest of them.
+SECTION_GAP = 16
+
+
 def section(c: Canvas, y, text, action=None, caption=None, secondary=None):
     """SectionHeader from ui/screens/AiDisclosureScreen.kt (shared).
-    padding top 12, bottom 8; the heading on the left at `SectionHeadingSize`
+    padding top 12, then `SECTION_GAP`; the heading on the left at `SectionHeadingSize`
     (20sp -- titleMedium's role with a per-component size override, 2026-08-22),
     and on the right either a TextButton (`action`) or a muted note (`caption`,
     Home's "Average across N sessions"). Returns the y where the section's
@@ -368,7 +381,7 @@ def section(c: Canvas, y, text, action=None, caption=None, secondary=None):
     elif caption:
         c.text(W - GUTTER, y + 12 + 16, caption, "labelSmall",
                C["onSurfaceVariant"], "end")
-    return y + 12 + 25 + 8
+    return y + 12 + 25 + SECTION_GAP
 
 
 def session_card(c: Canvas, y, title, meta, trailing=None, cafe=None, cup=None):
@@ -384,7 +397,12 @@ def session_card(c: Canvas, y, title, meta, trailing=None, cafe=None, cup=None):
 
     Returns the y the next card starts at; the caller draws the inset divider
     between two of them."""
-    h = 96                       # theme/Theme.kt's ShelfCardHeight
+    # `SessionCardHeight` -- SessionGlyph (64) + ShelfCardPadV above and below.
+    # Not `ShelfCardHeight`: that is Home's number, sized for a 104dp photo
+    # tile, and this row borrowed it until 2026-08-24 at the cost of 22dp of
+    # air over a 64dp disc. Both are still "artwork plus 8dp", which is the
+    # rule the two share; the totals differ because the artwork does.
+    h = 80
     # The ground says *that* it was drunk out, the corner says *where* -- two
     # different facts, and `0.2` draws the first without the second, so the
     # flag is separable from the name. It defaults to it because in `0.3` a
@@ -871,7 +889,12 @@ def heatmap(c: Canvas, x, y, w, days, today, weeks=21):
     cell, gap, inset = 11, 2, 12
     pitch = cell + gap
     grid_left = x + inset + 30
-    grid_top = y + 32
+    # `ContributionCalendar.GridTop`, 20 since 2026-08-24 (was 32): the band
+    # holds one row of month labels drawn on the grid's shoulder, and at 32 it
+    # read as the Brewing-activity heading floating rather than as the card's
+    # padding -- this card is white on a white page and has no edge to say
+    # which. The card's own height came down with it; see `home()`.
+    grid_top = y + 20
     right = x + w - inset
     cols = min(weeks, int((right - grid_left + gap) / pitch))
     start = (today - datetime.timedelta(days=today.weekday())
@@ -1103,22 +1126,29 @@ def home():
            C["primary"], "end")
     y += 36
 
-    # No spacer before either heading: SectionHeader's own 12dp of top padding
-    # is the gap, and a Spacer on top of it is what used to push the flavour
-    # card off the fold.
+    # Both headings pay `SECTION_SPACING` -- the deck said "no spacer before
+    # either heading" until 2026-08-24 and the app disagreed with it, spacing
+    # them 24 apart. One token now, on both sides.
+    y += SECTION_SPACING
     y = section(c, y, "Brewing activity")
-    card(c, y, 140)
+    # 128, down from 140, tracking `heatmap`'s own `grid_top`. Leaving it would
+    # give back as trailing white exactly what came off the top.
+    card(c, y, 128)
     heatmap(c, GUTTER, y, W - 2 * GUTTER, BREW_DAYS, TODAY)
-    y += 140
+    y += 128
 
+    y += SECTION_SPACING
     y = section(c, y, "My flavor",
                 caption=f"Average across {len(SESSIONS)} sessions")
-    card(c, y, 260)
+    # Shorter than the chart by `RadarLabelTrim` at each end: the box's top and
+    # bottom never draw in that band, and since the caption moved onto the
+    # heading (2026-08-24) nothing else wants the corner it frees.
+    card(c, y, 260 - 2 * 20)
     # `size` is the composable's box; RadarChart's own radius is half of it
     # times 0.66, so 260 draws r=85.8. Bigger than the deck's r=60 on this
     # page, deliberately: one size across the three screens beat matching the
     # deck's per-page figures (2026-08-19).
-    radar(c, W / 2, y + 130, 260, MY_FLAVOR, labels=SHORT_AXES)
+    radar(c, W / 2, y + 130 - 20, 260, MY_FLAVOR, labels=SHORT_AXES)
     fab(c)
     gesture_bar(c)
     return c
@@ -2129,7 +2159,7 @@ def journey_profile():
     # until 2026-08-20, which made the optional half of the location as heavy
     # as the required café name above it.
     y = capsule_pair(c, y, ("Address", JOURNEY["address"]),
-                     ("City", JOURNEY["city"])) + 4
+                     ("City", JOURNEY["city"])) + SECTION_SPACING
     y = section(c, y, "The visit")
     y = capsule_pair(c, y, ("Visited on", JOURNEY["day"]),
                      ("Barista", JOURNEY["barista"])) + 16
@@ -2141,7 +2171,7 @@ def journey_profile():
            "bodyMedium", C["onSurfaceVariant"])
     # The trailing chevron: the one row on this page that leaves the app.
     c.path(f"M{W - GUTTER - 22} {y + 22} l6 6 l-6 6", stroke=C["onSurfaceVariant"], sw=1.8)
-    y += 56 + 4
+    y += 56 + SECTION_SPACING
     # NO NOTES SECTION since 2026-08-20; the Cups block carries the "what was
     # it actually like" half of a visit now.
     y = section(c, y, "Cups", action="Add a cup")
@@ -2169,7 +2199,7 @@ def journey_profile_lower():
 
     A second frame for the same screen, exactly as `0.2b` is: `+1.1` grew past
     one canvas on 2026-08-22, when its cups became `session_card()`s at
-    ShelfCardHeight instead of 38px rows, and a frame that stops just above the
+    SessionCardHeight instead of 38px rows, and a frame that stops just above the
     block it exists to document is worse than no frame. The page above this cut
     is `+1.1_journey_profile.png`."""
     c = Canvas("+1.1b Journey profile, lower")
@@ -2179,7 +2209,7 @@ def journey_profile_lower():
     y = section(c, y, "Caf\u00e9")
     y = field(c, y, "Caf\u00e9 name", JOURNEY["name"]) + 14
     y = capsule_pair(c, y, ("Address", JOURNEY["address"]),
-                     ("City", JOURNEY["city"])) + 4
+                     ("City", JOURNEY["city"])) + SECTION_SPACING
     y = section(c, y, "The visit")
     y = capsule_pair(c, y, ("Visited on", JOURNEY["day"]),
                      ("Barista", JOURNEY["barista"])) + 16
@@ -2190,7 +2220,7 @@ def journey_profile_lower():
     c.text(GUTTER + 44, y + 42, f"Search for {JOURNEY['address']}, {JOURNEY['city']}",
            "bodyMedium", C["onSurfaceVariant"])
     c.path(f"M{W - GUTTER - 22} {y + 22} l6 6 l-6 6", stroke=C["onSurfaceVariant"], sw=1.8)
-    y += 56 + 4
+    y += 56 + SECTION_SPACING
     y = section(c, y, "Cups", action="Add a cup")
     for i, (name, meta) in enumerate(CUPS):
         if i:
