@@ -261,6 +261,7 @@ is the deck's own number and Compose clamps to half the shorter side anyway.
 | `Gutter` | 16dp | the page gutter — **every** scrolling column pads by this |
 | `SectionHeaderGap` | 16dp | every section heading to its content, on every page |
 | `SectionSpacing` | 20dp | the end of one section to the next section's heading |
+| `SectionCardPadding` | 16dp, **top 0** | inside a card that sits directly under a section heading |
 | `ShelfCardHeight` | 124dp | Home's bean card: `ShelfTile` plus `ShelfCardPadV` above and below |
 | `ShelfTile` | 104dp | the artwork inside that card |
 | `SessionCardHeight` | 80dp | a brew row: `SessionGlyph` plus the same padding |
@@ -283,10 +284,19 @@ had always shown. `SectionHeader` emits it itself; **callers must not add a
 heading carrying a verb. That last one was invisible in the source: a
 `TextButton` is 48dp tall (Material 3 floors a clickable `Surface` at the
 minimum interactive size) against a 24dp text box, and the Row centres both, so
-an action left 12dp of dead space under its heading. `SectionHeader` now
+an action left 12dp of dead space under its heading. `SectionHeader`
 *subtracts* that slack from the gap rather than letting it add to it — the
 button keeps its full touch target and "Sessions" ends the same distance above
-its list as "Images" does above its photographs. It is measured from the text
+its list as "Images" does above its photographs.
+
+**It is subtracted at both ends, and the first cut only did one.** Taking the
+slack off the gap *below* while leaving the padding above alone means a heading
+with a verb still **starts** 12dp lower than one without — so on `0.31`, whose
+headings all carry verbs, every section sat 12dp further from the section above
+it than the same heading does on a page of plain ones. Half a fix reads exactly
+like the bug it was meant to remove, one end up. Reported as "the inter-section
+margin is not being respected" and measured at 49dp against a plain heading's
+37 before it was corrected. It is measured from the text
 box, not the ink, so the gap cannot depend on whether a heading happens to end
 in a descender.
 
@@ -312,6 +322,17 @@ line. **The trim and a corner label want the same 20dp.** The caption moved to
 the heading's own `caption` slot — which is what `SectionHeader` documents that
 slot for, and where `screenshots.py` had been drawing it all along, so the app
 was the half that had wandered — and only then was the band actually free.
+
+**`SectionCardPadding` is why a card under a heading has no top padding.** The
+heading has already spent `SectionHeaderGap` reaching the card's top edge; a
+further 16 inside makes 32, and because `CardColor` and `background` are both
+plain white (§4.1's one accepted deviation) there is no card edge in between for
+the reader to attribute the second 16 to. So it does not read as the card's
+padding at all — it reads as the heading floating, which is the same complaint
+that moved `ContributionCalendar`'s `GridTop`, `SessionCardHeight` and the radar
+card's vertical padding. On `0.31` it measured 40dp from "Brew details" to
+"Brewed" against the images strip's 16. A card that is *not* under a heading
+keeps a symmetric 16: nothing above it has already paid.
 
 **`SectionSpacing` is the other half of a section's rhythm** (2026-08-24,
 direct product report: on `+1.1` "the margin between section is not being
@@ -668,9 +689,85 @@ provides it, because Paparazzi does not set it itself.
 | `BeanIcon` | a bean's mark on the shelf — its own first photo, or a generated stand-in |
 | `BagTile` | that stand-in: initials on a tinted bag silhouette |
 | `PhotoHeroPage` | the bean-detail hero. `HeroHeight` 224dp, `PanelPeek` 96dp, `UnknownAspectFraction` 0.62, drag-to-settle at 700f. The panel under the photo is a **painted background, deliberately not a `Surface`** — §4.4 |
-| `ZoomableImageViewer` | pinch/double-tap, `MaxScale` 4× |
+| `AxisFootFade` | the fade at the foot of an axis page, so the floating capsule emerges from the page instead of sitting on it. `+2 read` and `00 Home` |
+| `FloatingHeroButton` | back / share / pulled-delete on a photo hero. **The axis bar's capsule at `HeroButtonSize`** — see below |
+| `ZoomableImageViewer` | pinch/double-tap, `MaxScale` 4×. Its Close button is the **one** floating circle that is still a 35% black scrim — see below |
 | `TopBarDivider` | the hairline rule under every app bar |
 | `MonthHeading` | `+1`'s date grouping — the month in `titleSmall`, then a hairline to the page edge. Private to `JourneysScreen`; the rule is what ties a short heading to the full page width so it divides the column rather than captioning the print below it (§8.6) |
+
+**`AxisFootFade` is one gradient for both pages that have one** (shared
+2026-08-25, direct product request to put `+2 read`'s fade on Home). An axis
+page's content runs *under* the bar — that is what lets the bar be a floating
+capsule rather than a docked strip — but content arriving at a hard edge behind
+a translucent control makes the control look dropped on rather than floating
+over. The fade is **pinned to the viewport, not attached to anything in the
+list**, so whatever happens to be passing under it fades: a card, the gap
+between two, the end of the pile. `+2` reached that the long way — its third
+sheet used to dim and drop to headline-only, which took a rank computation, a
+scroll-offset fold test and an alpha animation to decide *which* sheet that was;
+a positional fade does the same job in one place and cannot get the index wrong.
+It is transparent at the top so where it begins is invisible and only where it
+ends has weight.
+
+**It is not `axisChromeScrimFoot`, and the difference is deliberate.** That one
+stops at `AxisChromeAlpha` and exists for `+1`, whose wall of white Polaroids
+has to stop competing with a *white camera FAB* sitting on it. `AxisFootFade`
+goes to full `background`, because what it clears is the bar, and the bar is
+itself translucent — fading to 88% would leave the page faintly readable through
+two translucent layers at once. `+1` keeps its own; the two are different
+problems that happen to sit at the same end of a page.
+
+*Not modelled in the deck.* `screenshots.py` has never drawn either foot
+treatment, on `+2` or on `+1`, so the simulator frames show content running to
+the capsule at full strength.
+
+**`FloatingHeroButton` is the axis bar, smaller** (2026-08-25, direct product
+request: same outside shape as the nav bar — colour, alpha, corner — at a
+reduced size). Every value is the bar's own, read from where `Axis.kt` reads
+them: `CircleShape`, `background` at `AxisChromeAlpha`, `axisChromeSheen()` over
+it, and `AxisBarShadow`. Copying the *tokens* rather than the numbers is the
+point — the buttons and the bar are one object appearing twice, so a theme
+change moves both, and `AxisBarShadow` became a constant precisely so the depth
+could not drift between them.
+
+**`HeroButtonSize` is 30dp, down from the 48 that was actually on screen**, with
+a 16dp glyph inside it (`Icon`'s 24dp default left a ring two dp thick). The
+number it replaces read **40 in the source and 48 in the render**, and that gap
+is worth recording because it defeated two attempts at this: `IconButton`
+appends `minimumInteractiveComponentSize()` *after* the caller's modifier, which
+expands the node to 48dp, and `Modifier.background` paints at whatever size the
+node is finally placed at — so a `.size(...)` in the modifier passed **to**
+`IconButton` constrains only the icon and has no effect at all on a disc drawn
+behind it. The painted disc is therefore a `Box` **inside** the button's content
+slot, where nothing downstream can inflate it. `HeroButtonTouch` (48dp) names
+the target separately; the two are independent on purpose, because chrome over
+someone's photograph should be small and a tap target should not be.
+`HeroButtonMargin` came down 12 → 4 to compensate: the disc is centred in a 48dp
+target and so already sits 9dp inside it, and leaving the margin alone would
+have made the buttons shrink and drift inward at once.
+
+It replaced a 35% black scrim disc with a white glyph. That disc's argument was
+that these sit on an arbitrary user photograph, so neither a light nor a dark
+tint alone can be relied on for contrast — **true of a translucent disc, and not
+of this one**: at 88% the frost is very nearly opaque, so the glyph reads
+against a known near-white rather than against the photo, and the shadow does
+the separating. The glyph therefore flips to `onBackground`, and delete's from a
+hand-picked light red (#FF6B5C) to `colorScheme.error` — that token is tuned for
+a light surface, which is what this now is, and it was only ever overridden
+because the old disc was black.
+
+**Every other back arrow in the app stays a plain `TopAppBar` icon.** `0.1`,
+`0.3`, `+1.1`, `+1.3`, `+2.2a`, `+2.2b` and the bean picker all have a real bar
+to hold one; a floating disc is what a page with *no* bar needs, which is `0.2`
+and `0.31` (and so vibe brewing and `+1.2`, which are that same screen). The
+one remaining exception is `ZoomableImageViewer`'s Close: it floats over a
+full-screen black scrim rather than over the page, so the frosted treatment
+would be a bright blob on black rather than chrome on a photograph.
+
+`HeroButtonClearance` — the margin, the *target* and 8dp — is what `0.2` and
+`0.31`'s pinned title bars inset by at each end so the label never lands on the
+buttons. It is derived rather than typed: both screens carried `72.dp` by hand
+until the buttons got smaller and neither noticed.
 
 ### 5.5 Compliance components
 

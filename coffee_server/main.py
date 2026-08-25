@@ -94,7 +94,11 @@ app = FastAPI(title="LLM Gateway", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.ALLOWED_ORIGINS,
-    allow_methods=["POST", "GET"],
+    # DELETE is here for `/v1/account` and nothing else: the web deletion page
+    # at coffee-can.org/delete is a browser calling this API cross-origin, and
+    # without the method on this list the preflight fails and Play's required
+    # deletion route silently does not work.
+    allow_methods=["POST", "GET", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -297,13 +301,30 @@ def account(sub: str = Depends(require_account)) -> AccountResponse:
     return AccountResponse(**accounts.access_record(sub))
 
 
-@app.delete("/v1/account", dependencies=[Depends(require_api_key)])
+@app.delete("/v1/account")
 def delete_account(sub: str = Depends(require_account)) -> dict:
     """GDPR Art. 17 and Play's Account Deletion policy.
 
     Erases the account record outright. It does not touch the user's phone --
     there is no route from here to it, which is the point of the architecture
     and what the in-app copy has to keep saying plainly.
+
+    THE ONLY ENDPOINT WITHOUT `require_api_key`, deliberately (2026-08-25).
+    `legal-accounts.md` rules 18-19 require a **public web** deletion page that
+    works for someone who has already uninstalled and authenticates by
+    re-signing in with Google. That page is static HTML on coffee-can.org, so
+    anything it must send is readable by anyone who views source -- and putting
+    the metered key there would publish the gate for `/v1/suggest` and
+    `/v1/vision` in order to protect a route that erases nothing but the
+    caller's own row.
+
+    Nothing is actually given up. `require_api_key` is a coarse traffic gate,
+    never the authorisation: `require_account` verifies a Google ID token whose
+    audience must match this deployment, and the `sub` it returns is the only
+    record touched. Someone holding a valid token for an account can already
+    spend that account's quota; letting them delete their own row is not a new
+    capability. Do not "restore consistency" by adding the dependency back
+    without also solving where the page is supposed to keep the key.
     """
     accounts.delete(sub)
     # The test-only bundle goes with it. On a production deployment this is a

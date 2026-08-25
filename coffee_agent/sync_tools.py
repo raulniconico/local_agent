@@ -492,6 +492,7 @@ def apply_coffee_bundle(bundle: str, resolutions: str = "{}") -> str:
         return f"resolutions is not valid JSON: {exc}"
 
     added, replaced, kept, unanswered, skipped, duplicates = [], [], [], [], [], []
+    sessions_added = 0
     cafes_added = []
     conn = connect()
     try:
@@ -516,17 +517,46 @@ def apply_coffee_bundle(bundle: str, resolutions: str = "{}") -> str:
                     continue
                 seen.add(name)
                 if name in existing:
+                    local_id = existing[name]["id"]
                     if not _differences(bean, existing[name]):
                         kept.append(name)
+                        # KEEPING THE BEAN'S FIELDS IS NOT KEEPING ITS BREWS
+                        # (2026-08-25). This branch used to `continue` past the
+                        # whole bean object, so a session logged on the phone
+                        # against a bean whose *fields* had not changed never
+                        # arrived -- and since nothing about the bean differed,
+                        # nothing was reported either. The phone had the same
+                        # hole at `SyncBundle.importCopying`; it was found on a
+                        # two-phone round trip and fixed on both sides at once,
+                        # because this is one rule implemented twice
+                        # (`coupling-spec.md` §4).
+                        sessions_added += _merge_sessions(
+                            conn, bean, local_id, journey_ids
+                        )
                         continue
                     choice = choices.get(name)
                     if choice == "desktop":
                         kept.append(name)
+                        # Same as above, and for the same reason: "keep mine"
+                        # is an answer about the bean's *fields*, which is what
+                        # the conflict was about. The phone's brews were never
+                        # in dispute -- `_differences` does not look at them --
+                        # so declining to overwrite a roast date must not also
+                        # throw away a brew this database has never seen.
+                        sessions_added += _merge_sessions(
+                            conn, bean, local_id, journey_ids
+                        )
                         continue
                     if choice == "skip":
+                        # The one branch that really does mean "nothing from
+                        # this bean": the user was asked and said skip it.
                         skipped.append(name)
                         continue
                     if choice != "phone":
+                        # Unanswered: not a decision, so nothing is written at
+                        # all -- not even a session. Merging brews under a bean
+                        # whose conflict is still open would half-apply a
+                        # bundle the caller has not finished adjudicating.
                         unanswered.append(name)
                         continue
                     # "phone" wins: the local row goes, and the bundle's is
@@ -555,6 +585,14 @@ def apply_coffee_bundle(bundle: str, resolutions: str = "{}") -> str:
         f"Added {len(added)}, replaced {len(replaced)}, kept local {len(kept)}, "
         f"skipped {len(skipped)}."
     ]
+    if sessions_added:
+        # Reported separately from the bean counts because it is the one number
+        # that moves without any bean moving: these are brews merged into beans
+        # counted under "kept local", which is exactly the case that used to
+        # report success while importing nothing.
+        lines.append(
+            f"Merged {sessions_added} brews into beans that were already here."
+        )
     if cafes_added:
         lines.append(
             f"Added {len(cafes_added)} cafés: " + ", ".join(sorted(cafes_added)[:20])
@@ -640,6 +678,124 @@ def _extract_images(conn, archive, images, bundle_path: Path, attach) -> None:
         shutil.rmtree(staging, ignore_errors=True)
 
 
+def _session_key(row: dict) -> tuple:
+    """The stand-in identity for a brew, since the format carries no real one.
+
+    A session has no id in a bundle and no `created_at` column on either side,
+    and `brew_date` is a calendar day rather than an instant. So "is this brew
+    already here?" cannot be answered directly, and both of the obvious ways to
+    cope lose data: writing every incoming session duplicates the log on the
+    second sync, and skipping the bean drops brews that are genuinely new --
+    which is the bug this exists to close.
+
+    Content stands in for identity instead. **Every field the bundle can carry
+    is in the key**, read through `_SESSION_FIELDS` so a column added there is
+    automatically part of the identity rather than silently excluded from it --
+    the same reason that tuple is an allowlist and not a reflection of the
+    table.
+
+    Values are normalised to strings because the two sides they are compared
+    from disagree about type in ways SQLite does not care about: `water_ppm`
+    and `humidity` are TEXT columns holding what someone typed, while the phone
+    sends numbers; a REAL column reads back as 15.0 where the bundle said 15.
+    `str(float(v))` where a value parses as a number and `str(v)` where it does
+    not is what makes those two the same key.
+
+    `journey_id` is deliberately *not* here even though the phone's key has
+    `journeyId`: this database has cafés only as storage (see the module
+    docstring), the bundle names them rather than numbering them, and the
+    resolved id is local. Two otherwise-identical cups drunk at two cafés
+    therefore collapse here and do not on the phone -- a real asymmetry, and
+    the honest one until a session has an id of its own.
+    """
+    key = []
+    for field in _SESSION_FIELDS:
+        if field == "journey_id":
+            continue
+        value = row.get(field)
+        if value is None or value == "":
+            key.append("")
+            continue
+        try:
+            key.append(str(float(value)))
+        except (TypeError, ValueError):
+            key.append(str(value).strip())
+    return tuple(key)
+
+
+def _merge_sessions(conn, bean: dict, bean_id: int, journey_ids: Optional[dict]) -> int:
+    """Write the bundle's brews that this bean does not already have.
+
+    A MULTISET RECONCILIATION, NOT A SET ONE. Dialling in a recipe produces
+    genuinely identical rows -- same day, same dose, same dripper, nothing
+    typed -- and those are two brews, not one recorded twice. Each distinct key
+    is counted on both sides and only the shortfall is written, so two incoming
+    against one local adds one. `set()` semantics would merge them, and keep
+    merging them on every sync afterwards.
+
+    Idempotent by construction: re-applying the same bundle finds every count
+    already satisfied and writes nothing.
+
+    What it still cannot do, and the phone's `mergeSessions` cannot either: an
+    *edited* session arrives as a second row rather than updating the first,
+    because the edit changes the content standing in for the identity. That
+    needs a real per-session id in both schemas and a `BUNDLE_VERSION` bump to
+    carry it.
+    """
+    incoming = bean.get("sessions", [])
+    if not incoming:
+        return 0
+
+    have: dict = {}
+    for row in repo.list_sessions(conn, bean_id):
+        key = _session_key(dict(row))
+        have[key] = have.get(key, 0) + 1
+
+    added = 0
+    for session in incoming:
+        if have.get(_session_key(session), 0) > 0:
+            # Already here. Spend one local copy so a *second* identical
+            # incoming row still lands.
+            have[_session_key(session)] -= 1
+            continue
+        _write_session(conn, session, bean_id, journey_ids)
+        added += 1
+    return added
+
+
+def _write_session(conn, session: dict, bean_id: int, journey_ids: Optional[dict]) -> None:
+    """One incoming session plus its stages, written under `bean_id`."""
+    session_id = repo.create_session(conn, bean_id)
+    # `journey` is a name; `journey_id` is this database's own id for it.
+    # A name with no café here (a v3 bundle, or one whose journeys.json
+    # lost the row) leaves the column null, which is exactly "brewed at
+    # home" -- the honest reading, and the same thing the phone does with a
+    # dangling reference.
+    cafe_name = session.get("journey")
+    if cafe_name and journey_ids:
+        local_id = journey_ids.get(str(cafe_name).strip())
+        if local_id is not None:
+            session = {**session, "journey_id": local_id}
+    for field in _SESSION_FIELDS:
+        value = session.get(field)
+        if value is not None:
+            try:
+                repo.update_session_field(conn, session_id, field, value)
+            except Exception:  # noqa: BLE001
+                pass
+    repo.set_session_status(conn, session_id, "saved")
+    for stage in session.get("stages", []):
+        repo.add_stage(
+            conn,
+            session_id,
+            temperature_c=stage.get("temperature_c"),
+            water_g=stage.get("water_g"),
+            time_seconds=stage.get("time_seconds"),
+            circling=stage.get("circling"),
+            label=stage.get("label"),
+        )
+
+
 def _write_bean(
     conn, archive: zipfile.ZipFile, bean: dict, bundle_path: Path,
     journey_ids: Optional[dict] = None,
@@ -659,36 +815,11 @@ def _write_bean(
                 pass
     repo.set_bean_status(conn, bean_id, "saved")
 
+    # One writer for a session, shared with `_merge_sessions`: a bean written
+    # fresh and a brew merged into an existing one must produce the same row,
+    # and two copies of this loop is how they would stop.
     for session in bean.get("sessions", []):
-        session_id = repo.create_session(conn, bean_id)
-        # `journey` is a name; `journey_id` is this database's own id for it.
-        # A name with no café here (a v3 bundle, or one whose journeys.json
-        # lost the row) leaves the column null, which is exactly "brewed at
-        # home" -- the honest reading, and the same thing the phone does with a
-        # dangling reference.
-        cafe_name = session.get("journey")
-        if cafe_name and journey_ids:
-            local_id = journey_ids.get(str(cafe_name).strip())
-            if local_id is not None:
-                session = {**session, "journey_id": local_id}
-        for field in _SESSION_FIELDS:
-            value = session.get(field)
-            if value is not None:
-                try:
-                    repo.update_session_field(conn, session_id, field, value)
-                except Exception:  # noqa: BLE001
-                    pass
-        repo.set_session_status(conn, session_id, "saved")
-        for stage in session.get("stages", []):
-            repo.add_stage(
-                conn,
-                session_id,
-                temperature_c=stage.get("temperature_c"),
-                water_g=stage.get("water_g"),
-                time_seconds=stage.get("time_seconds"),
-                circling=stage.get("circling"),
-                label=stage.get("label"),
-            )
+        _write_session(conn, session, bean_id, journey_ids)
 
     _extract_images(
         conn, archive, bean.get("images", []), bundle_path,

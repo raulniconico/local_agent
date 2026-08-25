@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy — Coffee Can</title>
+<meta name="description" content="What Coffee Can stores, what it sends, and what it does not have. The canonical privacy policy for the Coffee Can Android app.">
+<meta name="theme-color" content="#34C759">
+<link rel="icon" href="../assets/canboy.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a href="../" style="display:flex;align-items:center;gap:14px;text-decoration:none">
+      <img src="../assets/canboy.svg" alt="">
+      <b>Coffee Can</b>
+    </a>
+    <nav>
+      <a href="../">Home</a>
+      <a href="../delete/">Delete account</a>
+    </nav>
+  </div>
+</header>
+
+<main class="doc">
+  <div class="wrap">
+
+    <h1>Privacy</h1>
+    <p class="updated">Last updated 25 August 2026. This page is the canonical
+      privacy policy for the <strong>Coffee Can</strong> Android app.</p>
+
+    <div class="note">
+      <p><strong>Your coffee log stays on your phone.</strong> Beans, brews,
+        notes, tasting scores, cafés and photographs live in a database on your
+        device. We have no copy of it and no route to it.</p>
+      <p>Because of that, there is nothing for us to export or delete on your
+        behalf, and nothing to restore if you lose the phone.</p>
+    </div>
+
+    <h2>Who we are</h2>
+    <p>Coffee Can is published by the developer reachable at
+      <a href="mailto:hello@coffee-can.org">hello@coffee-can.org</a>, who is the
+      data controller for the limited processing described below. The app is
+      distributed in France through Google Play.</p>
+
+    <h2>What stays on your device</h2>
+    <p>Everything you write in the app:</p>
+    <ul>
+      <li>Beans — name, origin, variety, altitude, roaster, producer, process,
+        roast date and level, and your notes.</li>
+      <li>Brews — date, dripper, grinder, grind size, filter, dose, water and
+        its measurements, pour stages, score, extraction, and eleven flavour
+        axes with their tasting notes.</li>
+      <li>Cafés — name, city, address, barista, the day you visited, and the
+        cups you drank there.</li>
+      <li>Photographs you attach to a bean or a café.</li>
+      <li>Your choices about the AI features, and when you made them.</li>
+    </ul>
+    <p>None of this is sent to us. <strong>Uninstalling the app deletes it.</strong>
+      If your phone backs itself up, that backup may contain it, and that backup
+      is governed by whoever runs it — not by us.</p>
+    <p>Moving your log to a computer or to another phone is a file you carry
+      yourself. It is not an upload.</p>
+
+    <h2>Location data in photographs</h2>
+    <p>Photographs often carry the coordinates of where they were taken. When
+      you attach a photo, the app strips that metadata on the phone before the
+      picture is stored or sent anywhere.</p>
+
+    <h2>Signing in</h2>
+    <p>You do not need an account to log coffee. Signing in with Google is
+      optional and unlocks the AI features and the news feed.</p>
+    <p>When you sign in, the app receives a Google ID token and sends it to our
+      server. From it, our server keeps:</p>
+    <ul>
+      <li>your Google account identifier (the <code>sub</code> claim — a
+        pseudonymous string, not your email address);</li>
+      <li>usage counters and quota state, so the AI features can be metered;</li>
+      <li>rate-limit records;</li>
+      <li>ordinary server request logs.</li>
+    </ul>
+    <p>That is the complete list. The app requests no additional Google scopes,
+      so it is never issued an access token to any Google service — it cannot
+      read your mail, your contacts or your files.</p>
+    <p>The lawful basis is Article 6(1)(b) — performing the service you asked
+      for — and, for the AI transfers below, Article 6(1)(a), your consent.</p>
+
+    <h2>The AI features, and what they send</h2>
+    <p>Two features send data off your phone. Each is <strong>off until you turn
+      it on</strong>, each asks separately, and each explains its own payload
+      immediately before the first time it sends anything.</p>
+    <ul>
+      <li><strong>Read labels from photos</strong> — sends the photograph of the
+        bag you are scanning.</li>
+      <li><strong>Suggest brew settings</strong> — sends the bean and brew
+        fields you typed. No photograph.</li>
+    </ul>
+    <p>Requests are routed by our server to <strong>Anthropic</strong> (United
+      States) or <strong>Alibaba Cloud's Qwen</strong> (China). Which one
+      handles a given request is decided server-side, so both are named here.
+      These transfers leave the European Economic Area.</p>
+    <p>You can withdraw either consent at any time in the app, under
+      <em>I can → How we use AI</em>. Withdrawal stops future sending
+      immediately. It does not remove what is already in your own log, and it
+      does not reach back into any copy the AI provider may hold.</p>
+
+    <h2>Roaster photographs and the news feed</h2>
+    <p>Where the app shows a roaster's product photograph, that image is loaded
+      from the roaster's own website at the moment it appears on screen. Their
+      server therefore sees your device's IP address and browser identifiers,
+      as it would if you visited their site. We do not copy those images.</p>
+    <p>News headlines are fetched through our server. Opening a story hands you
+      to the publisher's own site, which is theirs to serve and governed by
+      their policy.</p>
+
+    <h2>Your rights</h2>
+    <p>Under the GDPR you may ask for access to, correction of, or erasure of
+      the data we hold, restrict or object to its processing, and withdraw any
+      consent you have given.</p>
+    <ul>
+      <li><strong>Access.</strong> In the app: <em>I can → Privacy → Export my
+        data</em>. It returns the account identifier, usage counters and quota
+        state described above.</li>
+      <li><strong>Erasure.</strong> In the app: <em>I can → Privacy → Delete
+        account</em>. If you have already uninstalled, use
+        <a href="../delete/">coffee-can.org/delete</a> — it works without
+        reinstalling.</li>
+      <li><strong>Withdrawing consent.</strong> <em>I can → How we use AI</em>.</li>
+    </ul>
+    <p>Write to <a href="mailto:hello@coffee-can.org">hello@coffee-can.org</a>
+      for anything else. You also have the right to complain to the CNIL, the
+      French supervisory authority, at <a href="https://www.cnil.fr">cnil.fr</a>.</p>
+
+    <h2>How long we keep it</h2>
+    <p>The account record and its counters exist for as long as the account
+      does, and are erased when you delete it. Rate-limit records are
+      short-lived by nature. Server logs are kept for operational and security
+      purposes and rotate.</p>
+
+    <h2>Children</h2>
+    <p>Coffee Can is not directed at children and we do not knowingly collect
+      anything from them.</p>
+
+    <h2>Changes</h2>
+    <p>This page always carries the current version and the date it changed. The
+      app links here rather than reproducing the text, so there is one document
+      and no stale copy in a build.</p>
+
+    <hr>
+    <p class="updated">Questions:
+      <a href="mailto:hello@coffee-can.org">hello@coffee-can.org</a> ·
+      Rights holders and publishers:
+      <a href="mailto:takedown@coffee-can.org">takedown@coffee-can.org</a></p>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <img src="../assets/canboy.svg" alt="" width="28" height="28">
+    <small>Coffee Can</small>
+    <span class="sp"></span>
+    <a href="../">Home</a>
+    <a href="../delete/">Delete account</a>
+    <a href="mailto:hello@coffee-can.org">hello@coffee-can.org</a>
+  </div>
+</footer>
+
+</body>
+</html>

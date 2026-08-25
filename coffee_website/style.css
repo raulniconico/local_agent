@@ -154,3 +154,46 @@ footer small { color: var(--muted); font-size: 14px; }
   .reveal { opacity: 1; transform: none; transition: none; }
   .btn, header nav a { transition: none; }
 }
+
+/* --- /privacy and /delete ------------------------------------------------
+ *
+ * Prose pages, not landing sections: one narrow column, no reveal animation
+ * and no hero. They are read by someone looking for a specific sentence --
+ * a reviewer checking a Play declaration, or a user who wants their account
+ * gone -- so nothing here fades in or has to be scrolled past. */
+.doc { padding: clamp(40px, 7vw, 76px) 0 clamp(56px, 9vw, 96px); }
+.doc .wrap { width: min(72ch, 100% - var(--gutter) * 2); }
+.doc h1 { font-size: clamp(30px, 5vw, 44px); letter-spacing: -0.02em; line-height: 1.15; }
+.doc h2 {
+  font-size: clamp(20px, 2.6vw, 25px); letter-spacing: -0.01em;
+  margin-top: clamp(34px, 5vw, 52px);
+}
+.doc h3 { font-size: 17px; margin-top: 26px; }
+.doc p, .doc li { color: var(--muted); font-size: 16.5px; margin-top: 12px; }
+.doc strong { color: var(--ink); font-weight: 500; }
+.doc ul { margin-top: 12px; padding-left: 1.1em; }
+.doc li { margin-top: 8px; }
+.doc a { color: var(--deep); text-decoration: underline; text-underline-offset: 3px; }
+.doc .updated { margin-top: 10px; font-size: 14px; color: var(--muted); }
+.doc hr { border: 0; border-top: 1px solid var(--line); margin: clamp(34px, 5vw, 52px) 0 0; }
+
+/* A short, high-contrast block for the sentences a reader is most likely to
+ * have come for -- the local-data statement, and what deletion does not do. */
+.note {
+  margin-top: 20px; padding: 18px 20px;
+  background: var(--wash); border-radius: 16px;
+}
+.note p { color: var(--ink); margin-top: 0; }
+.note p + p { margin-top: 10px; }
+
+/* --- the deletion form --------------------------------------------------- */
+.gate { margin-top: 26px; padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); }
+.gate h2 { margin-top: 0; }
+.gate .status { margin-top: 16px; font-size: 15px; color: var(--muted); min-height: 1.4em; }
+.gate .status.err { color: #8A2A1C; }
+.gate .status.ok { color: var(--deep); }
+.gate .who { margin-top: 14px; font-size: 15px; color: var(--ink); }
+.gate .btn { margin-top: 16px; border: 0; font: inherit; cursor: pointer; }
+.gate .btn[disabled] { opacity: .5; cursor: default; box-shadow: none; transform: none; }
+.btn-danger { background: #8A2A1C; color: #fff; }
+.btn-danger:hover:not([disabled]) { background: #741F13; }

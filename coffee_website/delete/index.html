@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delete your Coffee Can account</title>
+<meta name="description" content="Delete your Coffee Can account and everything our server holds about it. Works without reinstalling the app.">
+<meta name="theme-color" content="#34C759">
+<link rel="icon" href="../assets/canboy.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a href="../" style="display:flex;align-items:center;gap:14px;text-decoration:none">
+      <img src="../assets/canboy.svg" alt="">
+      <b>Coffee Can</b>
+    </a>
+    <nav>
+      <a href="../">Home</a>
+      <a href="../privacy/">Privacy</a>
+    </nav>
+  </div>
+</header>
+
+<main class="doc">
+  <div class="wrap">
+
+    <h1>Delete your account</h1>
+    <p class="updated">For the <strong>Coffee Can</strong> Android app. This
+      page works whether or not the app is still installed.</p>
+
+    <div class="note">
+      <p><strong>Your coffee log stays on your phone.</strong> This removes your
+        account from our server and signs you out. Beans, brews, notes, cafés
+        and photographs are stored on your device, not ours — deleting the
+        account does not touch them, and cannot.</p>
+      <p>To remove the log itself, uninstall the app. If your phone backs itself
+        up, that backup is governed by whoever runs it.</p>
+    </div>
+
+    <h2>What gets deleted</h2>
+    <ul>
+      <li>Your Google account identifier — the pseudonymous <code>sub</code>
+        claim, which is the only user identifier our server holds.</li>
+      <li>Usage counters and quota state.</li>
+      <li>Rate-limit records.</li>
+    </ul>
+    <p>Erasure is immediate and permanent. Signing in again afterwards creates a
+      new, empty account record.</p>
+
+    <h2>What this cannot reach</h2>
+    <p>It does not reach into any copy an AI provider may hold of a request you
+      previously consented to send. See the <a href="../privacy/">privacy
+      policy</a> for who those providers are and how to stop future sending.</p>
+
+    <section class="gate">
+      <h2>Confirm it's you</h2>
+      <p>Sign in with the same Google account you used in the app. We ask
+        because a deletion request has to come from the account it deletes —
+        there is nothing else we could check it against.</p>
+
+      <div id="signin"></div>
+      <p class="who" id="who" hidden></p>
+      <button class="btn btn-danger" id="go" hidden>Delete my account</button>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <h2>If that doesn't work</h2>
+    <p>Write to <a href="mailto:hello@coffee-can.org?subject=Account%20deletion%20request">hello@coffee-can.org</a>
+      from the address on your Google account and say you want the account
+      deleted. This route is slower and human-handled; the button above is the
+      one to use where you can.</p>
+
+    <hr>
+    <p class="updated"><a href="../privacy/">Privacy policy</a> ·
+      <a href="mailto:hello@coffee-can.org">hello@coffee-can.org</a></p>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <img src="../assets/canboy.svg" alt="" width="28" height="28">
+    <small>Coffee Can</small>
+    <span class="sp"></span>
+    <a href="../">Home</a>
+    <a href="../privacy/">Privacy</a>
+  </div>
+</footer>
+
+<script src="../config.js"></script>
+<script>
+/* The deletion flow.
+ *
+ * WHY GOOGLE SIGN-IN AND NOT AN EMAILED LINK. A deletion request has to be
+ * authenticated by the same identity provider the app uses -- there is no
+ * password to check and no other fact tying a request to an account. It also
+ * has to work for someone who has already uninstalled, which is why this lives
+ * on the web at all rather than only in the app.
+ *
+ * The ID token Google returns is sent straight to the gateway, which verifies
+ * it and erases the record for that `sub`. Nothing is stored by this page.
+ */
+(function () {
+  var cfg = window.COFFEE_CAN || {};
+  var status = document.getElementById('status');
+  var who = document.getElementById('who');
+  var go = document.getElementById('go');
+  var token = null;
+
+  function say(text, kind) {
+    status.textContent = text;
+    status.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  // A page that cannot reach its own config should say so rather than render a
+  // sign-in button that will fail with a console error nobody sees.
+  if (!cfg.GOOGLE_CLIENT_ID || !cfg.API_BASE) {
+    say('Sign-in is unavailable on this page right now. Please use the email route below.', 'err');
+    return;
+  }
+
+  window.onGoogleCredential = function (response) {
+    token = response && response.credential;
+    if (!token) { say('Sign-in did not complete. Please try again.', 'err'); return; }
+    // The token is a JWT; its middle segment carries the display claims. Read
+    // locally only to show the user which account they are about to delete --
+    // the server does its own verification and trusts nothing decoded here.
+    var email = '';
+    try {
+      var body = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      email = (JSON.parse(atob(body)) || {}).email || '';
+    } catch (e) { /* display only; a token we cannot read still deletes fine */ }
+    who.textContent = email ? 'Signed in as ' + email : 'Signed in.';
+    who.hidden = false;
+    go.hidden = false;
+    say('');
+  };
+
+  go.addEventListener('click', function () {
+    if (!token) return;
+    if (!window.confirm('Delete your Coffee Can account? This cannot be undone. Your coffee log stays on your phone.')) return;
+    go.disabled = true;
+    say('Deleting…');
+    fetch(cfg.API_BASE.replace(/\/?$/, '/') + 'v1/account', {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token },
+    }).then(function (r) {
+      if (r.ok) {
+        say('Your account has been deleted. Your coffee log is still on your phone.', 'ok');
+        go.hidden = true;
+        who.hidden = true;
+        document.getElementById('signin').hidden = true;
+      } else if (r.status === 401) {
+        // Google ID tokens are short-lived; a page left open past the expiry
+        // is the ordinary way to land here.
+        say('That sign-in has expired. Please sign in again.', 'err');
+        go.disabled = false;
+        token = null;
+      } else {
+        say('Deletion failed (' + r.status + '). Please use the email route below.', 'err');
+        go.disabled = false;
+      }
+    }).catch(function () {
+      say('Could not reach the server. Please check your connection, or use the email route below.', 'err');
+      go.disabled = false;
+    });
+  });
+
+  // Google Identity Services, loaded only once there is a client ID to hand it.
+  var s = document.createElement('script');
+  s.src = 'https://accounts.google.com/gsi/client';
+  s.async = true;
+  s.defer = true;
+  s.onload = function () {
+    google.accounts.id.initialize({
+      client_id: cfg.GOOGLE_CLIENT_ID,
+      callback: window.onGoogleCredential,
+    });
+    google.accounts.id.renderButton(document.getElementById('signin'), {
+      theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill',
+    });
+  };
+  s.onerror = function () {
+    say('Could not load Google sign-in. Please use the email route below.', 'err');
+  };
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>

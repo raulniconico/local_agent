@@ -148,6 +148,22 @@ JOURNEY = {
 
 
 GUTTER = 16          # theme/Theme.kt's `Gutter`, in every screen's Column
+#: theme/Theme.kt's `ShelfGutter` -- where the *card box* of a list row starts,
+#: applied by breaking out of GUTTER rather than by padding less
+#: (`ui/GutterBreakout.kt`). Home's shelf and `0.2`'s Sessions list; the
+#: headings above them keep GUTTER.
+#:
+#: ZERO, AND THIS IS NOT THE MARGIN ANYONE SEES. These cards are white on a
+#: white page and never draw an edge, so the leftmost ink on a row is its tile
+#: or its disc, at SHELF_GUTTER + SHELF_CARD_PAD. That sum is the number to
+#: compare against another screen -- setting this to NEWS_GUTTER's 8 on
+#: 2026-08-25 "matched" the two containers and made the visible margin 5dp
+#: wider, because the app's card had 12dp of padding the news sheet has none of.
+SHELF_GUTTER = 0
+#: theme/Theme.kt's `ShelfCardPadH`. 8 since 2026-08-25, was 12: with
+#: SHELF_GUTTER at 0 this puts a row's first ink at 8, level with the visible
+#: edge of a newsprint sheet on `-1`.
+SHELF_CARD_PAD = 8
 # `SectionHeadingSize` in ui/screens/AiDisclosureScreen.kt -- 20sp, a
 # per-component override of titleMedium rather than a role of its own, so it is
 # a number here too and not a key into TYPE.
@@ -343,6 +359,14 @@ def top_bar(c: Canvas, title, back=False, title_style="titleMedium",
     return y + TOPBAR_H
 
 
+#: `SectionCardPadding` -- what a card sitting directly under a section heading
+#: pads by. 16 on three sides and **nothing on top** since 2026-08-25: the
+#: heading has already spent SECTION_GAP reaching the card's edge, and with
+#: CardColor and background both plain white there is no card edge in between
+#: for a second 16 to read as the card's own.
+SECTION_CARD_PAD = 16
+SECTION_CARD_TOP = 0
+
 #: `SectionSpacing` -- the gap between the end of one section and the heading
 #: of the next. 20 since 2026-08-24, when it replaced five different literals
 #: across the app (4 on `+1.1`, which is what the report was about; 20, 24 and
@@ -356,7 +380,8 @@ SECTION_SPACING = 20
 SECTION_GAP = 16
 
 
-def section(c: Canvas, y, text, action=None, caption=None, secondary=None):
+def section(c: Canvas, y, text, action=None, caption=None, secondary=None,
+            action_icon=None):
     """SectionHeader from ui/screens/AiDisclosureScreen.kt (shared).
     padding top 12, then `SECTION_GAP`; the heading on the left at `SectionHeadingSize`
     (20sp -- titleMedium's role with a per-component size override, 2026-08-22),
@@ -368,7 +393,13 @@ def section(c: Canvas, y, text, action=None, caption=None, secondary=None):
     Brew details carries both from 2026-08-22 ("Ask AI", which acts on the
     fields, and "More details", which decides whether they are on screen).
     Measured off the primary's width so the two never overlap; the Kotlin lays
-    them out in a Row and does not have to."""
+    them out in a Row and does not have to.
+
+    `action_icon` draws `action` as a glyph instead of a word -- only "search"
+    exists, and only Home uses it (2026-08-25). The string is still passed and
+    still what the app announces to TalkBack; drawing it as a symbol is a
+    presentation choice, which is why this is a flag on the action rather than
+    a way of having a control with no copy."""
     # The heading's own baseline sits lower than the actions beside it: the Row
     # centres them on each other, and at 20sp against labelLarge's 14 the two
     # baselines are no longer the same line.
@@ -376,7 +407,14 @@ def section(c: Canvas, y, text, action=None, caption=None, secondary=None):
     if secondary:
         c.text(W - GUTTER - (len(action) * 7 + 16 if action else 0),
                y + 12 + 16, secondary, "labelLarge", C["primary"], "end")
-    if action:
+    if action and action_icon == "search":
+        # The M3 Search glyph at 24dp: a ring with a stem out of its
+        # lower-right, drawn on `primary` like the TextButton it replaces.
+        gx, gy, r = W - GUTTER - 9, y + 12 + 11, 7
+        c.circle(gx, gy, r, "none", stroke=C["primary"], sw=1.8)
+        c.path(f"M{gx + r * 0.72} {gy + r * 0.72} l5 5",
+               stroke=C["primary"], sw=1.8)
+    elif action:
         c.text(W - GUTTER, y + 12 + 16, action, "labelLarge", C["primary"], "end")
     elif caption:
         c.text(W - GUTTER, y + 12 + 16, caption, "labelSmall",
@@ -384,7 +422,8 @@ def section(c: Canvas, y, text, action=None, caption=None, secondary=None):
     return y + 12 + 25 + SECTION_GAP
 
 
-def session_card(c: Canvas, y, title, meta, trailing=None, cafe=None, cup=None):
+def session_card(c: Canvas, y, title, meta, trailing=None, cafe=None, cup=None,
+                 x=GUTTER):
     """ui/screens/SessionCard.kt -- ONE drawing, because there is now one
     composable: `0.3` History and `0.2`'s Sessions block both call it
     (2026-08-22, direct product request that the bean page use History's card).
@@ -408,12 +447,16 @@ def session_card(c: Canvas, y, title, meta, trailing=None, cafe=None, cup=None):
     # flag is separable from the name. It defaults to it because in `0.3` a
     # named café is exactly what a cup is.
     cup = bool(cafe) if cup is None else cup
-    card(c, y, h, fill=C["surfaceContainerLow"] if cup else None)
+    # `x` because the two callers no longer agree (2026-08-25): `0.3` History
+    # keeps the page GUTTER, and `0.2`'s list breaks out to SHELF_GUTTER. The
+    # card is the same object either way -- only the margin its list sits in
+    # differs -- which is exactly what a parameter is for.
+    card(c, y, h, x=x, w=W - 2 * x, fill=C["surfaceContainerLow"] if cup else None)
     dripper = meta.split(" · ")[0]
     slug = "ic_dripper_" + dripper.lower().replace(" ", "_")
     known = (APP / "app/src/main/res/drawable" / f"{slug}.xml").exists()
     disc, cy = 64, y + h / 2
-    dx = GUTTER + 12 + disc / 2
+    dx = x + SHELF_CARD_PAD + disc / 2
     # The disc is drawn here and the glyph over it at 0.65 of its size, which
     # is DripperGlyph's own ratio -- `illustration(disc=True)` would draw a
     # disc the same size as the glyph, i.e. a glyph with no margin.
@@ -426,23 +469,23 @@ def session_card(c: Canvas, y, title, meta, trailing=None, cafe=None, cup=None):
         c.text(dx, cy + 5, dripper[:2].upper(), "titleSmall", "#FFFFFF", "middle")
     # ...and nothing at all when no dripper was recorded, which is the café cup:
     # `take(2)` of an empty string is an empty string, not a placeholder.
-    tx = GUTTER + 12 + disc + 12
+    tx = x + SHELF_CARD_PAD + disc + 12
     c.text(tx, cy - 4, title, "titleMedium", size=14)
     c.text(tx, cy + 14, meta, "bodyMedium", C["onSurfaceVariant"], size=12)
     if trailing:
-        c.text(W - GUTTER - 12 - 14, cy + 4, trailing, "bodyMedium",
+        c.text(W - x - SHELF_CARD_PAD - 14, cy + 4, trailing, "bodyMedium",
                C["onSurfaceVariant"], "end", size=12)
     if cafe:
-        c.text(W - GUTTER - 12, y + h - 8, cafe, "labelSmall",
+        c.text(W - x - SHELF_CARD_PAD, y + h - 8, cafe, "labelSmall",
                C["onSurfaceVariant"], "end")
-    c.path(f"M{W - GUTTER - 22} {cy - 5} l5 5 l-5 5", stroke=C["outline"], sw=1.6)
+    c.path(f"M{W - x - 22} {cy - 5} l5 5 l-5 5", stroke=C["outline"], sw=1.6)
     return y + h
 
 
-def session_divider(c: Canvas, y):
+def session_divider(c: Canvas, y, x=GUTTER):
     """The inset rule between two cards -- clears the dripper disc, the way
-    Home's clears the bean tile."""
-    c.line(GUTTER + 64 + 24, y, W - GUTTER, y, C["outlineVariant"], 1)
+    Home's clears the bean tile. `x` is the list's margin; see session_card."""
+    c.line(x + 64 + SHELF_CARD_PAD * 2, y, W - x, y, C["outlineVariant"], 1)
 
 
 def card(c: Canvas, y, h, x=GUTTER, w=None, fill=None, r=R_CARD):
@@ -1096,15 +1139,21 @@ def home():
     c = Canvas("00 Home")
     status_bar(c)
     y = top_bar(c, "Coffee Can", action_text="History")
-    y = section(c, y, "Your beans", action="Search")
+    # A magnifying glass since 2026-08-25, not the word. The string is still
+    # what the control is called; see section()'s `action_icon`.
+    y = section(c, y, "Your beans", action="Search", action_icon="search")
 
     # Home's own list: everything BEANS holds, less the beans that came from a
     # café. `pick_bean()` below deliberately draws the unfiltered set.
+    #
+    # THE SHELF BREAKS OUT OF THE PAGE GUTTER, so its cards sit at
+    # SHELF_GUTTER while the heading above and the two panes below keep
+    # GUTTER -- `HomeScreen`'s `Modifier.gutterBreakout()`.
     shelf = [b for b in BEANS if b[6] is None]
     for name, roaster, origin, brews, process, roast, cafe in shelf[:3]:
-        card(c, y, 72)
-        bag_tile(c, GUTTER + 12, y + 4, 64, origin[:2])
-        tx = GUTTER + 12 + 64 + 14
+        card(c, y, 72, x=SHELF_GUTTER, w=W - 2 * SHELF_GUTTER)
+        bag_tile(c, SHELF_GUTTER + SHELF_CARD_PAD, y + 4, 64, origin[:2])
+        tx = SHELF_GUTTER + SHELF_CARD_PAD + 64 + 14
         # 14 and 11, not titleMedium's 16 and bodyMedium's 14: HomeScreen
         # overrides both sizes at these two call sites, the way the deck does.
         c.text(tx, y + 26, name, "titleMedium", size=14)
@@ -1117,7 +1166,8 @@ def home():
                else C["surfaceContainer"], 4)
         c.text(tx + 8, y + 62, label, "labelSmall",
                C["onPrimaryContainer"] if brews else C["onSurfaceVariant"])
-        c.path(f"M{W - GUTTER - 24} {y + 31} l5 5 l-5 5", stroke=C["outline"], sw=1.6)
+        c.path(f"M{W - SHELF_GUTTER - SHELF_CARD_PAD - 12} {y + 31} l5 5 l-5 5",
+               stroke=C["outline"], sw=1.6)
         y += 78
     y -= 6                      # the 6dp gap sits between cards, not after the last
 
@@ -1138,17 +1188,24 @@ def home():
     y += 128
 
     y += SECTION_SPACING
-    y = section(c, y, "My flavor",
-                caption=f"Average across {len(SESSIONS)} sessions")
-    # Shorter than the chart by `RadarLabelTrim` at each end: the box's top and
-    # bottom never draw in that band, and since the caption moved onto the
-    # heading (2026-08-24) nothing else wants the corner it frees.
-    card(c, y, 260 - 2 * 20)
+    # THE CAPTION IS UNDER THE CHART NOW, CENTRED (2026-08-25) -- not in the
+    # heading's caption slot, and not in the card's top-left corner where it
+    # sat before that. The heading carries the section name alone.
+    y = section(c, y, "My flavor")
+    # Trimmed by `RadarLabelTrim` at the TOP only. The box's top and bottom
+    # both go unused, but the bottom band is no longer free: it is the
+    # clearance between the two lowest axis labels and the caption under them.
+    cap_h = 28
+    card(c, y, 260 - 20 + cap_h)
     # `size` is the composable's box; RadarChart's own radius is half of it
     # times 0.66, so 260 draws r=85.8. Bigger than the deck's r=60 on this
     # page, deliberately: one size across the three screens beat matching the
     # deck's per-page figures (2026-08-19).
     radar(c, W / 2, y + 130 - 20, 260, MY_FLAVOR, labels=SHORT_AXES)
+    # Six o'clock is empty because eleven is odd: at 32.7 degree steps with an
+    # axis at twelve, the bottom falls between "Spices" and "Roasted".
+    c.text(W / 2, y + 260 - 20 + 18, f"Average across {len(SESSIONS)} sessions",
+           "labelSmall", C["onSurfaceVariant"], "middle")
     fab(c)
     gesture_bar(c)
     return c
@@ -1299,10 +1356,17 @@ def bean_detail_lower():
     mine = [s for s in SESSIONS if s[0] == BEAN["name"]][:3]
     for i, (name, meta, day, _cafe) in enumerate(mine):
         if i:
-            session_divider(c, y)
+            session_divider(c, y, x=SHELF_GUTTER)
         # `0.3`'s card with the two strings swapped -- the date names the row
         # because this page is already one bean's. See session_card().
-        y = session_card(c, y, f"{day} 2026", meta, cup=bool(_cafe))
+        #
+        # AT SHELF_GUTTER, NOT THE PAGE GUTTER (2026-08-25): this list breaks
+        # out the way Home's shelf does, while the heading above it stays put.
+        # `0.3` History, which draws the same card, was deliberately left on
+        # GUTTER -- there the list is the whole page rather than one block
+        # inside a padded column.
+        y = session_card(c, y, f"{day} 2026", meta, cup=bool(_cafe),
+                         x=SHELF_GUTTER)
     y += 24
     button(c, y, "Save changes")
     gesture_bar(c)
@@ -1822,11 +1886,12 @@ def brew():
     y = bean_summary(c, y, BEAN)
     y = section(c, y, "Brew details", action="Ask AI")
 
-    # 16 of card padding, the 52dp brewed row, then four 46dp capsule pairs
-    # with Arrangement.spacedBy(10) between every child, and 16 again.
-    ch = 16 + 52 + 10 + 4 * 46 + 3 * 10 + 16
+    # No padding on top (SECTION_CARD_TOP), the 52dp brewed row, then four 46dp
+    # capsule pairs with Arrangement.spacedBy(10) between every child, and 16 at
+    # the foot.
+    ch = SECTION_CARD_TOP + 52 + 10 + 4 * 46 + 3 * 10 + SECTION_CARD_PAD
     card(c, y, ch)
-    iy, ix, iw = y + 16, GUTTER + 16, W - 2 * GUTTER - 32
+    iy, ix, iw = y + SECTION_CARD_TOP, GUTTER + 16, W - 2 * GUTTER - 32
     c.text(ix, iy + 14, "Brewed", "labelMedium", C["onSurfaceVariant"])
     c.text(ix, iy + 34, "Tuesday 11 August 2026", "bodyLarge")
     c.text(W - GUTTER - 16, iy + 30, "Change", "labelLarge", C["primary"], "end")
@@ -1870,8 +1935,8 @@ def brew_lower():
     status_bar(c)
     y = top_bar(c, BEAN["name"], back=True)
     y = section(c, y, "How was it?")
-    card(c, y, 320)
-    iy, ix, iw = y + 16, GUTTER + 16, W - 2 * GUTTER - 32
+    card(c, y, 320 - 16 + SECTION_CARD_TOP)
+    iy, ix, iw = y + SECTION_CARD_TOP, GUTTER + 16, W - 2 * GUTTER - 32
     c.text(ix, iy + 14, "Score", "labelLarge")
     slider(c, iy + 10, ix + 96, 120, 4.5)
     c.text(W - GUTTER - 16, iy + 14, "4.5", "labelSmall", C["onSurfaceVariant"], "end")
@@ -2663,10 +2728,11 @@ def cup_profile():
     # A brew made at home opens the other way -- see `0.31`.
     y = section(c, y, "Brew details", secondary="More details")
     y = section(c, y, "How was it?")
-    # 16 padding, the 40dp score row, then two deviation bars at 12 label + 10
-    # gap + 12 track + 32 to the foot of the zone words, 8 apart, and 16 again.
-    card(c, y, 212)
-    iy, ix, iw = y + 16, GUTTER + 16, W - 2 * GUTTER - 32
+    # No top padding, the 40dp score row, then two deviation bars at 12 label +
+    # 10 gap + 12 track + 32 to the foot of the zone words, 8 apart, and 16 at
+    # the foot.
+    card(c, y, 212 - 16 + SECTION_CARD_TOP)
+    iy, ix, iw = y + SECTION_CARD_TOP, GUTTER + 16, W - 2 * GUTTER - 32
     c.text(ix, iy + 14, "Score", "labelLarge")
     c.text(W - GUTTER - 16, iy + 14, "not set", "labelSmall",
            C["onSurfaceVariant"], "end")
