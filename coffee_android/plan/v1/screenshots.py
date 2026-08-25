@@ -132,9 +132,12 @@ POLAROID_TILTS = [
 # History with a green row. (bean, meta line): the meta is what `session_card`
 # reads the dripper off, and a café cup usually has none, which is why the
 # first of these is a bare score.
+#: `+1.1`'s cups: (bean, outcome, method). The bean is the *trailing* string
+#: here and the date is the bold line -- the mirror of `0.3` History, because
+#: this page is already one café and one visit. See `SessionCard`'s table.
 CUPS = [
-    ("Ethiopia Guji Natural", "4.5"),
-    ("Kenya Nyeri AA", "Origami Dripper · 15.0 g · 3.5"),
+    ("Ethiopia Guji Natural", "4.5 · well extracted", ""),
+    ("Kenya Nyeri AA", "3.5 · over-extracted", "Origami Dripper · 3 stages"),
 ]
 
 JOURNEY = {
@@ -422,8 +425,8 @@ def section(c: Canvas, y, text, action=None, caption=None, secondary=None,
     return y + 12 + 25 + SECTION_GAP
 
 
-def session_card(c: Canvas, y, title, meta, trailing=None, cafe=None, cup=None,
-                 x=GUTTER):
+def session_card(c: Canvas, y, title, outcome, method="", trailing=None,
+                 cafe=None, cup=None, x=GUTTER):
     """ui/screens/SessionCard.kt -- ONE drawing, because there is now one
     composable: `0.3` History and `0.2`'s Sessions block both call it
     (2026-08-22, direct product request that the bean page use History's card).
@@ -452,7 +455,7 @@ def session_card(c: Canvas, y, title, meta, trailing=None, cafe=None, cup=None,
     # card is the same object either way -- only the margin its list sits in
     # differs -- which is exactly what a parameter is for.
     card(c, y, h, x=x, w=W - 2 * x, fill=C["surfaceContainerLow"] if cup else None)
-    dripper = meta.split(" · ")[0]
+    dripper = method.split(" · ")[0] if method else ""
     slug = "ic_dripper_" + dripper.lower().replace(" ", "_")
     known = (APP / "app/src/main/res/drawable" / f"{slug}.xml").exists()
     disc, cy = 64, y + h / 2
@@ -469,12 +472,19 @@ def session_card(c: Canvas, y, title, meta, trailing=None, cafe=None, cup=None,
         c.text(dx, cy + 5, dripper[:2].upper(), "titleSmall", "#FFFFFF", "middle")
     # ...and nothing at all when no dripper was recorded, which is the café cup:
     # `take(2)` of an empty string is an empty string, not a placeholder.
+    # THREE LINES, TOP-ALIGNED (2026-08-25, direct product request): when,
+    # then how it came out, then how it was made. `title` and `trailing` share
+    # line one -- inside the text column in the Kotlin, which is what stops a
+    # long trailing string starving the two lines under it.
     tx = x + SHELF_CARD_PAD + disc + 12
-    c.text(tx, cy - 4, title, "titleMedium", size=14)
-    c.text(tx, cy + 14, meta, "bodyMedium", C["onSurfaceVariant"], size=12)
+    ty = y + SHELF_CARD_PAD + 12
+    c.text(tx, ty, title, "titleMedium", size=14, weight="bold")
     if trailing:
-        c.text(W - x - SHELF_CARD_PAD - 14, cy + 4, trailing, "bodyMedium",
+        c.text(W - x - SHELF_CARD_PAD - 14, ty, trailing, "bodyMedium",
                C["onSurfaceVariant"], "end", size=12)
+    c.text(tx, ty + 17, outcome, "bodyMedium", C["onSurfaceVariant"], size=12)
+    if method:
+        c.text(tx, ty + 33, method, "bodyMedium", C["onSurfaceVariant"], size=12)
     if cafe:
         c.text(W - x - SHELF_CARD_PAD, y + h - 8, cafe, "labelSmall",
                C["onSurfaceVariant"], "end")
@@ -593,6 +603,63 @@ def chip(c: Canvas, x, y, label, selected=False, h=32):
     c.text(x + w / 2, y + h / 2 + 5, label, "labelLarge",
            C["onSecondaryContainer"] if selected else C["onSurfaceVariant"], "middle")
     return x + w + 8
+
+
+def action_capsule(c: Canvas, modify="pencil"):
+    """`ui/DetailActionBar.kt` -- the foot capsule on `0.2` and `0.31`/`+1.2`.
+
+    HOME'S CAPSULE WITH ACTION SLOTS, not a bar of its own: same height, same
+    frosted fill, same shadow, same green full-height centre disc. Three slots
+    -- modify, share, delete -- where the axis bar has four destinations around
+    a `+`.
+
+    NOT DRAWN ON `00 Home` HERE, and that is a gap this file already had: the
+    app replaced Home's FAB with the axis capsule on 2026-08-24 and `fab()`
+    below still draws the FAB. Closing that means drawing four tabs and the
+    interlocking selection indicator, which is a bigger job than this frame
+    needed; flagged rather than silently half-done.
+    """
+    bar_h, margin = 60, 10
+    w = 54 + 60 + 54
+    x = (W - w) / 2
+    y = H - 16 - margin - bar_h
+    # The frosted fill plus the shadow that separates it from the page -- the
+    # capsule has no outline, so the shadow is its edge.
+    c.rect(x, y + 3, w, bar_h, "#000000", bar_h / 2, opacity=0.10)
+    c.rect(x, y, w, bar_h, C["surface"], bar_h / 2, opacity=0.88)
+    # Modify: the pencil of res/drawable/ic_action_modify.xml at 45 degrees,
+    # or the tick it becomes once the mode is unlocked -- and always, on
+    # `+1.1`, which has no mode to unlock. See `DetailActionBar.isSaving`.
+    px, py = x + 27, y + bar_h / 2
+    if modify == "save":
+        c.path(f"M{px - 7} {py} l5 5 l9 -10", stroke=C["onSurface"], sw=2.4)
+    else:
+        c.path(f"M{px - 7} {py + 7} l1.6 -4.6 l9 -9 l3 3 l-9 9 Z",
+               fill=C["onSurface"], stroke="none")
+    # Share: the green disc, inscribed so it touches both capsule edges.
+    c.circle(W / 2, y + bar_h / 2, bar_h / 2, C["primary"])
+    c.path(f"M{W / 2} {y + 20} l0 14", stroke="#FFFFFF", sw=2)
+    c.path(f"M{W / 2 - 5} {y + 25} l5 -5 l5 5", stroke="#FFFFFF", sw=2)
+    c.rect(W / 2 - 8, y + 30, 16, 12, "none", 2, stroke="#FFFFFF", sw=2)
+    # Delete: the same trash the foot button drew, in `error` rather than
+    # filled -- the colour carries the meaning, the weight keeps it quiet.
+    dx, dy = W - x - 27, y + bar_h / 2
+    c.rect(dx - 5, dy - 4, 10, 11, "none", 1.5, stroke=C["error"], sw=1.6)
+    c.path(f"M{dx - 7} {dy - 6} l14 0", stroke=C["error"], sw=1.6)
+    c.path(f"M{dx - 2.5} {dy - 6} l0 -2 l5 0 l0 2", stroke=C["error"], sw=1.6)
+
+
+def foot_fade(c: Canvas):
+    """`AxisFootFade` -- the page fading out under the capsule."""
+    h = 60 + 10 * 2 + 48
+    c.parts.append(
+        f'<defs><linearGradient id="footfade{len(c.parts)}" x1="0" y1="0" x2="0" y2="1">'
+        f'<stop offset="0" stop-color="{C["surface"]}" stop-opacity="0"/>'
+        f'<stop offset="1" stop-color="{C["surface"]}" stop-opacity="1"/>'
+        f'</linearGradient></defs>'
+        f'<rect x="0" y="{H - h}" width="{W}" height="{h}" '
+        f'fill="url(#footfade{len(c.parts)})"/>'
+    )
 
 
 def fab(c: Canvas, cy=H - 16 - 28 - 16):
@@ -1077,14 +1144,20 @@ SESSION_FLAVOR = [4.5, 3.0, 2.5, 4.0, 1.5, 1.0, 1.5, 1.0, 0.5, 2.0, 3.5]
 # Belleville Brûlerie, scored 4.5, which is why that row's meta carries no
 # dripper -- and why `session_card()` paints that one on JourneyGround and
 # falls back to the two-letter disc for it, exactly as the build does.
+#: (bean, outcome, method, day, café) -- the card's line two and line three
+#: pre-composed, the way `SessionCard` builds them from a session row: the
+#: score and the extraction verdict, then the dripper, the filter paper and the
+#: stage count. One row carries no method at all (a café cup, nothing recorded
+#: but a score) and one carries no stage count, so the deck shows both of the
+#: card's shrinking states rather than only the full one.
 SESSIONS = [
-    ("Ethiopia Guji Natural", "Hario V60 · 15.0 g · 4.5", "11 Aug", None),
-    ("Colombia Huila Washed", "Kalita Wave · 18.0 g · 3.5", "09 Aug", None),
-    ("Ethiopia Guji Natural", "4.5", "07 Aug", "Belleville Brûlerie"),
-    ("Guatemala Huehue", "Chemex · 30.0 g · 3.0", "04 Aug", None),
-    ("Ethiopia Guji Natural", "Origami Dripper · 14.0 g · 4.5", "02 Aug", None),
-    ("Colombia Huila Washed", "Hario V60 · 16.0 g", "30 Jul", None),
-    ("Ethiopia Guji Natural", "Hario V60 · 15.0 g · 3.5", "28 Jul", None),
+    ("Ethiopia Guji Natural", "4.5 · well extracted", "Hario V60 · 3 stages", "11 Aug", None),
+    ("Colombia Huila Washed", "3.5 · over-extracted", "Kalita Wave · Abaca · 4 stages", "09 Aug", None),
+    ("Ethiopia Guji Natural", "4.5", "", "07 Aug", "Belleville Brûlerie"),
+    ("Guatemala Huehue", "3.0 · under-extracted", "Chemex · 2 stages", "04 Aug", None),
+    ("Ethiopia Guji Natural", "4.5 · well extracted", "Origami Dripper · 5 stages", "02 Aug", None),
+    ("Colombia Huila Washed", "4.0 · well extracted", "Hario V60", "30 Jul", None),
+    ("Ethiopia Guji Natural", "3.5 · under-extracted", "Hario V60 · 3 stages", "28 Jul", None),
 ]
 
 # Home's Brewing-activity grid, from the same log. `today` has to be fixed or
@@ -1099,7 +1172,7 @@ SESSIONS = [
 TODAY = datetime.date(2026, 8, 14)
 BREW_DAYS: dict[datetime.date, int] = {}
 for _row in SESSIONS:
-    _day = datetime.datetime.strptime(f"{_row[2]} 2026", "%d %b %Y").date()
+    _day = datetime.datetime.strptime(f"{_row[3]} 2026", "%d %b %Y").date()
     BREW_DAYS[_day] = BREW_DAYS.get(_day, 0) + 1
 
 BEAN = dict(
@@ -1342,7 +1415,12 @@ def bean_detail_lower():
     reads "Modify"."""
     c = Canvas("0.2b Bean detail, lower")
     status_bar(c)
-    y = top_bar(c, BEAN["name"], back=True, actions=["delete"])
+    # NO DELETE IN THE BAR ON THIS FRAME (2026-08-25): delete is the red
+    # slot of `action_capsule` at the foot now. The other `0.2` frames keep
+    # theirs, which is a wider gap this file already had -- the app has had
+    # no top app bar on a saved bean since the photo hero landed, and these
+    # frames still draw one. Out of scope here, flagged rather than hidden.
+    y = top_bar(c, BEAN["name"], back=True)
 
     y = field(c, y, "Note", BEAN["note"].split("\n")[0], h=96) + 24
     y = section(c, y, "Radar", action="Set manually")
@@ -1354,7 +1432,7 @@ def bean_detail_lower():
 
     y = section(c, y, "Sessions", action="New brew")
     mine = [s for s in SESSIONS if s[0] == BEAN["name"]][:3]
-    for i, (name, meta, day, _cafe) in enumerate(mine):
+    for i, (name, outcome, method, day, _cafe) in enumerate(mine):
         if i:
             session_divider(c, y, x=SHELF_GUTTER)
         # `0.3`'s card with the two strings swapped -- the date names the row
@@ -1365,10 +1443,13 @@ def bean_detail_lower():
         # `0.3` History, which draws the same card, was deliberately left on
         # GUTTER -- there the list is the whole page rather than one block
         # inside a padded column.
-        y = session_card(c, y, f"{day} 2026", meta, cup=bool(_cafe),
+        y = session_card(c, y, f"{day} 2026", outcome, method, cup=bool(_cafe),
                          x=SHELF_GUTTER)
-    y += 24
-    button(c, y, "Save changes")
+    # THE THREE ACTIONS ARE IN THE FOOT CAPSULE NOW (2026-08-25), not a
+    # full-width "Save changes" with a red Delete beside it -- see
+    # `action_capsule`, which is Home's bar with action slots.
+    foot_fade(c)
+    action_capsule(c)
     gesture_bar(c)
     return c
 
@@ -1684,10 +1765,12 @@ def sessions():
     c.text(GUTTER, y + 20, f"Newest first · {len(SESSIONS)} sessions",
            "labelMedium", C["onSurfaceVariant"])
     y += 32
-    for i, (name, meta, day, cafe) in enumerate(SESSIONS):
+    for i, (name, outcome, method, day, cafe) in enumerate(SESSIONS):
         if i:
             session_divider(c, y)
-        y = session_card(c, y, name, meta, trailing=day, cafe=cafe)
+        # The bean is the bold line and the date trails it (2026-08-25): this
+        # page spans every bean, so the bean is what identifies a row.
+        y = session_card(c, y, name, outcome, method, trailing=day, cafe=cafe)
     fab(c)
     gesture_bar(c)
     return c
@@ -1764,9 +1847,9 @@ def sessions_background(c: Canvas):
     status_bar(c)
     y = top_bar(c, "Sessions", back=True)
     y += 32
-    for name, meta, day, _cafe in SESSIONS[:4]:
+    for name, outcome, _method, day, _cafe in SESSIONS[:4]:
         c.text(GUTTER, y + 26, name, "titleMedium")
-        c.text(GUTTER, y + 44, meta, "bodyMedium", C["onSurfaceVariant"])
+        c.text(GUTTER, y + 44, outcome, "bodyMedium", C["onSurfaceVariant"])
         divider(c, y + 60)
         y += 60
 
@@ -1833,6 +1916,12 @@ def bean_block(c: Canvas, y, name="", photos=False):
     pictures the hero at the top of the page is already showing."""
     y = section(c, y, "Bean details", action="More details")
     y = field(c, y, "Bean name", name)
+    # THE FIELDS FOLLOW THE NAME BOX; THE IMAGES COME AFTER THEM (2026-08-25,
+    # direct product request). `photos` still means "the strip stays out of the
+    # fold", which is what a cup needs -- the "+" tile is its only door to a
+    # photograph and folding it away hid the door -- but it no longer means
+    # "drawn first", which had put an Images heading between a bean's name and
+    # the rest of its own fields.
     if photos:
         y = section(c, y + 6, "Images")
         # ImagesStrip's add tile, R_THUMB, secondaryContainer, a plus over the
@@ -1889,7 +1978,8 @@ def brew():
     # No padding on top (SECTION_CARD_TOP), the 52dp brewed row, then four 46dp
     # capsule pairs with Arrangement.spacedBy(10) between every child, and 16 at
     # the foot.
-    ch = SECTION_CARD_TOP + 52 + 10 + 4 * 46 + 3 * 10 + SECTION_CARD_PAD
+    # Five capsule rows since 2026-08-25, not four: Barista joined the block.
+    ch = SECTION_CARD_TOP + 52 + 10 + 5 * 46 + 4 * 10 + SECTION_CARD_PAD
     card(c, y, ch)
     iy, ix, iw = y + SECTION_CARD_TOP, GUTTER + 16, W - 2 * GUTTER - 32
     c.text(ix, iy + 14, "Brewed", "labelMedium", C["onSurfaceVariant"])
@@ -1903,6 +1993,11 @@ def brew():
                       ("Grinder", "Comandan…"), x=ix, w=iw) + 10
     iy = capsule_pair(c, iy, ("Grind size", "24 clicks"),
                       ("Filter", "Hario V60 02…"), x=ix, w=iw) + 10
+    # WHO MADE IT (2026-08-25), arrived from `+1.1` where it had been a
+    # property of the café. A hanging half-row, and on every brew rather than
+    # only on a cup: the brew form is one form, and blank is what a coffee you
+    # made yourself looks like.
+    iy = capsule_pair(c, iy, ("Barista", "Camille"), None, x=ix, w=iw) + 10
     iy = capsule_pair(c, iy, ("Dose (g)", "15.0"),
                       ("Water (g)", "250"), x=ix, w=iw) + 10
     # Water alkalinity where Water °C used to be (2026-08-21). The temperature
@@ -2225,9 +2320,12 @@ def journey_profile():
     # as the required café name above it.
     y = capsule_pair(c, y, ("Address", JOURNEY["address"]),
                      ("City", JOURNEY["city"])) + SECTION_SPACING
-    y = section(c, y, "The visit")
-    y = capsule_pair(c, y, ("Visited on", JOURNEY["day"]),
-                     ("Barista", JOURNEY["barista"])) + 16
+    # ONE SECTION, NOT TWO (2026-08-25, direct product request). "The visit"
+    # heading is gone and its date joined Café; Barista left the page entirely
+    # for the brew form -- a café has many baristas, so which one made the cup
+    # is a fact about the cup. The date takes the hanging half `capsule_pair`
+    # was built to allow, from the side the barista used to occupy.
+    y = capsule_pair(c, y, ("Visited on", JOURNEY["day"]), None) + 16
     card(c, y, 56)
     c.circle(GUTTER + 26, y + 28, 5, C["primary"])
     c.path(f"M{GUTTER + 26} {y + 33} l0 8", stroke=C["primary"], sw=2)
@@ -2236,24 +2334,34 @@ def journey_profile():
            "bodyMedium", C["onSurfaceVariant"])
     # The trailing chevron: the one row on this page that leaves the app.
     c.path(f"M{W - GUTTER - 22} {y + 22} l6 6 l-6 6", stroke=C["onSurfaceVariant"], sw=1.8)
-    y += 56 + SECTION_SPACING
-    # NO NOTES SECTION since 2026-08-20; the Cups block carries the "what was
-    # it actually like" half of a visit now.
+    y += 56 + 14
+    # THE NOTE IS BACK, UNDER THE MAP ROW (2026-08-25), after five days away.
+    # No heading of its own this time -- what it had before was a full-width
+    # box *and* a section heading for one field, which is what made it look
+    # like a demand. It closes the Café section instead of opening a third one.
+    y = field(c, y, "Note", "", h=88) + SECTION_SPACING
     y = section(c, y, "Cups", action="Add a cup")
     # `0.3`'s card since 2026-08-22 -- see session_card(). The bean names the
     # row (this page already supplies the café), nothing trails, and `cup=False`
     # is not a claim that these are home brews: this whole page is painted
     # JourneyGround, so a cup tinted the same green would be a card with no
     # boundary on a ground of its own colour.
-    for i, (name, meta) in enumerate(CUPS):
+    for i, (name, outcome, method) in enumerate(CUPS):
         if i:
             session_divider(c, y)
-        y = session_card(c, y, name, meta, cup=False)
-    y += 8
-    button(c, y, "Save changes", x=GUTTER, w=W - 2 * GUTTER - 128)
-    dx, dw = W - GUTTER - 116, 116
-    c.rect(dx, y, dw, 40, "none", 20, stroke=C["error"])
-    c.text(dx + dw / 2, y + 25, "Delete", "labelLarge", C["error"], "middle")
+        # THE CUP'S NAME BOLD, NO DATE AT ALL (2026-08-25). It briefly ran the
+        # other way round -- date bold, bean trailing -- on the reasoning that
+        # a page which is one visit is distinguished by date. Backwards: a fact
+        # identical on every row identifies nothing, and printing this visit's
+        # date beside each of its own cups says it twice for no reader.
+        y = session_card(c, y, name, outcome, method, cup=False)
+    # THE THREE ACTIONS ARE IN THE FOOT CAPSULE NOW (2026-08-25), as on `0.2`
+    # and `0.31` -- see `action_capsule`. A pencil, because `+1.1` gained the
+    # same view/edit mode the other two detail pages have later the same day:
+    # it opened as a permanently-greyed tick, which reads as a dead control and
+    # was reported as "why i can't modify in the journey profile page?".
+    foot_fade(c)
+    action_capsule(c)
     gesture_bar(c)
     return c
 
@@ -2275,9 +2383,12 @@ def journey_profile_lower():
     y = field(c, y, "Caf\u00e9 name", JOURNEY["name"]) + 14
     y = capsule_pair(c, y, ("Address", JOURNEY["address"]),
                      ("City", JOURNEY["city"])) + SECTION_SPACING
-    y = section(c, y, "The visit")
-    y = capsule_pair(c, y, ("Visited on", JOURNEY["day"]),
-                     ("Barista", JOURNEY["barista"])) + 16
+    # ONE SECTION, NOT TWO (2026-08-25, direct product request). "The visit"
+    # heading is gone and its date joined Café; Barista left the page entirely
+    # for the brew form -- a café has many baristas, so which one made the cup
+    # is a fact about the cup. The date takes the hanging half `capsule_pair`
+    # was built to allow, from the side the barista used to occupy.
+    y = capsule_pair(c, y, ("Visited on", JOURNEY["day"]), None) + 16
     card(c, y, 56)
     c.circle(GUTTER + 26, y + 28, 5, C["primary"])
     c.path(f"M{GUTTER + 26} {y + 33} l0 8", stroke=C["primary"], sw=2)
@@ -2285,17 +2396,29 @@ def journey_profile_lower():
     c.text(GUTTER + 44, y + 42, f"Search for {JOURNEY['address']}, {JOURNEY['city']}",
            "bodyMedium", C["onSurfaceVariant"])
     c.path(f"M{W - GUTTER - 22} {y + 22} l6 6 l-6 6", stroke=C["onSurfaceVariant"], sw=1.8)
-    y += 56 + SECTION_SPACING
+    y += 56 + 14
+    # THE NOTE IS BACK, UNDER THE MAP ROW (2026-08-25), after five days away.
+    # No heading of its own this time -- what it had before was a full-width
+    # box *and* a section heading for one field, which is what made it look
+    # like a demand. It closes the Café section instead of opening a third one.
+    y = field(c, y, "Note", "", h=88) + SECTION_SPACING
     y = section(c, y, "Cups", action="Add a cup")
-    for i, (name, meta) in enumerate(CUPS):
+    for i, (name, outcome, method) in enumerate(CUPS):
         if i:
             session_divider(c, y)
-        y = session_card(c, y, name, meta, cup=False)
-    y += 8
-    button(c, y, "Save changes", x=GUTTER, w=W - 2 * GUTTER - 128)
-    dx, dw = W - GUTTER - 116, 116
-    c.rect(dx, y, dw, 40, "none", 20, stroke=C["error"])
-    c.text(dx + dw / 2, y + 25, "Delete", "labelLarge", C["error"], "middle")
+        # THE CUP'S NAME BOLD, NO DATE AT ALL (2026-08-25). It briefly ran the
+        # other way round -- date bold, bean trailing -- on the reasoning that
+        # a page which is one visit is distinguished by date. Backwards: a fact
+        # identical on every row identifies nothing, and printing this visit's
+        # date beside each of its own cups says it twice for no reader.
+        y = session_card(c, y, name, outcome, method, cup=False)
+    # THE THREE ACTIONS ARE IN THE FOOT CAPSULE NOW (2026-08-25), as on `0.2`
+    # and `0.31` -- see `action_capsule`. A pencil, because `+1.1` gained the
+    # same view/edit mode the other two detail pages have later the same day:
+    # it opened as a permanently-greyed tick, which reads as a dead control and
+    # was reported as "why i can't modify in the journey profile page?".
+    foot_fade(c)
+    action_capsule(c)
     gesture_bar(c)
     return c
 

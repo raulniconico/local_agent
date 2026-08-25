@@ -146,6 +146,92 @@ footer a { color: var(--muted); text-decoration: none; font-size: 15px; }
 footer a:hover { color: var(--ink); }
 footer small { color: var(--muted); font-size: 14px; }
 
+/* --- the screenshot lightbox ---------------------------------------------
+ *
+ * Click a phone: it grows to the middle of the window, everything behind it
+ * blurs. <dialog> + showModal() is still what holds it -- Escape closes, focus
+ * is trapped, the page behind goes inert to a screen reader -- but the frost
+ * is a real element inside the dialog rather than `::backdrop`.
+ *
+ * WHY NOT `::backdrop`, HAVING TRIED IT: custom properties do not reliably
+ * reach it. `::backdrop` is not a descendant of any element for inheritance
+ * purposes in every engine, so `var(--deep)` inside it resolves to nothing,
+ * the whole `background` declaration is dropped as invalid, and what should
+ * have been a tinted frost renders as clear glass over a bright page. A plain
+ * div takes the same `backdrop-filter` and inherits variables like anything
+ * else.
+ */
+dialog.lightbox {
+  position: fixed; inset: 0; margin: 0; padding: 0; border: 0;
+  width: 100%; height: 100%;
+  max-width: none; max-height: none;
+  background: transparent;
+  /* The dialog is a viewport-sized box holding a centred image; nothing in it
+   * should ever scroll. Without this the UA's default sizing let a large
+   * image push a scrollbar down the side of the frost. */
+  overflow: hidden;
+}
+dialog.lightbox::backdrop { background: transparent; }
+
+.lb-scrim {
+  position: absolute; inset: 0;
+  background: color-mix(in srgb, var(--deep) 40%, transparent);
+  backdrop-filter: blur(20px) saturate(135%);
+  -webkit-backdrop-filter: blur(20px) saturate(135%);
+  opacity: 0;
+  transition: opacity .3s ease;
+}
+/* A fallback for engines without color-mix: a flat tint is better than none,
+ * and the later declaration wins only where color-mix is unsupported. */
+@supports not (background: color-mix(in srgb, red 40%, transparent)) {
+  .lb-scrim { background: rgba(11, 46, 18, .4); }
+}
+
+.lb-stage {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+/* CENTRING IS ON THE DIALOG TOO, NOT ONLY ON `.lb-stage`, AND THAT IS A
+ * CACHE DEFENCE RATHER THAN BELT AND BRACES. This stylesheet and the script
+ * that builds `.lb-stage` ship as two files with no version in either URL, so
+ * a browser can hold a fresh copy of one and a stale copy of the other -- and
+ * on 2026-08-25 one did: new CSS, old JS, which put a bare <img> straight
+ * inside the dialog where nothing sized it. It rendered at the full width of
+ * the viewport, jammed into the top-left corner, over a correctly blurred
+ * page. Sizing whatever image is in there means the worst a desynced cache
+ * can now produce is a picture that does not animate. */
+/* `[open]` IS LOAD-BEARING: an author `display` on a bare `dialog` selector
+ * beats the UA's `dialog:not([open]) { display: none }` regardless of
+ * specificity, which would leave this thing on screen permanently. */
+dialog.lightbox[open] { display: flex; align-items: center; justify-content: center; }
+.lb-stage img, dialog.lightbox > img {
+  /* Fitted to the window, never blown up past the asset: these are 720px
+   * captures and stretching one across a desktop is how a crisp screenshot
+   * turns to mush. Height is what usually binds -- a phone is tall. */
+  width: auto; height: auto;
+  max-width: min(88vw, 460px);
+  max-height: 86dvh;
+  border-radius: 34px;
+  box-shadow: 0 40px 90px rgba(11, 46, 18, .38);
+  /* THE ORIGIN IS THE CENTRE, which is what makes the maths below one
+   * translate plus one scale rather than a corner-anchored special case. */
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+dialog.lightbox.animate .lb-stage img,
+dialog.lightbox.animate > img {
+  transition: transform .44s cubic-bezier(.22, .78, .27, 1);
+}
+dialog.lightbox.open .lb-scrim { opacity: 1; }
+
+/* The thumbnails advertise themselves. `zoom-in` rather than `pointer`: the
+ * page has real links and these should not look identical to one. */
+.shot img:not(.mascot), .hero-shot img { cursor: zoom-in; }
+.lb-stage img, dialog.lightbox > img { cursor: zoom-out; }
+.shot img:not(.mascot):focus-visible, .hero-shot img:focus-visible {
+  outline: 3px solid var(--brand); outline-offset: 6px;
+}
+
 /* --- reveal on scroll ---------------------------------------------------- */
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
 .reveal.in { opacity: 1; transform: none; }
@@ -153,6 +239,15 @@ footer small { color: var(--muted); font-size: 14px; }
   html { scroll-behavior: auto; }
   .reveal { opacity: 1; transform: none; transition: none; }
   .btn, header nav a { transition: none; }
+  /* The lightbox still opens and still blurs -- what goes is the travel.
+   * Someone who has asked for less motion wants the shot bigger, not to be
+   * denied the feature. */
+  /* The lightbox still opens and still frosts -- what goes is the travel.
+   * Someone who asked for less motion wants the shot bigger, not the feature
+   * withheld. */
+  dialog.lightbox.animate .lb-stage img,
+  dialog.lightbox.animate > img { transition: none; }
+  .lb-scrim { transition: none; }
 }
 
 /* --- /privacy and /delete ------------------------------------------------

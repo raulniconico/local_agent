@@ -289,6 +289,26 @@ SVG_PATH = re.compile(r'^[Mm][\d{\s.-]')
 # exists to match. Each is listed with where its pieces actually come from, so
 # an entry cannot quietly become cover for a fabrication.
 COMPOSED = {
+    # SessionCard's second body line (2026-08-25): "%.1f".format(score) + " · "
+    # + extractionVerdict(extraction).lowercase(). The score is sample data --
+    # a number this deck invents, like every dose and date around it -- and the
+    # verdict is R.string.extraction_well / _under / _over, drawn *lowercased*
+    # by the call site, which is why no contiguous literal matches: the
+    # resource reads "Well extracted" and the card draws "well extracted".
+    #
+    # WHAT THIS COSTS, MEASURED RATHER THAN ASSUMED: of the three verdicts,
+    # only `extraction_well` is drawn anywhere else in the simulator
+    # (`extraction_bar(mid_label="Well extracted")`), so that one stays covered
+    # and a rewording of it still fails this check there. `extraction_under`
+    # and `extraction_over` appear ONLY inside these composed strings, so
+    # rewording either would now pass silently. That is the honest price of the
+    # exemption; the alternative is a deck that draws a verdict the card does
+    # not, which is worse. If a bar ever draws all three, delete this note.
+    "4.5 · well extracted",
+    "4.0 · well extracted",
+    "3.5 · under-extracted",
+    "3.5 · over-extracted",
+    "3.0 · under-extracted",
     # ProfileScreen/PrivacyScreen: "Questions: " + BuildConfig.SUPPORT_EMAIL
     "Questions: hello@coffee-can.org",
     # ProfileScreen's signed-in header: AccountStore.displayName, i.e. the

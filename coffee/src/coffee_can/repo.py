@@ -83,6 +83,9 @@ SESSION_FIELDS = (
     "filter_paper",
     "grinder",
     "grind_size",
+    # Who made it -- moved off `journeys` on 2026-08-25. Storage only here; no
+    # CLI or GUI surface reads it, and the allowlist is what lets it travel.
+    "barista",
     "water_ppm",
     # Carbonate hardness (ppm as CaCO3), beside water_ppm's total dissolved
     # solids rather than instead of it.

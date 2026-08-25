@@ -204,7 +204,23 @@ sudo mkdir -p /etc/caddy /srv/site
 {
   printf '%s {\n\treverse_proxy localhost:%s\n\tlog {\n\t\toutput file /var/log/caddy/api.log\n\t}\n}\n' "$API_HOST" "$APP_PORT"
   if [ -n "$SITE_HOST" ]; then
-    printf '\n%s, www.%s {\n\troot * /srv/site\n\tfile_server\n\tlog {\n\t\toutput file /var/log/caddy/site.log\n\t}\n}\n' "$SITE_HOST" "$SITE_HOST"
+    # `Cache-Control: no-cache` ON EVERYTHING THE SITE SERVES, and it is not
+    # the same as "do not cache": the browser still stores the file and still
+    # gets a 304 from the ETag, it simply may not use its copy without asking
+    # first. That costs one conditional request per file and buys the thing
+    # this site had no way to guarantee before -- that index.html and
+    # style.css are always from the same deploy.
+    #
+    # WITHOUT IT THEY DESYNC, MEASURED RATHER THAN THEORISED (2026-08-25): with
+    # no Cache-Control and no Expires, browsers fall back to heuristic
+    # freshness, and one held a fresh stylesheet against a stale script. The
+    # lightbox rendered as a full-width image jammed into the corner of a
+    # correctly blurred page. Neither file was wrong; the pairing was.
+    #
+    # Five screenshots and a stylesheet do not need a CDN cache. If this site
+    # ever grows assets worth caching hard, give them hashed filenames and
+    # exempt those -- do not weaken this for the HTML.
+    printf '\n%s, www.%s {\n\troot * /srv/site\n\theader Cache-Control "no-cache"\n\tfile_server\n\tlog {\n\t\toutput file /var/log/caddy/site.log\n\t}\n}\n' "$SITE_HOST" "$SITE_HOST"
   fi
 } | sudo tee /etc/caddy/Caddyfile >/dev/null
 

@@ -80,6 +80,11 @@
           few weeks the radar stops being a novelty and starts being a
           reference — the shape you keep coming back to.
         </p>
+        <p>
+          Any bean, brew or café can be drawn as a card worth sending: the
+          photo, the numbers and the radar, on the brand green. It is rendered
+          on your phone, so making one uploads nothing.
+        </p>
       </div>
       <div class="shot">
         <img src="assets/shot-radar.png" width="720" height="1404"
@@ -95,8 +100,9 @@
         <h2>The cafés you'd go back to.</h2>
         <p>
           A Polaroid for every place, with the city and the day you were
-          there. The cups you drank out are marked so they never blur into the
-          ones you made at home.
+          there, and a note while it is still fresh. The cups you drank out are
+          marked so they never blur into the ones you made at home — down to
+          who made them.
         </p>
       </div>
       <div class="shot">
@@ -175,6 +181,120 @@
   } else {
     document.querySelectorAll('.reveal').forEach((el) => el.classList.add('in'));
   }
+
+  // --- the screenshot lightbox ------------------------------------------
+  //
+  // Click a shot: it grows to the middle of the window while the page behind
+  // it blurs. A PROGRESSIVE ENHANCEMENT -- none of this is in the markup, so
+  // with JS off or without <dialog>.showModal() the shots stay ordinary
+  // images at the size the layout gives them.
+  (function () {
+    // `:not(.mascot)` -- the corner can-boys live inside `.shot` and are
+    // decoration, not screenshots.
+    const shots = document.querySelectorAll('.shot img:not(.mascot), .hero-shot img');
+    if (!shots.length || !window.HTMLDialogElement || !HTMLDialogElement.prototype.showModal) return;
+
+    const dialog = document.createElement('dialog');
+    dialog.className = 'lightbox';
+    const scrim = document.createElement('div');
+    scrim.className = 'lb-scrim';
+    const stage = document.createElement('div');
+    stage.className = 'lb-stage';
+    const big = document.createElement('img');
+    stage.appendChild(big);
+    dialog.append(scrim, stage);
+    document.body.appendChild(dialog);
+
+    const still = matchMedia('(prefers-reduced-motion: reduce)');
+    let origin = null;
+
+    // THE FLIP, with a centred transform-origin: map the final centred rect
+    // back onto the thumbnail with one translate and one scale.
+    function toThumb(rect) {
+      const to = big.getBoundingClientRect();
+      if (!to.width || !to.height) return '';   // nothing measured yet
+      const s = rect.width / to.width;
+      const dx = (rect.left + rect.width / 2) - (to.left + to.width / 2);
+      const dy = (rect.top + rect.height / 2) - (to.top + to.height / 2);
+      return `translate(${dx}px, ${dy}px) scale(${s})`;
+    }
+
+    function open(img) {
+      origin = img;
+      big.src = img.currentSrc || img.src;
+      big.alt = img.alt;
+      // THE INTRINSIC SIZE IS COPIED ACROSS, and this is the bug that made the
+      // first cut of this land jammed against the top-left corner at ten times
+      // its size. A fresh <img> has no layout size until its bitmap is
+      // available, so measuring it in the same tick returned 0x0 -- and a FLIP
+      // scale of thumbnailWidth/0 is a transform the browser then had nothing
+      // sane to animate from. Handing over width/height gives the element its
+      // aspect ratio immediately, so CSS can fit it on the very first frame.
+      const nw = img.naturalWidth || img.width;
+      const nh = img.naturalHeight || img.height;
+      if (nw && nh) { big.width = nw; big.height = nh; }
+
+      const from = img.getBoundingClientRect();
+      dialog.showModal();
+
+      // ONE FORCED REFLOW, NOT TWO ANIMATION FRAMES, and the difference is
+      // the whole reason this works. The obvious spelling -- nested
+      // `requestAnimationFrame`, set the start transform in the first and
+      // release it in the second -- looks right and silently does not run:
+      // measured in headless Chrome, the inner callback never fired, leaving
+      // the image parked on its thumbnail transform, translated off the
+      // bottom of the window. What the browser actually needs is for the
+      // start state to be *committed to style* before the transition is
+      // armed, and reading a layout property is what guarantees that, in this
+      // tick, with no dependence on when a frame happens to be scheduled.
+      const start = still.matches ? '' : toThumb(from);
+      if (start) big.style.transform = start;
+      void dialog.offsetWidth;                  // commit: scrim at 0, image on the thumbnail
+      dialog.classList.add('open', 'animate');  // arm both transitions
+      big.style.transform = '';                 // ...and let it travel
+    }
+
+    function finish() {
+      dialog.close();
+      dialog.classList.remove('open', 'animate');
+      big.style.transform = '';
+      big.removeAttribute('width');
+      big.removeAttribute('height');
+    }
+
+    function close() {
+      if (!dialog.open) return;
+      dialog.classList.remove('open');           // the frost fades out with it
+      if (still.matches || !origin) { finish(); return; }
+      // Recomputed, not remembered: the page may have been scrolled or resized
+      // while the shot was up.
+      const back = toThumb(origin.getBoundingClientRect());
+      if (!back) { finish(); return; }
+      big.style.transform = back;
+      big.addEventListener('transitionend', finish, { once: true });
+      // `transitionend` never fires when the property is already at its target
+      // -- which happens if a shot is clicked at exactly the size it opens to.
+      // Without this the dialog would stay up forever.
+      setTimeout(() => { if (dialog.open) finish(); }, 600);
+    }
+
+    shots.forEach((img) => {
+      img.tabIndex = 0;
+      img.setAttribute('role', 'button');
+      img.addEventListener('click', () => open(img));
+      img.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(img); }
+      });
+    });
+
+    // Anywhere puts it back -- the image included. There is nothing else in
+    // here to hit, so a close button would be one more thing drawn over a
+    // photograph.
+    dialog.addEventListener('click', close);
+    // Escape is <dialog>'s own; intercept it so the way back is animated too
+    // rather than the image vanishing while the frost fades.
+    dialog.addEventListener('cancel', (e) => { e.preventDefault(); close(); });
+  })();
 </script>
 </body>
 </html>

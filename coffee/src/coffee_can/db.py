@@ -62,6 +62,15 @@ CREATE TABLE IF NOT EXISTS brew_sessions (
     filter_paper TEXT,
     grinder      TEXT,
     grind_size   TEXT,
+    -- Who made it, for a coffee somebody else brewed. Storage only on this
+    -- side: no CLI command and no GUI dialog reads it, exactly like `journeys`
+    -- and the five water columns above -- it exists so a
+    -- phone -> desktop -> phone round trip does not drop what the phone put
+    -- there. It moved off `journeys` on 2026-08-25 (a cafe has many baristas;
+    -- which one made the cup is a fact about the cup), and `journeys.barista`
+    -- is deliberately left in place rather than migrated: there is no honest
+    -- way to attribute a cafe's one recorded name to a particular cup.
+    barista      TEXT,
     water_ppm    TEXT,
     water_alkalinity REAL,
     humidity     TEXT,
@@ -307,6 +316,14 @@ def _migrate(conn: sqlite3.Connection) -> None:
             # server-cache tables are here.
             conn.execute(f"ALTER TABLE beans ADD COLUMN {column} TEXT")
             conn.commit()
+
+    session_columns = {row[1] for row in conn.execute("PRAGMA table_info(brew_sessions)")}
+    if "barista" not in session_columns:
+        # `sessions.barista`, which the phone added on 2026-08-25 when the field
+        # moved out of a journey and into the brew form. Additive and nullable;
+        # storage only here, like the water columns above it.
+        conn.execute("ALTER TABLE brew_sessions ADD COLUMN barista TEXT")
+        conn.commit()
 
     news_columns = {row[1] for row in conn.execute("PRAGMA table_info(news_items)")}
     if "excerpt" not in news_columns:

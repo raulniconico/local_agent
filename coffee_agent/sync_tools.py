@@ -118,7 +118,21 @@ from coffee_can.repo import FLAVOR_FIELDS  # noqa: E402
 #: of v4 that needed a schema on this side rather than a list entry: see
 #: `coffee_can.db`'s `journeys` / `journey_images` tables, which exist so the
 #: two databases match and for no other reason.
-BUNDLE_VERSION = 4
+#:
+#: v4 -> v5 (2026-08-25) carries one new session field, ``barista``. It moved
+#: off the journey and onto the session -- a café has many baristas, so which
+#: one made the cup is a fact about the cup -- which meant a new column on both
+#: sides (`coffee_can.db._migrate`, and Room's MIGRATION_11_12) and an entry in
+#: `_SESSION_FIELDS`. **``journeys.barista`` is deliberately not migrated and
+#: not removed**: there is no honest way to attribute a café's one recorded
+#: name to a particular cup drunk there, and dropping a column means rebuilding
+#: a table that holds text a user typed.
+#:
+#: Additive in exactly the sense v4 was, so the bump is again about telling a
+#: later incompatible change which shapes it must read: a v4 reader given a v5
+#: bundle ignores the key, and a v5 reader given a v4 bundle finds it absent,
+#: which means "not recorded".
+BUNDLE_VERSION = 5
 
 _MANIFEST = "manifest.json"
 _BEANS = "beans.json"
@@ -171,6 +185,11 @@ _BEAN_FIELDS = (
 #: floral. See :data:`BUNDLE_VERSION`.
 _SESSION_FIELDS = (
     "brew_date", "dripper", "filter_paper", "grinder", "grind_size",
+    # Who made it. Moved off the journey on 2026-08-25 -- a cafe has many
+    # baristas, so which one made the cup belongs to the cup. Listed here the
+    # moment the column existed on both sides, which is the discipline the
+    # docstring above demands and `humidity` is the counter-example to.
+    "barista",
     # Water, in the four independent senses both schemas record it: how much
     # (`water_g`), how hot (`water_temp_c` -- the *brew's* temperature; a
     # single pour's is on the stage), how mineral (`water_ppm`, total
