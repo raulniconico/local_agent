@@ -25,8 +25,13 @@
     <nav>
       <a href="#brew">Brew</a>
       <a href="#taste">Taste</a>
+      <a href="#share">Share</a>
       <a href="#travel">Travel</a>
       <a href="privacy/">Privacy</a>
+      <a class="gh" href="https://github.com/raulniconico/local_agent" rel="noopener">
+        <svg viewBox="0 0 16 16" aria-hidden="true" width="16" height="16"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        <span>GitHub</span>
+      </a>
     </nav>
   </div>
 </header>
@@ -42,7 +47,7 @@
       none of it on ours.
     </p>
     <div class="cta">
-      <a class="btn btn-primary" href="#brew">See how it works</a>
+      <a class="btn btn-primary" href="#scan">See how it works</a>
       <a class="btn btn-ghost" href="#privacy">What we store</a>
     </div>
     <div class="hero-shot">
@@ -51,15 +56,20 @@
     </div>
   </section>
 
-  <section class="feature reveal" id="brew">
+  <section class="feature reveal" id="scan">
     <div class="wrap">
       <div class="copy">
-        <p class="eyebrow">Every cup</p>
-        <h2>Scan the bag. Log the brew.</h2>
+        <p class="eyebrow">Every bag</p>
+        <h2>Scan the bag. Keep the shelf.</h2>
         <p>
           Point the camera at a label and the fields fill themselves — origin,
-          process, roaster, roast date. Then log what you actually did: dose,
-          grind, water, and a stage for every pour.
+          variety, altitude, roaster, producer, process, roast date. Nothing is
+          saved until you have checked it, and anything the scan got wrong is
+          one tap from corrected.
+        </p>
+        <p>
+          The photo of the bag stays on as the bean's hero image, so the shelf
+          is recognisable at a glance.
         </p>
       </div>
       <div class="shot">
@@ -70,39 +80,160 @@
     </div>
   </section>
 
-  <section class="feature flip reveal" id="taste">
+  <section class="feature flip reveal" id="brew">
     <div class="wrap">
       <div class="copy">
-        <p class="eyebrow">Over time</p>
-        <h2>Your palate, drawn.</h2>
+        <p class="eyebrow">Every cup</p>
+        <h2>Every pour, in order.</h2>
         <p>
-          Eleven flavour axes, scored per cup and averaged per bean. After a
-          few weeks the radar stops being a novelty and starts being a
-          reference — the shape you keep coming back to.
+          A brewing session is the whole recipe, not a star rating. Dripper,
+          grinder, grind size, filter, dose, water, alkalinity and
+          ppm — then <b>pour stages</b>: how much water went in, at what
+          temperature, at what point on the clock, and what you were doing
+          (<em>bloom</em>, <em>swirl gently</em>).
         </p>
         <p>
-          Any bean, brew or café can be drawn as a card worth sending: the
-          photo, the numbers and the radar, on the brand green. It is rendered
-          on your phone, so making one uploads nothing.
+          The next brew of the same bag opens pre-filled from the last one, so
+          only the thing you are changing has to be typed. Never the result,
+          though — the score and the tasting axes start empty every time.
+        </p>
+        <p>
+          Brewing out of the house instead? Log it as a <b>cup</b>, attached to
+          the café: the grind-and-pour half of the form gets out of the way and
+          a <b>barista</b> box takes its place, because that is the one brewing
+          detail somebody else's coffee comes with. Or start with <b>vibe
+          brewing</b>: brew now, name the bean later.
         </p>
       </div>
       <div class="shot">
-        <img src="assets/shot-radar.png" width="720" height="1404"
-             alt="A flavour radar averaged across nineteen sessions, with eleven axes">
+        <img src="assets/shot-brew.png" width="720" height="1404"
+             alt="A brew session: the bag's photo as the page header, then Brew details — brewed date, dripper, grinder, grind size, filter, dose, water, alkalinity and ppm — with Pour stages under them and modify, share and delete floating at the foot">
       </div>
     </div>
   </section>
 
-  <section class="feature reveal" id="travel">
+  <section class="feature reveal" id="score">
+    <div class="wrap">
+      <div class="copy">
+        <p class="eyebrow">After the cup</p>
+        <h2>Was it any good?</h2>
+        <p>
+          A score out of five, and then the two numbers that actually diagnose
+          a brew: <b>extraction</b> from under to over, and <b>concentration</b>
+          from too weak to too strong. They sit one above the other because a
+          cup can be fully extracted and watery, or under-extracted and syrupy,
+          and one number cannot say both.
+        </p>
+        <p>
+          Then eleven flavour axes — fruity, floral, tea-like, sweet, nutty,
+          spiced, roasted, cereal, green, sour, fermented — and the radar
+          redraws as you drag. Tap an axis to zoom into it and pick up to five
+          tasting notes from the ten offered for that flavour.
+        </p>
+      </div>
+      <div class="shot">
+        <img src="assets/shot-score.png" width="720" height="1404"
+             alt="How was it? — a score slider, an extraction bar from under to over, a concentration bar from too weak to too strong, a note, and the eleven-axis flavour radar">
+      </div>
+    </div>
+  </section>
+
+  <section class="feature flip reveal" id="taste">
+    <div class="wrap">
+      <div class="copy">
+        <p class="eyebrow">Over months</p>
+        <h2>Your palate, drawn.</h2>
+        <p>
+          Leave a bean on <b>auto</b> and its radar is the average of its own
+          sessions, so your taste draws its own picture as you brew. Set it by
+          hand instead and it stays exactly where you put it.
+        </p>
+        <p>
+          Home carries the same chart for everything you have ever brewed,
+          above a year of brewing activity — a day per square, darker the more
+          you poured.
+        </p>
+      </div>
+      <div class="shot">
+        <img src="assets/shot-radar.png" width="720" height="1404"
+             alt="A brewing-activity calendar above My flavor — an eleven-axis radar averaged across twenty-one sessions">
+      </div>
+    </div>
+  </section>
+
+  <section class="feature flip reveal band-brand" id="share">
+    <div class="wrap">
+      <div class="copy">
+        <p class="eyebrow">Worth sending</p>
+        <h2>A card for the cup you got right.</h2>
+        <p>
+          Share is the green disc in the middle of the bar at the foot of every
+          bean, brew and café page. Press it and the app draws a tall card —
+          the photo, the flavour radar and the numbers, set in its own type —
+          shows you exactly what you are about to post, and hands it to your
+          share sheet.
+        </p>
+        <ul class="what">
+          <li><b>A bean</b> — the bag's photo, its radar with the caption
+            saying whether it was averaged or set by hand, then origin,
+            variety, roaster, producer, process and roast date.</li>
+          <li><b>A brew</b> — that session's own radar, never the bean's, then
+            the bean's details, the brew's, every pour stage in order, the
+            score and your note.</li>
+          <li><b>A café visit</b> — the place, the city and the day, then every
+            cup you drank there. No radar: a café is not tasted, the coffees
+            are.</li>
+        </ul>
+        <p class="fineprint">
+          1080 pixels wide and as tall as it needs to be, drawn on your phone.
+          Making one uploads nothing. Your data is the subject — we sign it
+          small, and roasters are credited by name only.
+        </p>
+      </div>
+      <div class="shot">
+        <img src="assets/shot-share.png" width="720" height="1404"
+             alt="The share sheet: a preview of the green card for a DAK Purple Rain brew — photo, flavour radar, bean details, the brew's own details, three pour stages and the score — above the line reading 1080 by 2408, rendered on this phone">
+      </div>
+    </div>
+  </section>
+
+  <section class="feature reveal" id="history">
+    <div class="wrap">
+      <div class="copy">
+        <p class="eyebrow">The log</p>
+        <h2>Everything you've brewed.</h2>
+        <p>
+          Every session across every bean, newest first, with the dripper's own
+          glyph, the score, the extraction verdict and how many pours it took.
+          A cup drunk out is green and names its café, so it never blurs into
+          the ones you made at home.
+        </p>
+        <p>
+          A bean's own page carries the same rows for just that bag — the same
+          card, so a brew looks like one thing wherever you reach it from.
+        </p>
+      </div>
+      <div class="shot">
+        <img src="assets/shot-sessions.png" width="720" height="1404"
+             alt="Sessions: twenty-two brews newest first, each with its dripper glyph, score, extraction verdict and stage count; one green row is a cup drunk at Clove in Paris">
+      </div>
+    </div>
+  </section>
+
+  <section class="feature flip reveal" id="travel">
     <div class="wrap">
       <div class="copy">
         <p class="eyebrow">Can travel</p>
         <h2>The cafés you'd go back to.</h2>
         <p>
           A Polaroid for every place, with the city and the day you were
-          there, and a note while it is still fresh. The cups you drank out are
-          marked so they never blur into the ones you made at home — down to
-          who made them.
+          there, and a note while it is still fresh. Open one and you get the
+          address, up to three photographs, and every cup you drank there.
+        </p>
+        <p>
+          Open a cup and it is a brewing session with the café behind it — the
+          coffee, how it tasted, and who handed it to you. A café has many
+          baristas, so the name belongs to the cup, not to the building.
         </p>
       </div>
       <div class="shot">
@@ -112,7 +243,7 @@
     </div>
   </section>
 
-  <section class="feature flip reveal" id="read">
+  <section class="feature reveal" id="read">
     <div class="wrap">
       <div class="copy">
         <p class="eyebrow">Can read</p>
@@ -127,6 +258,59 @@
         <img src="assets/shot-news.png" width="720" height="1404"
              alt="Can read, showing news headlines set as newspaper sheets">
         <img class="mascot" src="assets/canboy-news.svg" alt="">
+      </div>
+    </div>
+  </section>
+
+  <section class="grid-band reveal" id="more">
+    <div class="wrap">
+      <p class="eyebrow">And the rest of it</p>
+      <h2>The parts that don't need a screenshot.</h2>
+      <div class="grid">
+        <div>
+          <h3>A shelf you can search</h3>
+          <p>Three bags on the front page and the rest one tap away. Search by
+             name, roaster or origin.</p>
+        </div>
+        <div>
+          <h3>Brew first, name it later</h3>
+          <p>Vibe brewing starts a session with no bean at all; you name the
+             coffee from inside the form whenever you get round to it.</p>
+        </div>
+        <div>
+          <h3>Ask AI, if you want to</h3>
+          <p>Send a bean's details and get a recipe back to accept or ignore.
+             It asks first, every single time, and each AI feature is consented
+             to on its own — never once, globally.</p>
+        </div>
+        <div>
+          <h3>Three languages</h3>
+          <p>English, French and 简体中文, switchable inside the app rather than
+             only with the phone's own setting.</p>
+        </div>
+        <div>
+          <h3>Sync with desktop</h3>
+          <p>Send your log to a computer, or receive one, as a file you carry
+             yourself. Importing never overwrites — new beans are added, ones
+             already here are left alone and counted.</p>
+        </div>
+        <div>
+          <h3>Works in aeroplane mode</h3>
+          <p>Everything except label scanning, brew suggestions and the news
+             runs with no connection at all.</p>
+        </div>
+        <div>
+          <h3>Charts that talk</h3>
+          <p>The radar, the extraction bar and the activity calendar are drawn,
+             not laid out — so each ships a spoken summary for screen readers,
+             and every axis is reachable as a button.</p>
+        </div>
+        <div>
+          <h3>Your account, your call</h3>
+          <p>Read what the server holds on you, or delete the account outright,
+             from inside the app or <a href="delete/">from this site</a>.
+             Deleting unlinks Google; your log stays on the phone.</p>
+        </div>
       </div>
     </div>
   </section>
@@ -151,6 +335,7 @@
       </div>
       <div class="cta" style="justify-content:center">
         <a class="btn btn-ghost" href="privacy/">Read the privacy policy</a>
+        <a class="btn btn-ghost" href="https://github.com/raulniconico/local_agent" rel="noopener">Read the source</a>
       </div>
     </div>
   </section>
@@ -164,6 +349,7 @@
     <span class="sp"></span>
     <a href="privacy/">Privacy</a>
     <a href="delete/">Delete account</a>
+    <a href="https://github.com/raulniconico/local_agent" rel="noopener">GitHub</a>
     <a href="mailto:hello@coffee-can.org">hello@coffee-can.org</a>
   </div>
 </footer>

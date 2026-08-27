@@ -200,7 +200,7 @@ There is no dedicated file-import tool: for CSV/spreadsheet/text sources the age
 ### 3.3 Desktop ↔ Android sync tools (`sync_tools.py`)
 
 ```python
-BUNDLE_VERSION: int = 4     # must equal coffee_android's SyncBundle.VERSION
+BUNDLE_VERSION: int = 6     # must equal coffee_android's SyncBundle.VERSION
 
 export_coffee_bundle(destination: str) -> str
 inspect_coffee_bundle(bundle: str) -> str
@@ -230,6 +230,8 @@ Two keys the phone deliberately ignores on the way in: `stage_number` and an ima
 Field names are **coffee-can's snake_case column names** on both sides — the bundle is a wire format between two schemas and one has to win; picking the desktop's lets `apply_coffee_bundle` hand values straight to `repo.update_bean_field` with no translation table to keep in step from two directions. **Null fields are omitted, and that is load-bearing**: `_differences()` reads an absent key as *no opinion* rather than as an empty value, which is what stops a column the phone never filled from disagreeing with a desktop default and manufacturing a phantom conflict on an identical bean.
 
 **Conflict model.** Beans match **by name** — the only identifier the two databases share, since coffee-can's `beans.id` and Room's are independent autoincrement sequences. A name on both sides with any differing field is a conflict; `inspect_coffee_bundle` names them and the field that differs, and `apply_coffee_bundle` refuses to touch one without an explicit resolution, reporting it as unanswered instead. `"phone"` deletes the local bean first (cascading its sessions and stages, and unlinking its image files, which `ON DELETE CASCADE` cannot do) so a replaced bean can't end up carrying the other side's sessions. Matching on a mutable, non-unique field is a real limitation — a rename on either device imports as a second bean — and the tools say so in their own output rather than hiding it.
+
+**v6 (2026-08-26) adds two bean fields**, `farm` and `frozen_date` — the estate a lot came from, and the day a bag went into the freezer. Both took a column on each side (`coffee_can.db._migrate`, Room's `MIGRATION_12_13`) as well as an entry in `_BEAN_FIELDS`, and both are storage-only here: no CLI prompt and no GUI box reads either. Additive, so an older bundle simply lacks the keys.
 
 **What does not cross: nothing, since v4 (2026-08-23).** That list was always a record of *work not done* rather than of fields unmappable in principle, and the work is done. `concentration` came off it first (v3, 2026-08-22, when the desktop grew the column). v4 took the rest: `water_g`, `water_temp_c`, `water_alkalinity` and `total_time_sec` got coffee-can columns; `humidity` — which had a column on *both* sides the whole time and was merely absent from `_SESSION_FIELDS`, the instructive failure — got a list entry; a stage's `label` got `brew_stages.label` beside `circling`; and journeys got `journeys`, `journey_images` and `brew_sessions.journey_id`. Two representational seams remain and are mappings, not losses: `filter` ↔ `filter_paper`, and a stage's `note` ↔ `circling`.
 

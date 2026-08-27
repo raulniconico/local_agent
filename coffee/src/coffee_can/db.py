@@ -17,8 +17,16 @@ CREATE TABLE IF NOT EXISTS beans (
     altitude    TEXT,
     roaster     TEXT,
     producer    TEXT,
+    -- The farm (2026-08-26). Beside `producer`, not instead of it: a producer
+    -- is a person or a cooperative, a farm is a place. Storage only here, the
+    -- same as the roast block below.
+    farm        TEXT,
     process     TEXT,
     roast_date  TEXT,
+    -- The day the bag went into the freezer, ISO-8601, or NULL for a bag that
+    -- did not (2026-08-26). One nullable date is the whole state -- there is
+    -- deliberately no `frozen` flag beside it to disagree with.
+    frozen_date TEXT,
     note        TEXT,
     -- The roast (2026-08-24). Mirrors BeanEntity's four; snake_case here,
     -- camelCase there, and sync_tools maps between them. No CLI or GUI reads
@@ -308,7 +316,12 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.commit()
 
     bean_columns = {row[1] for row in conn.execute("PRAGMA table_info(beans)")}
-    for column in ("roast_level", "color_value", "weight_loss", "expansion_rate"):
+    for column in ("roast_level", "color_value", "weight_loss", "expansion_rate",
+                   # The farm and the freezer date the phone gained on
+                   # 2026-08-26. Same treatment as the roast block: no desktop
+                   # UI reads either, they exist so a phone -> desktop -> phone
+                   # round trip does not drop them.
+                   "farm", "frozen_date"):
         if column not in bean_columns:
             # The roast block the phone gained on 2026-08-24. No desktop UI
             # reads these yet -- they exist so a phone -> desktop -> phone round

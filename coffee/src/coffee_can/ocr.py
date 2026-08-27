@@ -15,7 +15,7 @@ from PIL import Image
 from pytesseract import TesseractNotFoundError, image_to_string
 
 from . import processes
-from .repo import BEAN_FIELDS
+from .repo import LABEL_FIELDS
 
 PHOTO_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 
@@ -152,14 +152,15 @@ def _guess_process(joined: str) -> str:
 
 
 def guess_bean_fields(image_path: Path) -> dict:
-    """Best-effort {field: value} guesses for every field in BEAN_FIELDS
-    except flavor_source/the flavor axes (those aren't on a bag label).
-    Anything not confidently found is left as an empty string."""
+    """Best-effort {field: value} guesses for every field a bag label can
+    state -- `repo.LABEL_FIELDS`, which is BEAN_FIELDS minus the flavour axes
+    and the freezer date. Anything not confidently found is left as an empty
+    string."""
     text = extract_text(image_path)
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     joined = "\n".join(lines)
 
-    fields = {field: "" for field in BEAN_FIELDS if "flavor_" not in field}
+    fields = {field: "" for field in LABEL_FIELDS}
 
     for field in ("origin", "variety", "producer", "note"):
         fields[field] = _find_labeled_value(lines, _FIELD_KEYWORDS[field])

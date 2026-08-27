@@ -26,7 +26,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from .paths import data_dir
-from .repo import BEAN_FIELDS
+from .repo import LABEL_FIELDS
 
 # Same two locations claude_ocr.py and qwen_brew.py check -- current/parent
 # working directory (source checkout) and the app's own data dir (packaged
@@ -43,7 +43,8 @@ _BASE_URL = os.environ.get("QWEN_BASE_URL", "https://dashscope-intl.aliyuncs.com
 _MODEL = os.environ.get("QWEN_OMNI_MODEL", "qwen3.5-omni-flash")
 _TIMEOUT_SECONDS = 90.0
 
-FIELDS = tuple(field for field in BEAN_FIELDS if "flavor_" not in field)
+#: What a label can state -- see `repo.LABEL_FIELDS`.
+FIELDS = LABEL_FIELDS
 
 
 class QwenOcrUnavailableError(Exception):

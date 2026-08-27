@@ -57,6 +57,12 @@ class BeanFields(BaseModel):
     altitude: Optional[str] = Field(default=None, max_length=100)
     roaster: Optional[str] = Field(default=None, max_length=200)
     producer: Optional[str] = Field(default=None, max_length=200)
+    # The estate a lot was grown or processed at, beside the person or
+    # cooperative who grew it (2026-08-26). Both /v1/vision fills this in and
+    # /v1/suggest reads it: a farm name is one of the more useful things a
+    # recipe prompt can be told, since it is often the only place a label
+    # states the altitude band or the mill.
+    farm: Optional[str] = Field(default=None, max_length=200)
     process: Optional[str] = Field(default=None, max_length=200)
     roast_date: Optional[str] = Field(default=None, max_length=40)
     note: Optional[str] = Field(default=None, max_length=2000)

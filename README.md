@@ -38,12 +38,12 @@ never had.
 <table>
 <tr>
 <td align="center"><img src="docs/screenshots/android-home.png" width="230" alt="Home: the bean shelf with a photo of each bag, a brewing-activity heatmap, and an Add bean action"></td>
-<td align="center"><img src="docs/screenshots/android-sessions.png" width="230" alt="Sessions: seventeen brews, newest first, each with its dripper glyph, dose, score and extraction verdict"></td>
-<td align="center"><img src="docs/screenshots/android-flavor-radar.png" width="230" alt="My flavor: a brewing-activity heatmap above an eleven-axis radar averaged across seventeen sessions"></td>
+<td align="center"><img src="docs/screenshots/android-sessions.png" width="230" alt="Sessions: twenty-two brews, newest first, each with its dripper glyph, score, extraction verdict and stage count; one green row is a cup drunk at a café"></td>
+<td align="center"><img src="docs/screenshots/android-flavor-radar.png" width="230" alt="My flavor: a brewing-activity heatmap above an eleven-axis radar averaged across twenty-one sessions"></td>
 </tr>
 </table>
 
-<sub>Real screenshots, taken on a Galaxy S22 Ultra.</sub>
+<sub>Real screenshots, taken on a Galaxy S25 Ultra.</sub>
 
 <br>
 
@@ -52,7 +52,7 @@ never had.
 <table>
 <tr>
 <td width="42%" align="center">
-<img src="docs/screenshots/android-bean-detail.png" width="240" alt="Bean detail: a photo of the DAK Purple Rain bag as the hero, a 'Scan the label to update these fields' card, and origin, variety, roaster, producer, process and roast date filled in">
+<img src="docs/screenshots/android-bean-detail.png" width="240" alt="Bean detail: a photo of the DAK Purple Rain bag as the hero, the bean’s origin, process and roast date under its name, its photo strip, and its sessions newest first">
 </td>
 <td width="58%">
 <h3>The label reads itself.</h3>
@@ -80,10 +80,77 @@ draws its own picture over time. Or set it by hand and it stays exactly where
 you put it.</p>
 </td>
 <td width="42%" align="center">
-<img src="docs/screenshots/android-flavor-axes.png" width="240" alt="A scored brew: the radar above eleven labelled sliders from Fruity to Fermented, each with its own value">
+<img src="docs/screenshots/android-flavor-axes.png" width="240" alt="A scored brew: eleven labelled sliders from Fruity to Fermented, each with its own value or a dash where nothing was tasted">
 </td>
 </tr>
 </table>
+
+<br>
+
+<table>
+<tr>
+<td width="42%" align="center">
+<img src="docs/screenshots/android-brew-session.png" width="240" alt="A brewing session: the bean's photo as the page header, then Brew details — brewed date, dripper, grinder, grind size, filter, dose, water, water alkalinity and water ppm — with Pour stages under them and modify, share and delete floating at the foot">
+</td>
+<td width="58%">
+<h3>Every pour, in order.</h3>
+<p>A session is the whole recipe, not a star rating. Dripper, grinder, grind
+size, filter, dose, water, alkalinity and ppm — then <b>pour stages</b>: how
+much water went in, at what temperature, at what point on the clock, and what
+you were doing (<i>bloom</i>, <i>swirl gently</i>). The time is picked, not
+typed.</p>
+<p>Then how it came out: a score out of five, an <b>extraction</b> bar from
+under to over and a <b>concentration</b> bar from too weak to too strong —
+stacked, because a cup can be fully extracted and watery, or under-extracted
+and syrupy, and one number cannot say both. Under those, the eleven flavour
+axes, each with up to five tasting notes picked from the ten offered for it.</p>
+<p>The next brew of the same bag opens pre-filled from the last one — but
+never the result, so the score and the axes start empty every time. Brewing
+out of the house instead? Log it as a <b>cup</b> against the café and the
+grind-and-pour half folds away and a <b>Barista</b> box takes its place. Or
+start with <b>vibe brewing</b>: brew now, name the bean later.</p>
+</td>
+</tr>
+</table>
+
+<br>
+
+<table>
+<tr>
+<td width="58%">
+<h3>A card for the cup you got right.</h3>
+<p>Share is the green disc in the middle of the bar at the foot of every bean,
+brew and café page — of the three things you can do to a record you are looking
+at, it is the only one that is neither destructive nor a mode change.</p>
+<p>Press it and the app draws the card, shows you exactly what you are about to
+post, and hands it to the system share sheet.</p>
+</td>
+<td width="42%" align="center">
+<img src="docs/screenshots/android-share-card.png" width="240" alt="The share sheet: a preview of the green card for a DAK Purple Rain brew — the bag's photo, the session's flavour radar, the bean's details, the brew's details, three pour stages and the score — above the line reading 1080 by 2408, rendered on this phone">
+</td>
+</tr>
+</table>
+
+<br>
+
+The card is a tall sheet on the brand green — the photo, the flavour radar and
+the numbers, set in the app's own type — and what goes on it depends on what
+you shared:
+
+- **A bean** — the bag's photo, its radar with the caption saying whether it
+  was averaged from sessions or set by hand, then origin, variety, roaster,
+  producer, process and roast date.
+- **A brew** — *that session's* own radar, never the bean's, then the bean's
+  details, the brew's, every pour stage in order, the score and the note.
+- **A café visit** — the place, the city and the day, then every cup drunk
+  there underneath. No radar: a café is not tasted, the coffees drunk at it
+  are, and each of those carries its own.
+
+1080 pixels wide and as tall as it needs to be, drawn on the phone with
+`rememberGraphicsLayer` and handed over through a `FileProvider`. Making one
+uploads nothing. It is a port of the desktop's own `share_card.py`, minus the
+"*someone* shares with you" header — the app deliberately does not store your
+Google display name, so there is no name to put there.
 
 <br>
 
@@ -102,6 +169,35 @@ nothing is kept at the other end.</p>
 </td>
 </tr>
 </table>
+
+<br>
+
+<div align="center">
+
+### And the rest of it.
+
+</div>
+
+- **Can travel.** A Polaroid for every café, with the city and the day. Open
+  one for the address, up to three photographs and every cup you drank there.
+  A cup is a session with a café attached, so it lands in the history beside
+  your home brews — green, and naming the place. It is also the one page with
+  a **Barista** box: a café has many, so who made it is a fact about the cup.
+- **Can read.** Headlines from the coffee trade press, set as newsprint:
+  source, date and the story's own opening line, then a tap through to the
+  publisher, because the article is theirs to serve.
+- **A shelf you can search.** Three bags on the front page and the rest one
+  tap away; search by name, roaster or origin. Under it, a year of brewing
+  activity — a day per square — and your flavour radar across everything you
+  have ever brewed.
+- **Three languages.** English, French and 简体中文, switchable inside the app
+  rather than only with the phone's own setting.
+- **Ask AI, per operation.** Label reading and brew suggestions each ask
+  before they send, every time. Consent is never global, and either can be
+  turned off on its own.
+- **Sync with desktop.** Send your log to a computer or receive one, as a file
+  you carry yourself. Importing never overwrites: new beans are added, ones
+  already here are left alone and counted.
 
 <br>
 
@@ -157,7 +253,7 @@ ships as is already decided:
 
 <div align="center">
 
-<sub>Package <code>app.coffeecan</code> · <a href="coffee_android/plan/README.md">the design plan</a> · <a href="coffee_android/v1/README.md">building it yourself</a></sub>
+<sub><a href="https://coffee-can.org">coffee-can.org</a> · Package <code>app.coffeecan</code> · <a href="coffee_android/plan/README.md">the design plan</a> · <a href="coffee_android/v1/README.md">building it yourself</a></sub>
 
 </div>
 

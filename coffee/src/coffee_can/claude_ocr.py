@@ -19,7 +19,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from .paths import data_dir
-from .repo import BEAN_FIELDS
+from .repo import LABEL_FIELDS
 
 # ANTHROPIC_API_KEY can live in a .env file instead of the real shell
 # environment -- checked in the current/parent working directory (running
@@ -38,7 +38,9 @@ _MAX_TOKENS = 1024
 # scan dialog spinning until the app is killed.
 _TIMEOUT_SECONDS = 90.0
 
-FIELDS = tuple(field for field in BEAN_FIELDS if "flavor_" not in field)
+#: What a label can state -- see `repo.LABEL_FIELDS` for what is left out
+#: and why the exclusions moved there rather than staying a substring test.
+FIELDS = LABEL_FIELDS
 
 
 class ClaudeOcrUnavailableError(Exception):

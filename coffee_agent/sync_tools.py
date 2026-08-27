@@ -132,7 +132,15 @@ from coffee_can.repo import FLAVOR_FIELDS  # noqa: E402
 #: later incompatible change which shapes it must read: a v4 reader given a v5
 #: bundle ignores the key, and a v5 reader given a v4 bundle finds it absent,
 #: which means "not recorded".
-BUNDLE_VERSION = 5
+#:
+#: v5 -> v6 (2026-08-26) carries two new bean fields, ``farm`` and
+#: ``frozen_date``: the estate a lot came from, and the day a bag went into the
+#: freezer. Both needed a column on both sides (`coffee_can.db._migrate`, and
+#: Room's MIGRATION_12_13) as well as an entry in `_BEAN_FIELDS`. Additive in
+#: exactly the sense v5 was -- an older reader ignores the keys, and a v6
+#: reader given an older bundle finds them absent, which is "no farm recorded"
+#: and "not frozen" rather than an empty string and an epoch.
+BUNDLE_VERSION = 6
 
 _MANIFEST = "manifest.json"
 _BEANS = "beans.json"
@@ -157,6 +165,10 @@ _JOURNEY_FIELDS = (
 _BEAN_FIELDS = (
     "name", "origin", "variety", "altitude", "roaster", "producer",
     "process", "roast_date", "note", "flavor_source",
+    # v6, 2026-08-26: the farm the lot came from, and the day the bag went
+    # into the freezer. Both are storage-only on this side, like the roast
+    # block below -- listed the moment the columns existed on both sides.
+    "farm", "frozen_date",
     # The roast block, 2026-08-24. Listed the moment the columns existed --
     # `humidity` had a column on both sides for months and simply was not here,
     # so it silently never travelled and nothing failed.

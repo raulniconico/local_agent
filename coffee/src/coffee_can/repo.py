@@ -71,11 +71,39 @@ BEAN_FIELDS = (
     "altitude",
     "roaster",
     "producer",
+    # The farm and the freezer date, 2026-08-26. Storage only on this side --
+    # no CLI prompt and no GUI box reads either -- but listed here so a bundle
+    # can write them; an unlisted column is silently not synced, which is the
+    # `humidity` failure sync_tools._SESSION_FIELDS documents.
+    "farm",
     "process",
     "roast_date",
+    "frozen_date",
     "note",
     "flavor_source",
 ) + FLAVOR_FIELDS
+
+#: The bean fields a **bag label** can state -- the field list every OCR path
+#: asks a model for (`ocr.py`, `claude_ocr.py`, `qwen_ocr.py`, and
+#: `coffee_server/prompts.BEAN_FIELD_NAMES`, which mirrors it).
+#:
+#: DERIVED FROM `BEAN_FIELDS` BY EXCLUSION, and the exclusions are the point:
+#:
+#: - the eleven `flavor_*` axes and `flavor_source` -- a radar is scored from
+#:   brews, not printed on a bag;
+#: - `frozen_date` -- the day *you* put the bag in your freezer, which no
+#:   roaster can know and no label can say.
+#:
+#: The three OCR modules used to filter `BEAN_FIELDS` themselves with
+#: `"flavor_" not in field`, which is why this list exists: when `frozen_date`
+#: was added on 2026-08-26 that substring test happily let it through, and all
+#: three began asking a vision model to read a freezer date off a coffee bag.
+#: An exclusion list in one place can be reasoned about; three copies of a
+#: substring test cannot.
+LABEL_FIELDS = tuple(
+    field for field in BEAN_FIELDS
+    if not field.startswith("flavor_") and field != "frozen_date"
+)
 
 SESSION_FIELDS = (
     "brew_date",

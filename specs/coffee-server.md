@@ -317,6 +317,10 @@ Requires both credentials. Metered as `vision`. Centralises what `claude_ocr.py`
  "fields": {"name": "…", "origin": "…", "…": null}, "empty": false}
 ```
 
+The field list is `prompts.BEAN_FIELD_NAMES`: **name, origin, variety, altitude, roaster, producer, farm, process, roast_date, note** — the response `fields` object, the Anthropic output schema and the Qwen key list are all generated from it, so adding a field means editing that tuple and `schemas.BeanFields`, and nothing else here.
+
+**It is a hand-written copy of `coffee_can.repo.LABEL_FIELDS`**, since this server does not import coffee-can. Same two exclusions from `BEAN_FIELDS`, for the same reasons: the eleven flavour axes are scored from brews rather than printed on a bag, and `frozen_date` is the day the bag's *owner* put it in a freezer, which no roaster can know. `farm` joined both lists on 2026-08-26, with prompt wording that keeps it apart from `producer` — the grower is a person or a cooperative, the farm is the estate, finca, washing station or mill — because a label that prints only one had been getting it copied into both.
+
 Anthropic is preferred here because it supports schema-validated structured output for this, which turns "usually the right JSON" into the right JSON; the Qwen branch appends an explicit key list to the prompt instead. `413` if the decoded image exceeds `MAX_IMAGE_BYTES` (6 MB default). **`empty: true` is a real outcome, not an error** — a blurry shot or a photo of a mug — and the client renders it as its own message rather than as an inexplicably blank form.
 
 EXIF stripping is the *client's* job, at ingest (`legal-android.md` rule 2). The server cannot verify it happened, which is precisely why the rule places it at capture time on the device.
@@ -461,7 +465,7 @@ Text extraction differs by shape: Anthropic returns content blocks, joined with 
 | `READ_API_KEY` | no | falls back to `SERVER_API_KEY` | The catalogue/news key. Split from the metered key so a catalogue-triggered rotation cannot take the AI features down with it — `coffee_android/plan/api.md` §2 |
 | `GOOGLE_CLIENT_IDS` | for the Android client | *(empty)* | Comma-separated OAuth **web** client IDs. The audience allowlist for ID tokens. Empty **fails closed**: `/v1/suggest`, `/v1/vision` and `/v1/account` all 503, because serving paid calls to unauthenticated callers is the failure the whole module exists to prevent |
 | `ACCOUNT_DB_PATH` | no | `coffee_server/accounts.db` | SQLite file holding the account records. Not user content — see `accounts.py`. **`deploy.sh` sets this to `/data/accounts.db` and bind-mounts it**, so the records survive the `docker rm -f` every deploy performs |
-| `DAILY_QUOTA_ASK` / `_SUGGEST` / `_VISION` | no | `60` / `60` / `40` | Per-account daily caps. Abuse cutoffs, not product limits |
+| `DAILY_QUOTA_ASK` / `_SUGGEST` / `_VISION` | no | `60` / `5` / `5` | Per-account daily caps, per UTC day. `_SUGGEST` is Ask AI and `_VISION` is Scan photo; both went to **5** on 2026-08-25 by direct product request, which makes them product limits rather than the abuse cutoffs they were at 60/40 |
 | `RATE_LIMIT_WINDOW_SECONDS` | no | `60` | Sliding burst window |
 | `RATE_LIMIT_MAX_REQUESTS` | no | `6` | Requests per account per operation per window |
 | `ANTHROPIC_VISION_MODEL` | no | `claude-opus-5` | Separate from the chat model on purpose, so one can move without the other |
@@ -471,6 +475,7 @@ Text extraction differs by shape: Anthropic returns content blocks, joined with 
 | `CRAWLER_ALLOWLIST_PATH` | no | `coffee_server/allowlist.json` | Roaster permissions. Empty today |
 | `CRAWLER_NEWS_SOURCES_PATH` | no | `coffee_server/news_sources.json` | Press RSS feeds. **A separate file from the allowlist on purpose** — see §3.2e |
 | `CATALOGUE_TTL_SECONDS` / `NEWS_TTL_SECONDS` | no | `86400` / `7200` | |
+| `QUOTA_EXEMPT_EMAILS` | no | *(falls back to `SYNC_ALLOWED_EMAILS`)* | Accounts the daily cap does not apply to — the developer's own. Comma-separated verified Google email addresses, matched at token-verification time and **never stored**; what reaches the database is one boolean per account (`accounts.unlimited`). The burst limiter and the ban check still apply to an exempt account. Defaults to `SYNC_ALLOWED_EMAILS` because both name the developer's own account and the live server already sets that one — set this explicitly to break the two apart |
 | `SYNC_ALLOWED_EMAILS` | no | *(empty)* | **The server-sync test gate — §3.2f.** Comma-separated verified Google email addresses. Empty (the default, and what production runs) makes every sync endpoint 404 as if it did not exist. **Adding an address has legal consequences for whoever is added**: it makes the developer a data controller for that person's coffee log. Do not add a second one without reopening `legal-accounts.md` §3.8 |
 | `SYNC_DIR` | no | `coffee_server/sync_blobs` | Where the per-account bundles live, named `sha256(sub).zip`. **Needs the same bind-mount treatment as `ACCOUNT_DB_PATH`** if the feature is ever used on a deployed instance, or every deploy's `docker rm -f` throws the bundles away |
 | `SYNC_MAX_BYTES` | no | `67108864` | Upload cap. A bundle is a zip of a log plus its photos, so this is generous; it is there to stop a bad client filling the disk |

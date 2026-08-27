@@ -123,7 +123,7 @@ Keyed by what you edited. "Verify" columns are commands in §6.
 | --- | --- | --- |
 | A colour / type / shape value in `ui/theme/Theme.kt` | Nothing — **`../variants.py` `PURE_GREEN` is the source of truth**, not Theme.kt. Change the deck first, or record the divergence in `check_design.py`'s `ACCEPTED_DEVIATIONS` *with a rationale written into `Theme.kt`* | `V1`, then `V2` |
 | A token in `../variants.py` | `Theme.kt`, and re-render the deck (`python3 ../scheme_e.py`) | `V1`, `V2` |
-| Anything visual at all | 78 Paparazzi goldens re-record | `V2` |
+| Anything visual at all | 84 Paparazzi goldens re-record | `V2` |
 
 `ACCEPTED_DEVIATIONS` is **not** a suppression list: an entry without a
 decision recorded in `Theme.kt` is drift wearing a disguise. It still prints
@@ -134,13 +134,13 @@ both values on every run. Today it holds exactly one entry (`surface`).
 | You changed | Also move | Verify |
 | --- | --- | --- |
 | Any user-facing string | `res/values/strings.xml` **and** `values-fr/` **and** `values-zh/` | `V3` |
-| A string the mock deck also draws | `screenshots.py` — `check_design.py` diffs 109 strings against it | `V1` |
+| A string the mock deck also draws | `screenshots.py` — `check_design.py` diffs 110 strings against it | `V1` |
 | Added a new string | All three locales; goldens; `LocaleScreenshotTest` renders all three | `V2`, `V3` |
 
-Current parity: **505** keys in `values/`, **503** in each of `values-fr/` and
-`values-zh/` (measured, 2026-08-22; the 444/442 recorded here before that was
-already stale by 28 keys, which is the argument for measuring rather than
-trusting this line). 122 of those were added on 2026-08-19 with the flavour-note
+Current parity: **545** keys in `values/`, **543** in each of `values-fr/` and
+`values-zh/` (measured, 2026-08-26; the 505/503 recorded here before that was
+stale, as the 444/442 before it was — which is the argument for measuring
+rather than trusting this line). 122 of those were added on 2026-08-19 with the flavour-note
 catalogue — 110 note names plus 12 for the picker — which is why the count
 jumped from 322. The two deliberate gaps are `app_name` and `app_title_home` —
 brand, untranslated on purpose. **Any third gap is a bug.**
@@ -157,7 +157,7 @@ and invisible to two thirds of the users.
 
 | You changed | Also move | Verify |
 | --- | --- | --- |
-| `data/Entities.kt` — added/renamed a column | Room `version` (currently **9**) + a new `Migration`; `data/Daos.kt`; **`data/SyncBundle.kt`** export *and* import; `../../../coffee_agent/sync_tools.py` `_BEAN_FIELDS`/`_SESSION_FIELDS`/`_STAGE_FIELDS`/`_JOURNEY_FIELDS`; `coffee/src/coffee_can/db.py` schema **and `_migrate`**; `coffee/src/coffee_can/repo.py`'s matching `*_FIELDS` allowlist; `design-spec.md` §9 | `V4`, `V4b`, `V5` |
+| `data/Entities.kt` — added/renamed a column | Room `version` (currently **13**) + a new `Migration`; `data/Daos.kt`; **`data/SyncBundle.kt`** export *and* import; `../../../coffee_agent/sync_tools.py` `_BEAN_FIELDS`/`_SESSION_FIELDS`/`_STAGE_FIELDS`/`_JOURNEY_FIELDS`; `coffee/src/coffee_can/db.py` schema **and `_migrate`**; `coffee/src/coffee_can/repo.py`'s matching `*_FIELDS` allowlist; `design-spec.md` §9 | `V4`, `V4b`, `V5` |
 | …but a column on **`journeys`** | **all of it, since 2026-08-23.** This row used to say "only the first three" because `journeys` had no desktop counterpart; it has one now (`coffee_can.db`'s `journeys`/`journey_images`, storage-only — the desktop still has no café screen and gains none), and the bundle carries cafés. Treat a journey column exactly like a session column | `V4`, `V4b`, `V5` |
 | The bundle format | `SyncBundle.VERSION` **and** `sync_tools.BUNDLE_VERSION` — they must stay equal | `V5` |
 | A DAO query | Whether `CoffeeRepository` should expose it at all; whether `TestFakes.kt` needs the new method | `V2` |
@@ -183,6 +183,16 @@ and the desktop renders none of it. The column exists there so a
 phone → desktop → phone round trip does not quietly lose what the phone put
 there; `_write_bean` swallows unknown fields, so omitting any one of those four
 would have failed silently rather than loudly.
+
+**The `beans` table is the same story, and it is the one to copy.** `farm` and
+`frozenDate` were added on 2026-08-26 and every row of the table above fired at
+once: `Entities.kt`, `MIGRATION_12_13` (Room **13**), both halves of
+`SyncBundle` with `VERSION` → **6**, `sync_tools._BEAN_FIELDS` and
+`BUNDLE_VERSION` → 6, `db.py`'s `SCHEMA` *and* its `_migrate` loop,
+`repo.BEAN_FIELDS`, and `design-spec.md` §9. `check_schema_parity.py` is what
+proves the set is complete — it went from 108 columns to 110 and stayed green,
+which is the only evidence that neither column joined `humidity` in the
+silently-not-travelling category.
 
 **That silence is what let five fields drift, and the repair is the reason
 bundle v4 exists (2026-08-23).** `sessions.waterG`, `waterTempC`,
@@ -215,6 +225,25 @@ Two bundle invariants that fail silently rather than loudly:
 - **Flavour axes travel on sessions, not just beans.** A bean with
   `flavor_source = "auto"` derives its radar by averaging sessions; ship the
   bean columns alone and it imports a bean that can never recompute one.
+
+### 2.3b The scan field list
+
+| You changed | Also move | Verify |
+| --- | --- | --- |
+| The fields `/v1/vision` returns | `coffee_server/prompts.py` `BEAN_FIELD_NAMES` + `BEAN_FIELD_LABELS` (the output schema and the Qwen key list are generated from the first), `coffee_server/schemas.py` `BeanFields`, `net/ServerApi.kt` `BeanFieldsDto`, `net/AiGateway.kt`'s `suggestBrew` mapping, `ui/components/ScanReviewSheet.kt` (**two** lists: the field map and `labels()`), `BeanDraft.asMap` **and** `BeanDraft.merging`, `design-spec.md` §8.5 | `V2`, `V7` |
+| `coffee_can.repo.BEAN_FIELDS` | Whether the new column belongs on `repo.LABEL_FIELDS` — it is **opt-out**, so a column lands on all three desktop OCR prompts unless the exclusion list says otherwise | `V7` |
+
+**`LABEL_FIELDS` is why that second row exists.** The three desktop OCR modules
+used to filter `BEAN_FIELDS` themselves with `"flavor_" not in field`. When
+`frozen_date` was added on 2026-08-26 that substring test let it straight
+through, and `ocr.py`, `claude_ocr.py` and `qwen_ocr.py` all began asking a
+vision model to read a freezer date off a coffee bag — nothing failed, and the
+model dutifully returned `""` every time. One derived tuple with its exclusions
+written down replaced three copies of the test.
+
+The server's `BEAN_FIELD_NAMES` is a **hand-written copy** of that tuple:
+`coffee_server` does not import coffee-can and should not start. Nothing checks
+the two agree, which puts this pair in §4 rather than §1.
 
 ### 2.4 Network
 
@@ -349,7 +378,7 @@ and the Gradle tasks must run inside the module because Gradle owns them.
 ```bash
 # ============ from coffee_android/plan/v1/  (the audit side) ============
 
-# V1 — design tokens + mock copy fidelity (36 colour, 11 type, 5 shape, 109 strings)
+# V1 — design tokens + mock copy fidelity (36 colour, 11 type, 5 shape, 110 strings)
 python3 check_design.py            # must exit 0
 
 # V1b — redraw the simulator frames after any copy or visual change
@@ -362,9 +391,9 @@ python3 check_schema_parity.py     # must exit 0
 
 # ============ from coffee_android/v1/  (the module) ============
 
-# V2 — Paparazzi goldens (78 images, 106 @Test).  SEE THE TWO WARNINGS BELOW.
+# V2 — Paparazzi goldens (84 images, 113 @Test).  SEE THE TWO WARNINGS BELOW.
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64   # NOT the default JDK -- see below
-./gradlew :app:verifyPaparazziDebug                 # verify against the 78 goldens
+./gradlew :app:verifyPaparazziDebug                 # verify against the 84 goldens
 ./gradlew :app:recordPaparazziDebug                 # re-record, then READ the diff
 ./gradlew :app:testDebugUnitTest                    # goldens + geometry + ingest tests
 
@@ -400,6 +429,14 @@ grep -n 'version = \|MIGRATION' app/src/main/java/app/coffeecan/data/CoffeeDatab
 # V5 — bundle format parity across the two projects
 grep -rn 'BUNDLE_VERSION *=\|const val VERSION' \
   app/src/main/java/app/coffeecan/data/SyncBundle.kt ../../coffee_agent/sync_tools.py
+
+# V7 — the scan field list, in the five places that state it. All five lists
+# must hold the same field names; nothing checks this automatically.
+grep -n 'BEAN_FIELD_NAMES = \|LABEL_FIELDS = ' \
+  ../../../coffee_server/prompts.py ../../../coffee/src/coffee_can/repo.py -A 4
+grep -n 'farm' app/src/main/java/app/coffeecan/net/ServerApi.kt \
+  app/src/main/java/app/coffeecan/net/AiGateway.kt \
+  app/src/main/java/app/coffeecan/ui/components/ScanReviewSheet.kt
 
 # V6 — the app's whole network surface; nothing may appear outside this file
 grep -rn '@GET\|@POST\|@DELETE' app/src/main/java/app/coffeecan/net/ServerApi.kt

@@ -47,11 +47,6 @@ def require_read_key(x_api_key: str = Header(default="", alias="X-API-Key")) -> 
     raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid or missing X-API-Key header")
 
 
-def _verify_google_id_token(token: str) -> str:
-    """Returns the `sub` claim, or raises HTTPException."""
-    return _verify_google_id_token_claims(token)["sub"]
-
-
 def _verify_google_id_token_claims(token: str) -> dict:
     """The verified claim set, or raises HTTPException.
 
@@ -129,7 +124,13 @@ def sync_allowed(authorization: str = Header(default="", alias="Authorization"))
         raise HTTPException(status.HTTP_404_NOT_FOUND, "not found")
 
     sub = claims["sub"]
-    accounts.touch(sub)
+    # `unlimited` IS PASSED HERE TOO, AND OMITTING IT WAS A BUG FOR THE LENGTH
+    # OF ONE EDIT. `touch` writes the flag on every call so the allowlist stays
+    # authoritative -- which means a `touch` that does not compute it writes
+    # the default, `False`. Syncing would have silently cleared the developer's
+    # own quota exemption until their next metered request re-set it. Any new
+    # caller of `touch` has to answer this question; there is no safe default.
+    accounts.touch(sub, unlimited=_quota_exempt(claims))
     return sub
 
 
@@ -139,6 +140,17 @@ def require_account(authorization: str = Header(default="", alias="Authorization
     Every metered endpoint depends on this *and* on require_api_key. The `sub`
     it returns is the only user identifier that exists anywhere in this
     codebase; it is pseudonymous personal data, never "anonymous" (rule 61).
+
+    IT ALSO DECIDES THE QUOTA EXEMPTION, because this is the only place in a
+    metered request where the verified claim set exists at all. `meter()` is
+    handed a `sub` and nothing else, and re-verifying the token there to read
+    an email would mean checking the same signature twice per request. So the
+    email is matched here, the answer is written to the account row as a
+    boolean, and `accounts.check_and_count` reads the boolean.
+
+    `email_verified` is required, exactly as in `sync_allowed`: without it the
+    address is a string the account holder typed, and anyone who typed the
+    developer's address would get unlimited calls on the developer's bill.
     """
     scheme, _, token = authorization.partition(" ")
     if scheme.lower() != "bearer" or not token:
@@ -147,9 +159,26 @@ def require_account(authorization: str = Header(default="", alias="Authorization
             "missing Authorization: Bearer <Google ID token>",
         )
 
-    sub = _verify_google_id_token(token)
-    accounts.touch(sub)
+    claims = _verify_google_id_token_claims(token)
+    sub = claims["sub"]
+    accounts.touch(sub, unlimited=_quota_exempt(claims))
     return sub
+
+
+def _quota_exempt(claims: dict) -> bool:
+    """Whether the daily cap should be lifted for this verified token.
+
+    Fails closed on every doubt: an empty allowlist, an absent email claim, or
+    an unverified one all mean "no". The cost of a wrong `False` is that the
+    developer hits a limit on their own server; the cost of a wrong `True` is
+    an unmetered stranger on a metered provider account.
+    """
+    if not config.QUOTA_EXEMPT_EMAILS:
+        return False
+    email = (claims.get("email") or "").strip().lower()
+    if not email or not claims.get("email_verified"):
+        return False
+    return email in config.QUOTA_EXEMPT_EMAILS
 
 
 def meter(sub: str, op: str) -> None:

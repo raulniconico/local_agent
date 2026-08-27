@@ -16,10 +16,18 @@ should be a decision someone made rather than a rewrite that happened.
 import json
 from typing import Optional
 
-# The bean fields OCR extracts -- coffee_can.repo.BEAN_FIELDS minus the flavor
-# axes, which are not printed on a bag label.
+# The bean fields OCR extracts. This is `coffee_can.repo.LABEL_FIELDS` written
+# out by hand -- the desktop derives it by exclusion from BEAN_FIELDS, and the
+# same two exclusions apply for the same reasons: the flavour axes are scored
+# from brews rather than printed on a bag, and `frozen_date` is the day the
+# *owner* put the bag in a freezer, which no roaster can know.
+#
+# WRITTEN OUT RATHER THAN IMPORTED, because this server does not import
+# coffee-can (it has no reason to carry that project's storage layer, and the
+# two deploy independently). That makes it a copy, so it is one of the pairs
+# `coupling-spec.md` §4 is about: a field added here is a field to add there.
 BEAN_FIELD_NAMES = (
-    "name", "origin", "variety", "altitude", "roaster", "producer",
+    "name", "origin", "variety", "altitude", "roaster", "producer", "farm",
     "process", "roast_date", "note",
 )
 
@@ -30,6 +38,7 @@ BEAN_FIELD_LABELS = {
     "altitude": "Altitude",
     "roaster": "Roaster",
     "producer": "Producer",
+    "farm": "Farm",
     "process": "Process",
     "roast_date": "Roast date",
     "note": "Note",
@@ -91,7 +100,12 @@ LABEL_OCR = (
     "This is a photo of a coffee bag label. Extract these fields, using an "
     'empty string for anything not present on the label. "name" is the '
     "specific coffee's name or lot -- not the roaster's brand, which goes "
-    'in "roaster". "process" should be a short, standard process name '
+    'in "roaster". "producer" is the grower -- a person, a family or a '
+    'cooperative -- and "farm" is the place the lot was grown or processed: '
+    "an estate, finca, washing station or mill (e.g. \"Finca El Puente\", "
+    '"Kii Factory"). A label often prints one and not the other; put each '
+    'where it belongs rather than copying one into both. "process" should be '
+    "a short, standard process name "
     "(e.g. Washed, Natural, Honey, Anaerobic Natural) matching the label's "
     'own wording rather than an invented one. "roast_date" should be ISO '
     "format (YYYY-MM-DD) if a full date is printed, otherwise whatever "

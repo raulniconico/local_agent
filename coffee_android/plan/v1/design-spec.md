@@ -1039,11 +1039,37 @@ would silently widen the next edit to the whole app.
 
 ### 8.3 `00` Home
 
-Bean shelf (each row: `BeanIcon`, name, process · roast date, brew-count pill,
-chevron, and — bottom-right, when there is one — **the café the bean came home
-from**), "See all N beans", **Brewing activity** contribution calendar, and
+Bean shelf, "See all N beans", **Brewing activity** contribution calendar, and
 **My flavor** — an eleven-axis radar averaged across every session, labelled
 with the session count.
+
+**The shelf card has four layers** (2026-08-26, direct product request), left
+to right `BeanIcon`, the text column, chevron:
+
+1. the **name**, bold, 14sp — with the **roast date** beside it, bare ("28
+   Jul") and spoken in full. It is the one fact on the card that goes stale, so
+   it rides with the name rather than with the roaster below;
+2. the **lot** — variety · process · farm, 11sp. Origin is deliberately absent:
+   it is nearly always in the bean's own name a line above, and a card that
+   prints Ethiopia twice has spent its narrowest line saying nothing new;
+3. the **roast** — roaster · roast level, 11sp. The roaster came back onto the
+   card here, having been left off on the deck's reasoning that it "is usually
+   in the bean's own name" — true of some bags, never true of the level, which
+   nothing on this screen used to show;
+4. the **brew-count pill**.
+
+A bean with neither line to draw says "No details yet" once rather than holding
+two blank rows open — the vibe-brewing row is exactly such a bean.
+
+**Bottom-right corner: the freezer badge** — a snowflake and the number of days
+since `beans.frozenDate`, when there is one (§9). The number alone, with the
+snowflake carrying the unit and the plural spoken through `contentDescription`.
+It replaced the café label that used to sit there, and for the opposite reason:
+that one drew a fact the shelf's own filter had made unreachable (below), while
+this draws a fact only the shelf can show, since a bag in the freezer is
+precisely a bag you are not looking at. It is also the only number on this
+screen that changes without anybody touching the app, which is why it is drawn
+as a count and not as the date it is stored as.
 
 **"Average across N sessions" is the heading's caption, not a corner label**
 (2026-08-24). It spent a week pinned inside the radar card's top-left, so that
@@ -1149,8 +1175,12 @@ The largest screen in the app (1400 lines). One bean, created or edited.
   separates the header from the first section is `SectionSpacing` (§4.2).
 - **Scan card** — "Scan the label to update these fields", with offline and
   consent-blocked variants.
-- **Fields** — name as an outlined box; origin, variety, altitude, roaster,
-  producer, process, roast date as capsules two to a row; note free-text.
+- **Fields** — name as an outlined box; then four full capsule rows two to a
+  row: origin | variety, farm | altitude, producer | roaster, process | roast
+  date; note free-text. The order is provenance narrowing to the bag, and
+  Producer leads Roaster because the chain runs farm → producer → roaster
+  (2026-08-26, direct product request). `farm` closed the hanging half-row the
+  grid used to end on.
 - **Sessions list** (`0.2`/`0.2b` only — an unsaved `0.1` bean has none yet),
   delete-with-cascade confirm, discard-draft confirm, share disc.
 - **Delete** (`0.2`/`0.2b` only) sits beside Save at the foot of the panel
@@ -1160,12 +1190,28 @@ The largest screen in the app (1400 lines). One bean, created or edited.
   top-right disc. Save carries the row's weight (`Modifier.weight(1f)`) and
   Delete wraps its own icon+label — the row's primary action, not a coin
   flip between two equal buttons.
+- **Freezer** (`0.2`/`0.2b` only) — under the header summary: a snowflake, a
+  checkbox and, once set, "Frozen 12 Aug 2026 · 14 days" (2026-08-26, direct
+  product request). Checking the box **opens the date picker and writes
+  nothing** — "frozen" with no day is not a state the column can hold (§9) —
+  so cancelling leaves the bean unfrozen and the box unticks itself.
+  Unchecking clears the date, the one place a date on this page can go back to
+  unset. It sits with the header rather than in the fields grid because it is
+  not a property of the coffee: every field in that grid describes the lot,
+  this describes what the owner of this bag did with it. **The affordance is
+  modify-mode only, the answer is not** — the same rule the roast slider and
+  the note rows follow: in view mode a frozen bag states when and how long, and
+  an unfrozen one draws nothing rather than an inert box.
 - **Flavour** — radar plus a manual-override sheet. `flavorSource` is `auto`
   (averaged from this bean's sessions) or `manual`. On `0.2`/`0.2b` this sits
   below the sessions list, not above it — the radar reflects those sessions,
-  so it reads as their summary rather than a caption ahead of them. On `0.1`
-  it stays directly under Fields since there is no sessions list yet to
-  follow.
+  so it reads as their summary rather than a caption ahead of them. **On `0.1`
+  it comes after Images** (2026-08-26, direct product request: "when create a
+  new bean profile, the Images section should be priori to the Radar"). The
+  two had the opposite order, which put the one section a brand-new bean can
+  fill in below the one it cannot: nothing has been tasted yet, so Flavor is a
+  caption card explaining that there is no profile, while the bag in the user's
+  hand is photographable now.
 
 **New beans are held as in-memory draft state** (`rememberSaveable`) until the
 first real edit or explicit save — `status` is `draft` until then. A screen the
@@ -1178,6 +1224,17 @@ Photo source sheet (take a photo / choose a photo), scanning state, then
 what would change, an empty-read state, and a report control.
 
 Nothing reaches the form until the user accepts.
+
+**Ten fields, in Bean Detail's own order**: name, origin, variety, altitude,
+roaster, producer, **farm**, process, roast date, note. The list is
+`/v1/vision`'s (`prompts.BEAN_FIELD_NAMES`) and it is written out in four
+places that must agree — `BeanFieldsDto`, `ScanReviewSheet`'s map and labels,
+`BeanDraft.asMap`/`merging`, and the server. `farm` was added on 2026-08-26
+with prompt wording that keeps it apart from `producer`: the grower is a person
+or a cooperative, the farm is the estate, finca, washing station or mill.
+**`frozenDate` is deliberately not on the list** — a bag label cannot state the
+day its owner put it in a freezer, and the same exclusion is made on the
+desktop (`repo.LABEL_FIELDS`) and on the server for the same reason.
 
 ### 8.6 `+1` Can travel
 
@@ -1388,9 +1445,13 @@ claiming only top and sides would leave its last row under the system bar).
 
 ### 8.6b `+1.1` Journey Profile
 
-One café: name, visit date, city, **address**, **barista**, note, up to
-three photographs, and the **Cups** block. No scan card (a café has no label)
-and no radar (a journey has no flavour).
+One café: name, visit date, city, **address**, note, up to three photographs,
+and the **Cups** block. No scan card (a café has no label) and no radar (a
+journey has no flavour). **No barista either, since 2026-08-25** — a café has
+many and which one made the cup is a fact about the cup, so the box is on
+`+1.2` (§8.6c). The paragraphs under "The 2026-08-20 redesign" below still
+argue about a barista capsule on this page; they are that day's record, not
+the current layout.
 
 **Its app bar is frosted, and has no rule under it** (2026-08-24, direct
 product report: the header "doesn't have shade and transparent", and "its
@@ -1609,10 +1670,12 @@ already exists: `+1.1`'s "Add a cup" creates the blank one on the way out,
 exactly as the vibe-brewing row in `0.31a` does, and an abandoned cup takes it
 away again through the same `leaveWithoutSaving` sweep.
 
-Everything `journeyId` changes is a label or a column: **New cup** as the
-title fallback, **Save this cup** on the button, **Delete this cup?** on the
-delete prompt, **Take a shot** on the photo sheet, the `journeyId` written
-onto the session, and no Ask AI. The form is the same form.
+Everything `journeyId` changes is a label, a column or one field: **New cup**
+as the title fallback, **Save this cup** on the button, **Delete this cup?** on
+the delete prompt, **Take a shot** on the photo sheet, the `journeyId` written
+onto the session, no Ask AI, the images strip above the fold, Brew details
+folded to start — and, since 2026-08-26, the **Barista** box (below). The form
+is otherwise the same form.
 
 *Three wordings for one sheet, and the third is not redundant* (2026-08-21,
 direct product request). `PhotoSourceSheet`'s take-label follows the table the
@@ -1670,6 +1733,22 @@ shared file, and a cup passes a plain heading through the first and nothing
 through the second. Unchanged by the 2026-08-21 merge — the cup path simply
 sets the same condition false on the screen it now shares.
 
+**Barista lives here, and above the fold** (2026-08-26, direct product
+request). `+1.1` shipped it as a property of the *café*, 2026-08-25 moved it to
+the session — a café has many baristas, and which one made the cup is a fact
+about the cup — and this is where the box itself now is: `showBarista` is
+passed by this path alone, exactly as `photosOutsideFold` is.
+
+It is drawn **first inside the Brew details card, within the fold** — which
+reverses the placement it shipped with one day earlier (2026-08-26, direct
+product request: "the barista input box should be hidden in the more details in
+cup page"). It sat outside the fold on the argument that a cup's fold hid
+*everything*, so the one question a café cup could answer would have been
+collapsed by default. That argument expired the same day: the fold on a cup now
+keeps whatever has been answered and hides only the empty boxes (below), so a
+filled barista survives it like any other filled field and an empty one waits
+behind "More details" with the rest of the unasked questions.
+
 **No scan card.** It is `0.1`'s, consent-gated, and unreasoned-about for a cup.
 
 **The images strip is above the fold here, and only here** (2026-08-23, direct
@@ -1717,6 +1796,19 @@ humidity, total time), **Pour stages** with its own editor sheet, then **How
 was it?** — Score `ValueBar`, `ExtractionBar`, `ConcentrationBar`, note — then
 **Flavor**: the radar over eleven `ValueBar` sliders.
 
+**Barista is a cup's field, and is not drawn here** (2026-08-26, direct product
+request: "remove barista box in brew details of session page. However, a
+barista box is needed in Cup profile page of a journey"). It spent 2026-08-25
+in the details card on every path, on the argument that a friend's pour-over
+and a competition brew also have somebody who made them. In use that is not
+what the field is for: almost every row in this app is a coffee the user made,
+so on this page the capsule was an always-blank question sitting between Filter
+and Dose. `sessions.barista` is unchanged and still travels in the bundle —
+what narrowed is the input, which `BrewFormSections`' `showBarista` now gates on
+`journeyId != null`. A brew logged at home keeps whatever its column already
+held: `SessionDraft` still hydrates the value and writes it back, the same
+treatment `waterTempC` gets. See §8.6c for where the box went.
+
 **Concentration sits directly under Extraction** (2026-08-22, direct product
 request), not beside Score: they are the two axes of the brewing control chart
 and a brew that missed is diagnosed by reading the pair. A cup can be fully
@@ -1735,6 +1827,20 @@ going to give. The flag is seeded from `journeyId` and then owned by the user,
 including across rotation. Unlike Bean details' toggle it stays visible while
 the form is locked — what it reveals there is values you can read, not input
 boxes you cannot type into.
+
+**On a cup the fold hides only what is empty** (2026-08-26, direct product
+request: "brew details by default show the already input details and … other
+unfulfilled details will show after more details is tapped"). Folded, a cup
+draws the answers it has — the date, the barista, a grind size somebody
+happened to mention — and opening it brings the empty boxes back so they can be
+filled. Pour stages follow the same rule: present when there are any, absent
+when there are none. A brew made at home passes `keepFilledWhileFolded = false`
+and keeps the original all-or-nothing fold, because there the section is the
+form's subject and hiding it whole is the point. The eight capsules are
+collected and **repacked** into pairs rather than written as four fixed
+`FieldPair`s — dropping one half of a fixed pair leaves a hole mid-card — and
+each carries a `key`, so a list whose length changes with the fold cannot hand
+one capsule's remembered dropdown state to another.
 
 **Water alkalinity sits where Water °C used to** (2026-08-21, direct product
 request). The temperature column stays in `sessions` and still round-trips
@@ -1760,9 +1866,19 @@ construction and not a similar one.
 (`BeanDetailsSection`, 2026-08-21; gated 2026-08-24). It shows **one** input,
 the bean's name, and **More details** as the section heading's own trailing
 action; pressing that reveals `0.1`'s own `BeanFieldsGrid` (origin, variety,
-altitude, roaster, producer, process, roast date, note) and `ImagesStrip`
-beneath it, with the photo sheet and the roast-date picker wired exactly as on
-`0.1`.
+altitude, roaster, producer, farm, process, roast date, note) and
+`ImagesStrip` beneath it, with the photo sheet and the roast-date picker wired
+exactly as on `0.1`.
+
+**A cup draws it only in modify mode** (2026-08-26, direct product request:
+"the entire Bean details section should be hidden once the cup is logged … the
+bean details will only show when modification mode"). A logged cup's coffee is
+already stated by `BeanHeaderSummary` under the headline; the block adds a
+stack of locked input boxes saying the same thing again, between the cup's name
+and the score and flavour wheel the page was opened for. Pressing Modify brings
+it back, because then the boxes are boxes. A **new** cup is untouched —
+`editing` is true from its first frame — and the brew path still keys on
+`beanNamed` alone.
 
 **A brew of a bean out of the can draws none of it** (2026-08-24, direct
 product request: "when add new session in an already created bean, remove bean
@@ -1939,8 +2055,8 @@ desktop grew `brew_sessions.water_g` / `water_temp_c` / `water_alkalinity` /
 `total_time_sec` and `brew_stages.label`, which had drifted phone-only, so the
 only session column with no counterpart is `journeyId` — and that one is
 structural, since `journeys` is ours alone.
-**`version = 9`, `exportSchema = true`**, with named `MIGRATION_1_2` through
-`MIGRATION_8_9`. `fallbackToDestructiveMigration()` is banned, and every
+**`version = 13`, `exportSchema = true`**, with named `MIGRATION_1_2` through
+`MIGRATION_12_13`. `fallbackToDestructiveMigration()` is banned, and every
 migration is **additive only** — which is why two sets of columns are still in
 the schema with nothing reading them (`journeys.latitude`/`longitude`, §8.6b,
 and `sessions.waterTempC`, below).
@@ -1950,6 +2066,9 @@ Eight entities:
 | Table | Notes |
 | --- | --- |
 | `beans` | identity + provenance, `status` (`draft`/`saved`), `flavorSource` (`auto`/`manual`), and **eleven flavour columns** |
+| `beans.farm` | the estate or washing station a lot came from (2026-08-26, direct product request) — the left box on the basics grid's second line, the third item on the shelf card's lot line, and a row on the scan-review sheet: it is on `/v1/vision`'s field list and in `/v1/suggest`'s bean, unlike `frozenDate`, which no label can state. **Beside `producer`, not instead of it**: a producer is a person or a cooperative, a farm is a place, and one producer's two farms make two distinguishable coffees. Crosses as `farm` (bundle **v6**) |
+| `beans.frozenDate` | ISO-8601 day the bag went into the freezer, null for one that did not (2026-08-26, direct product request). **One nullable date is the whole state** — there is deliberately no `frozen` boolean beside it to disagree with, because freezing is a thing that happened on a day and the count of days since is the only reason anyone records it. `0.2` draws it under the name (snowflake, checkbox, "Frozen 12 Aug 2026 · 14 days"); Home draws the count alone in the card's bottom-right corner. Crosses as `frozen_date` (bundle **v6**) |
+| `beans.roastLevel` + `colorValue`/`weightLoss`/`expansionRate` | the roast block (2026-08-24) — `roastLevel` holds a `ROAST_LEVELS` **key**, never an index and never a translated label. Crosses as `roast_level` etc. (bundle v5) |
 | `bean_images` | `position`, `filePath`, `rotation` |
 | `sessions` | brew parameters, `score`, `extraction`, `concentration`, note, **the same eleven flavour columns**, and `flavorNotes` |
 | `sessions.concentration` | −1…+1, how strong the cup was — the second slider in How was it (2026-08-22, direct product request). Null is "not rated", never a balanced zero. It was the first of the late columns to cross: the desktop grew `brew_sessions.concentration`, a CLI prompt and a GUI bar the same day, taking `SyncBundle.VERSION`/`BUNDLE_VERSION` to **3** |

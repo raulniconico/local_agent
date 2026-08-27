@@ -107,9 +107,46 @@ SYNC_MAX_BYTES = int(os.environ.get("SYNC_MAX_BYTES", str(64 * 1024 * 1024)))
 # brew hits neither.
 DAILY_QUOTA = {
     "ask": int(os.environ.get("DAILY_QUOTA_ASK", "60")),
-    "suggest": int(os.environ.get("DAILY_QUOTA_SUGGEST", "60")),
-    "vision": int(os.environ.get("DAILY_QUOTA_VISION", "40")),
+    # FIVE EACH, DOWN FROM 60/40 (2026-08-25, direct product request: "every
+    # login user can only scan photo 5 times in 24h and ask ai 5 times in
+    # 24h"). That reclassifies these numbers: the comment above still calls
+    # them abuse cutoffs set well clear of real use, and at 5 they are a
+    # product limit that an enthusiastic Saturday will actually reach. Both
+    # ops cost the developer real provider money per call, and nobody is
+    # paying for the app.
+    #
+    # `suggest` is Ask AI (the brew-suggestion endpoint) and `vision` is Scan
+    # photo (bean-label OCR) -- the two names do not read as the features they
+    # meter, which is worth knowing before changing either number.
+    "suggest": int(os.environ.get("DAILY_QUOTA_SUGGEST", "5")),
+    "vision": int(os.environ.get("DAILY_QUOTA_VISION", "5")),
 }
+
+# Accounts the daily cap does not apply to -- the developer's own, so the app
+# can still be exercised end to end after five scans.
+#
+# WHY EMAIL AND NOT `sub`: the same reason SYNC_ALLOWED_EMAILS is an email
+# allowlist. A `sub` is an opaque Google identifier nobody can look up, while
+# the email claim is verified by Google, arrives in the same token, and is the
+# only thing a human can actually type into a config file. It is read
+# transiently at token-verification time and **never stored** -- what reaches
+# the database is one boolean per account (see accounts.py).
+#
+# DEFAULTS TO SYNC_ALLOWED_EMAILS, which is not a shortcut: both name "the
+# developer's own account", the live server already has that variable set, and
+# a separate variable that must be set before the exemption works would mean
+# the person who asked for this is rate-limited on their own server until a
+# redeploy. Set QUOTA_EXEMPT_EMAILS explicitly to break the two apart.
+#
+# `email_verified` is required at the point of use, exactly as in
+# `auth.sync_allowed`: an unverified claim is a string the account holder
+# typed, and matching an allowlist against it would let anyone who typed the
+# right address have unlimited AI on someone else's bill.
+QUOTA_EXEMPT_EMAILS = {
+    e.strip().lower()
+    for e in os.environ.get("QUOTA_EXEMPT_EMAILS", "").split(",")
+    if e.strip()
+} or SYNC_ALLOWED_EMAILS
 # Burst limit, per account, per operation, over a sliding window. Stops a loop
 # in a client (or a script holding an extracted key and a real account) from
 # spending a whole day's quota in ten seconds.

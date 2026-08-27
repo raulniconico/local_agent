@@ -56,6 +56,24 @@ header nav a {
 }
 header nav a:hover { color: var(--ink); }
 
+/* The GitHub link is the one nav item that is not a section of this page, so
+ * it carries a mark. The label collapses on narrow screens rather than the
+ * whole link -- an unlabelled octocat is still recognisable, while five word
+ * links plus a sixth is what actually overflows the bar. */
+header nav a.gh { display: flex; align-items: center; gap: 7px; }
+header nav a.gh svg { flex: none; }
+@media (max-width: 820px) {
+  header nav a.gh span { display: none; }
+}
+/* Below that the in-page anchors go too, and only Privacy and the octocat are
+ * left. They are scroll shortcuts on a page that is one continuous scroll, so
+ * losing them costs a phone reader nothing -- while six items plus the mark is
+ * what pushes the wordmark onto two lines and shoves GitHub off the end. */
+@media (max-width: 700px) {
+  header nav a[href^="#"] { display: none; }
+}
+header b { white-space: nowrap; }
+
 /* --- hero ---------------------------------------------------------------- */
 .hero { text-align: center; padding: clamp(56px, 11vw, 128px) 0 0; }
 .hero-mark { width: clamp(128px, 22vw, 190px); margin: 0 auto clamp(24px, 4vw, 40px); }
@@ -138,6 +156,58 @@ h2 {
   background: var(--paper); border: 1px solid var(--line);
   padding: 9px 16px; border-radius: 999px; font-size: 14px; color: var(--muted);
 }
+
+/* --- the share row -------------------------------------------------------
+ *
+ * The one section painted in the brand green, and it is the section about the
+ * share card -- which is itself a tall green sheet with white type on it. The
+ * row is the artefact it describes, at page scale, which is why this is the
+ * only place `--brand` is used as a *ground* rather than as an accent. Text on
+ * it is full white and the secondary role is white at reduced opacity, exactly
+ * the two ink colours ShareCard.kt uses.
+ *
+ * It is a `.feature` row and not a centred band, because the screenshot is the
+ * proof: the card in the picture is the card the copy describes, drawn by the
+ * phone it is being shown on. */
+.band-brand { background: var(--brand); color: var(--paper); border-top: 0; }
+.band-brand .eyebrow { color: rgba(255,255,255,.82); }
+.band-brand p { color: rgba(255,255,255,.9); }
+.band-brand .fineprint { margin-top: 26px; font-size: 14.5px; color: rgba(255,255,255,.78); }
+/* The shot sits on green, so its hairline is the same white at low alpha the
+ * card's own dividers use rather than the page's pale-green rule. */
+.band-brand .shot img { border-color: rgba(255,255,255,.35); box-shadow: 0 24px 56px rgba(11,46,18,.28); }
+
+.what { list-style: none; margin-top: 20px; max-width: 46ch; }
+.what li {
+  position: relative; padding-left: 20px;
+  margin-top: 12px; font-size: clamp(15.5px, 1.85vw, 17px);
+  color: rgba(255,255,255,.9);
+}
+.what li::before {
+  content: ""; position: absolute; left: 0; top: .62em;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: rgba(255,255,255,.75);
+}
+.what b { color: var(--paper); font-weight: 600; }
+
+/* --- the catch-all grid --------------------------------------------------
+ *
+ * Everything the app does that does not earn a phone shot of its own. Same
+ * measure and rhythm as a `.feature` row, but text-only and two-or-three up,
+ * so the page can be complete without becoming eleven screenshots long. */
+.grid-band { padding: clamp(72px, 12vw, 130px) 0; border-top: 1px solid var(--line); }
+.grid-band > .wrap > .eyebrow { text-align: center; }
+.grid-band > .wrap > h2 { margin-inline: auto; text-align: center; max-width: 22ch; }
+.grid {
+  margin-top: clamp(36px, 6vw, 56px);
+  display: grid; gap: clamp(26px, 4vw, 40px);
+  grid-template-columns: 1fr;
+}
+@media (min-width: 640px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1000px) { .grid { grid-template-columns: repeat(4, 1fr); } }
+.grid h3 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+.grid p { margin-top: 10px; color: var(--muted); font-size: 16px; }
+.grid a { color: var(--deep); text-decoration: underline; text-underline-offset: 3px; }
 
 footer { padding: clamp(44px, 7vw, 72px) 0; border-top: 1px solid var(--line); }
 footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; }

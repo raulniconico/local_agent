@@ -87,6 +87,12 @@ C = dict(
     vizDeviation="#506051", vizThumb="#152817",
 )
 
+# `BeanDetailScreen.FrozenTint` -- the blue the snowflake is drawn in, on `0.2`
+# and on Home's shelf card. Deliberately NOT a Theme.kt token: `check_design.py`
+# diffs the palette above against ../variants.py, and a colour that exists only
+# to mean "cold" on two cards is not something scheme E has an opinion about.
+FROZEN = "#4C8DBF"
+
 # Theme.kt's `VizSequential` -- the heatmap ramp, light to dark. Five steps, so
 # the top one is open-ended: ContributionCalendar buckets four brews and up into
 # SEQ[4] rather than letting a heroic Sunday fall off the end of the list.
@@ -557,13 +563,15 @@ def capsule(c: Canvas, y, label, value="", x=GUTTER, w=None, placeholder="—"):
 
 def capsule_pair(c: Canvas, y, left, right, x=GUTTER, w=None, gap=12):
     """FieldPair: two capsules, equal halves, one 12dp gutter. `left`/`right`
-    are (label, value) or None for a hanging half-row."""
+    are (label, value), (label, value, placeholder), or None for a hanging
+    half-row."""
     w = w or (W - 2 * GUTTER)
     half = (w - gap) / 2
     for i, pair in enumerate((left, right)):
         if pair is None:
             continue
-        capsule(c, y, pair[0], pair[1], x=x + i * (half + gap), w=half)
+        kw = {"placeholder": pair[2]} if len(pair) > 2 else {}
+        capsule(c, y, pair[0], pair[1], x=x + i * (half + gap), w=half, **kw)
     return y + 46
 
 
@@ -1086,6 +1094,21 @@ def extraction_bar(c: Canvas, x, y, w, value, h=12,
     return y + h + 32
 
 
+def snowflake(c: Canvas, cx, cy, r, fill=FROZEN):
+    """Three crossed strokes at 60 degrees -- Icons.Filled.AcUnit, simplified.
+
+    The material glyph carries six barbs as well; at the 14dp this is drawn at
+    on a shelf card they merge into a blur, so the deck draws the axes only.
+    That is a *simplification of the same mark*, not a different one, which is
+    the line this file draws everywhere it cannot trace a vector.
+    """
+    for a in (90, 30, 150):
+        rad = math.radians(a)
+        dx, dy = r * math.cos(rad), r * math.sin(rad)
+        c.path(f"M{cx - dx:.2f} {cy - dy:.2f} L{cx + dx:.2f} {cy + dy:.2f}",
+               stroke=fill, sw=1.6)
+
+
 def google_button(c: Canvas, y, label="Sign in with Google"):
     """ProfileScreen.GoogleSignInButton -- 240x48, #FFFFFF fill, #747775
     stroke, #1F1F1F ink, Google's own typeface. The one control the design
@@ -1126,12 +1149,23 @@ def spinner(c: Canvas, cx, cy, r=9, sw=2):
 # `pick_bean()`, which still offers every bean. The label that used to draw it
 # bottom-right of a Home card went with the filter -- `0.3` History's row still
 # draws one, from SessionWithBeanName.cafeName.
+#: Four more fields since 2026-08-26, when the shelf card grew from one meta
+#: line to two plus a corner badge: `variety` and `farm` join `process` on the
+#: lot line, `level` joins the roaster on the roast line, and `frozen` is the
+#: day count the snowflake draws. `frozen` is a *count*, not a date, because
+#: that is what the card prints -- see `home()`.
 BEANS = [
     ("Ethiopia Guji Natural", "Terres de Café", "Ethiopia", 4, "Natural", "28 Jul",
-     "Belleville Brûlerie"),
-    ("Colombia Huila Washed", "Café Lomi", "Colombia", 2, "Washed", "20 Jul", None),
-    ("Kenya Nyeri AB", "Belleville", "Kenya", 0, "Washed", "02 Aug", None),
-    ("Guatemala Huehue", "Coutume", "Guatemala", 1, "Washed", "15 Jul", None),
+     "Belleville Brûlerie", "Heirloom", "Buku Abel", "Medium light", None),
+    # The frozen one is deliberately a bean with **no café**: Home filters a
+    # café's coffee off the shelf (below), so hanging the badge on the Ethiopia
+    # would have drawn it in a frame that never renders that card.
+    ("Colombia Huila Washed", "Café Lomi", "Colombia", 2, "Washed", "20 Jul", None,
+     "Caturra", "El Mirador", "Medium", 14),
+    ("Kenya Nyeri AB", "Belleville", "Kenya", 0, "Washed", "02 Aug", None,
+     "SL28", "Gichathaini", "Light", None),
+    ("Guatemala Huehue", "Coutume", "Guatemala", 1, "Washed", "15 Jul", None,
+     "Bourbon", "", "Medium dark", None),
 ]
 
 MY_FLAVOR = [3.7, 2.8, 2.0, 3.9, 2.6, 1.5, 1.9, 1.7, 0.7, 2.5, 2.3]
@@ -1178,6 +1212,14 @@ for _row in SESSIONS:
 BEAN = dict(
     name="Ethiopia Guji Natural", origin="Ethiopia", variety="Heirloom",
     altitude="1 950 m", roaster="Terres de Café", producer="Buku Abel",
+    # The estate, 2026-08-26 -- the left box on the grid's second line, and
+    # the third item on a shelf card's lot line. Beside the producer, never
+    # instead of it: a producer is a person, a farm is a place.
+    farm="Finca El Puente",
+    # The day it went in the freezer, and how long ago that was. The app
+    # stores only the date and counts the days at draw time; the deck carries
+    # both because it draws both, on two different screens.
+    frozen="12 Aug 2026", frozen_days=14,
     process="Natural (Dry) Process", roast="28 Jul 2026",
     note="Blueberry, jasmine, syrupy. Bought at the\nMarché des Enfants Rouges.",
 )
@@ -1223,24 +1265,49 @@ def home():
     # SHELF_GUTTER while the heading above and the two panes below keep
     # GUTTER -- `HomeScreen`'s `Modifier.gutterBreakout()`.
     shelf = [b for b in BEANS if b[6] is None]
-    for name, roaster, origin, brews, process, roast, cafe in shelf[:3]:
+    for (name, roaster, origin, brews, process, roast, cafe,
+         variety, farm, level, frozen) in shelf[:3]:
         card(c, y, 72, x=SHELF_GUTTER, w=W - 2 * SHELF_GUTTER)
         bag_tile(c, SHELF_GUTTER + SHELF_CARD_PAD, y + 4, 64, origin[:2])
         tx = SHELF_GUTTER + SHELF_CARD_PAD + 64 + 14
         # 14 and 11, not titleMedium's 16 and bodyMedium's 14: HomeScreen
-        # overrides both sizes at these two call sites, the way the deck does.
-        c.text(tx, y + 26, name, "titleMedium", size=14)
-        c.text(tx, y + 44, process + " · Roasted " + roast, "bodyMedium",
+        # overrides both sizes at these call sites, the way the deck does.
+        #
+        # FOUR LAYERS SINCE 2026-08-26. The name is bold now, with the roast
+        # date beside it -- bare, since the card has no room for the word and
+        # only a screen reader is told it ("Roasted 28 Jul"). Then the *lot*
+        # (variety · process · farm) and the *roast* (roaster · level) as two
+        # separate quiet lines: one is the grower's facts and the other the
+        # roaster's, and splitting them is what lets a reader scanning for
+        # "the natural Ethiopian" and one scanning for "the dark one from
+        # Belleville" look at different lines. Origin is deliberately on
+        # neither -- it is already in the name above.
+        c.text(tx, y + 20, name, "titleMedium", size=14, weight=700)
+        nw = Canvas.width(name, 14)
+        c.text(tx + nw + 8, y + 20, roast, "labelSmall", C["onSurfaceVariant"])
+        lot = " · ".join(x for x in (variety, process, farm) if x)
+        roast_line = " · ".join(x for x in (roaster, level) if x)
+        c.text(tx, y + 36, lot or "No details yet", "bodyMedium",
+               C["onSurfaceVariant"], size=11)
+        c.text(tx, y + 50, roast_line, "bodyMedium",
                C["onSurfaceVariant"], size=11)
         label = ("No brews yet" if not brews else
                  ("1 brew" if brews == 1 else f"{brews} brews"))
         pw = Canvas.width(label, 11) + 16
-        c.rect(tx, y + 50, pw, 16, C["primaryContainer"] if brews
+        c.rect(tx, y + 56, pw, 16, C["primaryContainer"] if brews
                else C["surfaceContainer"], 4)
-        c.text(tx + 8, y + 62, label, "labelSmall",
+        c.text(tx + 8, y + 68, label, "labelSmall",
                C["onPrimaryContainer"] if brews else C["onSurfaceVariant"])
-        c.path(f"M{W - SHELF_GUTTER - SHELF_CARD_PAD - 12} {y + 31} l5 5 l-5 5",
+        c.path(f"M{W - SHELF_GUTTER - SHELF_CARD_PAD - 12} {y + 25} l5 5 l-5 5",
                stroke=C["outline"], sw=1.6)
+        # THE FREEZER BADGE, BOTTOM RIGHT (2026-08-26). The number of days
+        # since `beans.frozenDate`, with the snowflake carrying the unit --
+        # the only figure on this screen that changes without anybody touching
+        # the app, which is why it is drawn as a count and stored as a date.
+        if frozen is not None:
+            bx = W - SHELF_GUTTER - SHELF_CARD_PAD
+            snowflake(c, bx - 24, y + 62, 7)
+            c.text(bx, y + 66, str(frozen), "labelSmall", FROZEN, "end")
         y += 78
     y -= 6                      # the 6dp gap sits between cards, not after the last
 
@@ -1339,13 +1406,33 @@ def bean_new():
     # deck's split by role, and the reason the whole form now fits above the
     # fold with the radar card under it.
     y = field(c, y, "Bean name") + 14
+    # FOUR FULL ROWS SINCE 2026-08-26, and no hanging half-row (direct product
+    # request: Farm on the left of the second line, Producer before Roaster).
+    # The order is provenance narrowing to the bag -- where it grew, who grew
+    # it and where exactly, who bought and roasted it, what was done to it --
+    # and the grid reads left to right, top to bottom, so the chain
+    # farm -> producer -> roaster falls out of the ordering.
     y = capsule_pair(c, y, ("Origin", ""), ("Variety", "")) + 10
-    y = capsule_pair(c, y, ("Altitude", ""), ("Roaster", "")) + 10
-    y = capsule_pair(c, y, ("Producer", ""), ("Process", "")) + 10
-    capsule(c, y, "Roast date", "", w=(W - 2 * GUTTER - 12) / 2,
-            placeholder="Not set")
-    y += 46 + 14
+    y = capsule_pair(c, y, ("Farm", ""), ("Altitude", "")) + 10
+    y = capsule_pair(c, y, ("Producer", ""), ("Roaster", "")) + 10
+    y = capsule_pair(c, y, ("Process", ""),
+                     ("Roast date", "", "Not set")) + 14
     y = field(c, y, "Note", h=96) + 24
+    # IMAGES BEFORE THE RADAR, ON `0.1` ONLY (2026-08-26, direct product
+    # request). Nothing has been tasted yet on a bean this form is creating, so
+    # Flavor here is a caption card explaining that there is no profile -- while
+    # the bag in the user's hand is photographable right now. `0.2` keeps
+    # Images, Sessions, Flavor, because there the radar is what the sessions
+    # above it have been accumulating.
+    y = section(c, y, "Images")
+    t = image_tile()
+    c.rect(GUTTER, y, t, t, C["secondaryContainer"], R_THUMB)
+    cx, cy = GUTTER + t / 2, y + t / 2 - 8
+    c.path(f"M{cx - 8} {cy} h16 M{cx} {cy - 8} v16",
+           stroke=C["onSecondaryContainer"], sw=2)
+    c.text(cx, y + t / 2 + 22, "Add img", "labelSmall",
+           C["onSecondaryContainer"], "middle")
+    y += t + SECTION_SPACING
     y = section(c, y, "Radar", action="Set manually")
     card(c, y, 300)
     radar(c, W / 2, y + 140, 260, None, labels=SHORT_AXES)
@@ -1375,7 +1462,25 @@ def bean_detail():
            f'Roasted {BEAN["roast"]}', W - tx - GUTTER, "bodyMedium",
            C["onSurfaceVariant"])
     c.text(tx, y + 62, "4 brews", "labelSmall", C["primary"])
-    y += 72 + 16
+    y += 72 + 8
+    # IN THE FREEZER, UNDER THE HEADER (2026-08-26, direct product request: a
+    # snowflake and a select box under the header title, the box opening a date
+    # picker). It sits with the header rather than in the fields grid because
+    # it is not a property of the coffee: every field in that grid describes
+    # the lot, and this describes what the owner of this bag did with it.
+    #
+    # THE CHECKBOX IS MODIFY-MODE ONLY AND THIS FRAME IS IN MODIFY MODE (see
+    # the docstring), so it is drawn. In view mode a frozen bag keeps this line
+    # without the box, and an unfrozen one draws nothing at all -- an inert
+    # unticked box on a locked page is an invitation to a tap that cannot land,
+    # which is the same call the note rows and the roast slider make.
+    snowflake(c, GUTTER + 7, y + 12, 7)
+    c.rect(GUTTER + 20, y + 4, 16, 16, C["primary"], 3)
+    c.path(f"M{GUTTER + 24} {y + 12} l3 3 l5 -6", stroke=C["onPrimary"], sw=2)
+    c.text(GUTTER + 44, y + 16,
+           f'Frozen {BEAN["frozen"]} · {BEAN["frozen_days"]} days',
+           "bodyMedium", C["onSurfaceVariant"])
+    y += 24 + 16
 
     card(c, y, 56, fill=C["secondaryContainer"])
     c.text(GUTTER + 16, y + 33, "Scan the label to update these fields",
@@ -1384,21 +1489,17 @@ def bean_detail():
     y += 56 + 16
 
     y = field(c, y, "Bean name", BEAN["name"]) + 14
+    # The grid's 2026-08-26 order -- see bean_new(). A capsule ellipsises the
+    # same way the box did, which is why the stored process is cut: it is
+    # longer than half a row.
     y = capsule_pair(c, y, ("Origin", BEAN["origin"]),
                      ("Variety", BEAN["variety"])) + 10
-    y = capsule_pair(c, y, ("Altitude", BEAN["altitude"]),
-                     ("Roaster", BEAN["roaster"])) + 10
-    # A capsule ellipsises the same way the box did -- the stored process is
-    # longer than half a row.
+    y = capsule_pair(c, y, ("Farm", BEAN["farm"][:13] + "…"),
+                     ("Altitude", BEAN["altitude"])) + 10
     y = capsule_pair(c, y, ("Producer", BEAN["producer"]),
-                     ("Process", BEAN["process"][:13] + "…")) + 10
-    half = (W - 2 * GUTTER - 12) / 2
-    capsule(c, y, "Roast date", BEAN["roast"], w=half)
-    # Clear sits under the capsule, inside RoastDateField's own Column, so it
-    # only exists once there is a date to clear and it grows the row rather
-    # than crowding the half-width capsule with two trailing buttons.
-    c.text(GUTTER, y + 62, "Clear", "labelMedium", C["primary"])
-    y += 66 + 14
+                     ("Roaster", BEAN["roaster"])) + 10
+    y = capsule_pair(c, y, ("Process", BEAN["process"][:13] + "…"),
+                     ("Roast date", BEAN["roast"])) + 14
     y = field(c, y, "Note", BEAN["note"].split("\n")[0], h=96)
     gesture_bar(c)
     return c
@@ -1813,7 +1914,7 @@ def which_bean():
     y = sheet(c, 300)
     c.text(24, y + 26, "Which bean is in the cup?", "headlineSmall")
     y += 46
-    for name, roaster, origin, _, _p, _r, _c in BEANS[:4]:
+    for name, roaster, origin, _, _p, _r, _c, *_rest in BEANS[:4]:
         bag_tile(c, 24, y + 6, 44, origin[:2])
         c.text(80, y + 24, name, "bodyLarge")
         c.text(80, y + 42, roaster, "bodyMedium", C["onSurfaceVariant"])
@@ -1978,8 +2079,9 @@ def brew():
     # No padding on top (SECTION_CARD_TOP), the 52dp brewed row, then four 46dp
     # capsule pairs with Arrangement.spacedBy(10) between every child, and 16 at
     # the foot.
-    # Five capsule rows since 2026-08-25, not four: Barista joined the block.
-    ch = SECTION_CARD_TOP + 52 + 10 + 5 * 46 + 4 * 10 + SECTION_CARD_PAD
+    # Four capsule rows again since 2026-08-26: Barista joined the block on
+    # 2026-08-25 and left it the next day for `+1.2` alone -- see cup_profile().
+    ch = SECTION_CARD_TOP + 52 + 10 + 4 * 46 + 3 * 10 + SECTION_CARD_PAD
     card(c, y, ch)
     iy, ix, iw = y + SECTION_CARD_TOP, GUTTER + 16, W - 2 * GUTTER - 32
     c.text(ix, iy + 14, "Brewed", "labelMedium", C["onSurfaceVariant"])
@@ -1993,11 +2095,10 @@ def brew():
                       ("Grinder", "Comandan…"), x=ix, w=iw) + 10
     iy = capsule_pair(c, iy, ("Grind size", "24 clicks"),
                       ("Filter", "Hario V60 02…"), x=ix, w=iw) + 10
-    # WHO MADE IT (2026-08-25), arrived from `+1.1` where it had been a
-    # property of the café. A hanging half-row, and on every brew rather than
-    # only on a cup: the brew form is one form, and blank is what a coffee you
-    # made yourself looks like.
-    iy = capsule_pair(c, iy, ("Barista", "Camille"), None, x=ix, w=iw) + 10
+    # NO BARISTA HERE (2026-08-26). It was a hanging half-row on every brew for
+    # one day; almost every row in the app is a coffee the user made, so on this
+    # page it was an always-blank question between Filter and Dose. The box is
+    # `+1.2`'s now -- see cup_profile().
     iy = capsule_pair(c, iy, ("Dose (g)", "15.0"),
                       ("Water (g)", "250"), x=ix, w=iw) + 10
     # Water alkalinity where Water °C used to be (2026-08-21). The temperature
@@ -2837,9 +2938,19 @@ def cup_profile():
     with a `journeyId` behind it and the second composable was deleted. What
     the café changes is drawn here and is the whole list: the "New cup" title
     fallback, "Save this cup" on the button, no "Ask AI" beside Brew details,
-    and -- since 2026-08-23 -- the images strip drawn above the fold rather
-    than inside it. A cup still saves as one bean plus one session carrying the
-    café's `journeyId`."""
+    since 2026-08-23 the images strip drawn above the fold rather than inside
+    it, and since 2026-08-26 the **Barista** capsule -- inside the Brew details
+    card, and drawn on no other path. A cup still saves as one bean plus one
+    session carrying the café's `journeyId`.
+
+    TWO THINGS THE CUP DOES WITH THE FOLD, both 2026-08-26 and both this
+    path's alone. Its Brew details fold hides only what is **empty**, so the
+    card is drawn even while collapsed and carries the answers already given --
+    here the date and the barista -- with the rest waiting behind "More
+    details". And its Bean details block is **modify-mode only**: this frame is
+    a *new* cup, which is editing from its first frame, so the block is drawn;
+    a logged cup shows `bean_summary` under the headline instead and the whole
+    form is absent until Modify is pressed."""
     c = Canvas("+1.2 Cup profile")
     status_bar(c)
     y = top_bar(c, "New cup", back=True)
@@ -2850,6 +2961,25 @@ def cup_profile():
     # was opened for. One tap opens them for the rare café that tells you.
     # A brew made at home opens the other way -- see `0.31`.
     y = section(c, y, "Brew details", secondary="More details")
+    # FOLDED, AND STILL DRAWN. Until 2026-08-26 the fold hid this card whole
+    # and the frame jumped from the heading straight to "How was it?"; it now
+    # keeps whatever has been answered and hides only the empty boxes, so what
+    # is left is the brew date -- never empty, a cup was drunk on some day --
+    # and the Barista, which is the one question a café cup reliably has an
+    # answer for. Tapping "More details" brings the other eight capsules back
+    # so they can be filled.
+    ch = SECTION_CARD_TOP + 52 + 10 + 46 + SECTION_CARD_PAD
+    card(c, y, ch)
+    iy, ix, iw = y + SECTION_CARD_TOP, GUTTER + 16, W - 2 * GUTTER - 32
+    c.text(ix, iy + 14, "Brewed", "labelMedium", C["onSurfaceVariant"])
+    c.text(ix, iy + 34, "Thursday 13 August 2026", "bodyLarge")
+    c.text(W - GUTTER - 16, iy + 30, "Change", "labelLarge", C["primary"], "end")
+    iy += 62
+    # A plain capsule, never a choice field: the dripper and grinder lists are
+    # equipment, a closed set worth suggesting, while this is somebody else's
+    # name and is matched against nothing.
+    capsule_pair(c, iy, ("Barista", "Camille"), None, x=ix, w=iw)
+    y += ch + 12
     y = section(c, y, "How was it?")
     # No top padding, the 40dp score row, then two deviation bars at 12 label +
     # 10 gap + 12 track + 32 to the foot of the zone words, 8 apart, and 16 at
