@@ -18,7 +18,7 @@ with the code they render.
 | File | Read it when |
 | --- | --- |
 | [`design-spec.md`](design-spec.md) | **Before any change to `../../v1/`.** What v1 is: colour, type, shape, components, navigation, every screen, data model, API contract, localisation, accessibility, verification. §12.3 lists every place the older plan documents are now wrong |
-| [`coupling-spec.md`](coupling-spec.md) | **Before *and* after any change, as the audit.** What else moves when you change one thing, and the commands that prove you found it all. Its §0 is a four-step checklist |
+| [`coupling-spec.md`](coupling-spec.md) | **Before *and* after any change, as the audit.** What else moves when you change one thing, and the commands that prove you found it all. Its §0 is a five-step checklist whose **step 0 tells you when you owe only step 4** |
 
 The two are complements, not overlaps: `design-spec.md` is the *target state*,
 `coupling-spec.md` is the *blast radius*. A change can satisfy one and violate
@@ -28,13 +28,21 @@ passes the design spec and fails the coupling spec.
 ## Tooling — run from this directory
 
 ```bash
+./audit.sh                   # every check with a pass/fail, one exit code
+./audit.sh --fast            # the same without the Paparazzi goldens
+
 python3 check_schema_parity.py  # exit 0 = the two databases still match
+python3 check_couplings.py   # exit 0 = locale parity, bundle version,
+                             # network surface and the scan field list agree
 python3 check_design.py      # exit 0 = no drift.  36 colour + 11 type + 5 shape
                              # tokens against ../variants.py, and 110 strings
                              # against the module's Kotlin/strings.xml/coffee_server
 python3 screenshots.py       # redraw the simulator frames -> screenshots/*.png
 python3 screenshots.py --svg # keep the vector source alongside
 ```
+
+Reach for `audit.sh` by default; the individual scripts are for when you want
+one of them alone, or its full output.
 
 `screenshots.py` needs Chrome or Chromium on `PATH` and Fredoka installed for
 correct type; neither script has Python dependencies. Both resolve the module
@@ -43,9 +51,11 @@ as `APP = ../../v1` and read it read-only.
 | File | |
 | --- | --- |
 | `check_schema_parity.py` | Proves every Room column still has a desktop column *and* a place on `sync_tools`' allowlists. Added 2026-08-23 after six fields were found to have silently stopped travelling — the failure it catches is not a crash but a field that quietly does not arrive. 8 tables, 110 columns (measured 2026-08-26) |
+| `audit.sh` | The one entry point: `check_design.py`, `check_couplings.py`, `check_schema_parity.py`, the dripper icon check and the Paparazzi goldens, with a summary naming whichever failed. It is **step 4 of the audit, not the audit** — §0's first three steps have no exit code |
+| `check_couplings.py` | The four couplings that used to be greps you had to read and judge: locale parity across three `strings.xml`, `SyncBundle.VERSION` against `sync_tools.BUNDLE_VERSION`, the network surface (endpoints declared only in `ServerApi.kt`, no screen naming a client), and the scan field list as an **ordered** sequence in six places across three languages. Each check has been fault-injected |
 | `check_design.py` | The drift checker. Its `ACCEPTED_DEVIATIONS` is **not** a suppression list — an entry needs a decision recorded in `Theme.kt`, and both values still print on every run |
 | `screenshots.py` | Draws the simulator frames *from the Kotlin*. When a screen changes, change its function here in the same commit, the way `../scheme_e.py` is kept in step with the deck |
-| `screenshots/` | 50 simulated PNGs + `REAL_CAPTURES.md`. **Not evidence** — see `coupling-spec.md` §8 |
+| `screenshots/` | 50 simulated PNGs + `REAL_CAPTURES.md`. **Not evidence** — see `coupling-spec.md` §7 |
 | `AUDIT.md` | The 2026-08-14 conformance review. **Historical**, not current state — but it is the `AUDIT.md` that ~40 comments across `../../v1/app/src/` cite by bare name, so it stays readable and stays here |
 
 ## What stayed in `../` and why

@@ -463,9 +463,9 @@ non-problem.
 | --- | --- | --- |
 | `RadarChart` | 11-axis Canvas polygon | Fewer than three scored axes draw a **dot** (one) or a **line** (two) rather than nothing — a polygon needs three vertices, and until 2026-08-22 that was the only branch, so the first two sliders someone moved changed nothing on the chart above them. `TextMeasurer`-based label layout, not guessed offsets. Two label sets (§5.3) and two ink styles — in-app on white, and white-on-green at 4× for the Share Card, one drawing routine. Optionally **interactive** (§5.6): pinch-zoom, pan, double-tap reset, tap-an-axis, and a ring of tasting notes hung off the labels |
 | `FlavorNoteSheet` | full-screen picker | Ten note bubbles for one axis, at most five chosen. See §5.6 |
-| `ExtractionBar` | −1…+1 axis, three zones | under / well extracted / over, with `VizBand` + `VizBandEdge` + `VizDeviation` |
-| `ConcentrationBar` | −1…+1 axis, three zones | too weak / just right / too strong (2026-08-22). The **same private `DeviationBar`** `ExtractionBar` wraps — only the three zone words differ, because strength is the same *kind* of judgement as extraction: the middle is the target and both ends are a miss. Deliberately not a `ValueBar` from light to strong, which would make the right-hand end the good end |
-| `ValueBar` | slide bar | Score and all eleven flavour axes. Draggable — a 2026-08-17 change: dragging directly on what had been a read-only meter proved the better control, and the palette was copied across so a slider stops looking like an unrelated second widget |
+| `ExtractionBar` | −1…+1 axis, three zones | under / well extracted / over, with `VizBand` + `VizBandEdge` + `VizDeviation`. **A tap on the band commits 0 while the bar is still unset** (2026-08-29, direct product request) — the middle *is* this bar's default, and until then saying so meant dragging off centre and back, because these bars refuse taps everywhere else (see `ValueBar`). Only while unset: once there is a reading, a tap on the band is again indistinguishable from the touch that stopped a fling |
+| `ConcentrationBar` | −1…+1 axis, three zones | **Weak / Right / Strong** under the track (2026-08-29, direct product request; they were "Too weak / Just right / Too strong" from 2026-08-22). `concentrationVerdict` keeps the long words for TalkBack, exactly as extraction draws "Under" and announces "Under-extracted" — shortening the labels is what created the gap the long form fills, since a screen-reader user has no track to give the short word its scale. The **same private `DeviationBar`** `ExtractionBar` wraps — only the three zone words differ, because strength is the same *kind* of judgement as extraction: the middle is the target and both ends are a miss. Deliberately not a `ValueBar` from light to strong, which would make the right-hand end the good end |
+| `ValueBar` | slide bar | Score and all eleven flavour axes. Draggable — a 2026-08-17 change: dragging directly on what had been a read-only meter proved the better control, and the palette was copied across so a slider stops looking like an unrelated second widget. **Drag only, never tap**: the gesture waits for horizontal touch slop, so a touch that starts on one of eleven bars stacked down a scrolling form scrolls the page instead of rewriting a score (2026-08-17 report). `DeviationBar`'s middle-tap is the one opt-in exception, and these bars do not take it — their default is the empty *left* end, so a middle tap here would be plain tap-to-set under another name |
 | `ContributionCalendar` | heatmap grid | `ActivityWeeks = 21`; selected cell enlarges ×1.3 |
 | `DurationPickerDialog` | two snapping wheels | Pour-stage elapsed time, `m` 0–29 (1-row gap) and `ss` 0, 5, …, 55 (5-row gap, 2026-08-20 — 60 rows to dial a second nobody times a pour to was the friction), in a standard `AlertDialog`. **Not** M3 `TimePicker`: that dials an hour and a minute on a 24-hour clock and labels itself so, which is the wrong question in the wrong units for an offset from the start of a brew |
 
@@ -1037,11 +1037,61 @@ would silently widen the next edit to the whole app.
 **The reading mascot is 160dp**, like every other page mascot since
 2026-08-24; it was 108.
 
+**And can-boy turns the page with his hand** (2026-08-29, direct product
+request: "the page is turned without canboy's touching the page"). The leaf
+already foreshortened about the fold rather than flapping out of plane
+(2026-08-28); what it did not have was a cause. The right hand now leaves the
+reading pose, closes on the leaf's outer top corner, pulls it in, and lets go
+— the arm and the leaf read the same corner out of `CanBoyNews`'s
+`newsCorner`, so they cannot drift apart.
+
+**It lets go a quarter of the way over, and the wordmark is the reason.** The
+hand never travels further left than the reading pose it starts from, because
+that pose is already the closest the deck ever put a limb to the name — 1.66
+units, with a white 4.2 stroke beside white lettering, where merging into one
+shape and crossing look the same. The fold could physically be touched (25.5
+units from the shoulder against an arm of about 25) and reaching it would lay
+the forearm over the belly. So the gesture is a flick, which is what a hand
+does to a newspaper anyway: take the corner, lift it off the spread, let the
+page fall. `page` became the whole gesture's clock in the same edit and
+**must now be fed linearly** — `NewsScreen` sweeps it over 1.8s of the 4.4s
+cycle and eases nothing, since the leaf's width is a cosine of it and the
+reach and return are eased in the figure.
+
 ### 8.3 `00` Home
 
-Bean shelf, "See all N beans", **Brewing activity** contribution calendar, and
-**My flavor** — an eleven-axis radar averaged across every session, labelled
-with the session count.
+Bean shelf, **Brewing activity** contribution calendar, and **My flavor** — an
+eleven-axis radar averaged across every session, labelled with the session
+count.
+
+**The shelf heading counts the shelf and is the door to it** (2026-08-29,
+direct product request). It reads `My beans (4)` — the name at
+`SectionHeadingSize`, the count beside it in the same size at `Normal` weight
+and `onSurfaceVariant`, so it is an aside to the name and never a second
+heading. To its right, a `…` (`ic_action_more`) where the magnifying glass had
+been since 2026-08-25. **Both the glyph and the words open `0.31a`**, which is
+deliberate: the words are the discoverable target and the glyph is the one that
+looks pressable, and a heading whose label and whose button went to two
+different places is exactly what this app's one-icon rule exists to prevent.
+
+**Three things left Home in that one edit**, and they were one decision:
+the "See all N beans" / "Show fewer" row under the cards, the inline search
+field, and the magnifying glass that was the only door to it. The shelf is now
+*always* its first three bags, and everything about the rest of them — seeing
+them, searching them — is `0.31a`, which already had its own search over the
+same list. The `showAll` fold state and `HomeScreen`'s `initialQuery` test hook
+went with them, as did `HomeSearchScreenshotTest`. `home_search_open`,
+`home_search_label` and `home_search_placeholder` survive because Pick Bean
+still uses all three; `home_search_close`, `home_no_matches`, `home_show_fewer`
+and `home_see_all` were deleted from all three locales.
+
+**`…` is drawn, not `Icons.Filled.MoreHoriz`.** `material-icons-core` ships
+`MoreVert` (⋮) and not the horizontal ellipsis, and the two do not mean the
+same thing: ⋮ reads as "more actions on this row", … as "there is more of
+this", which is what this control says about the shelf above it. Pulling in
+`material-icons-extended` for one glyph would land a few thousand vectors in
+the APK, so `ic_action_more.xml` draws three r=2 dots — the same
+filled-single-path register as `ic_action_modify` and both nav glyphs.
 
 **The shelf card has four layers** (2026-08-26, direct product request), left
 to right `BeanIcon`, the text column, chevron:
@@ -1173,16 +1223,88 @@ The largest screen in the app (1400 lines). One bean, created or edited.
   read as chrome divided from content on a page that has no chrome there — the
   same argument that took `TopBarDivider` off `+1.1` the same day. What
   separates the header from the first section is `SectionSpacing` (§4.2).
+- **Images** (`ImagesStrip`, §5.1) — **first in the block Modify unlocks**
+  (2026-08-29, direct product request: "in the modification mode of bean
+  profile, the image section should be before Basic information"). Same
+  argument as Images-before-Radar on `0.1`, one section further up: the bag is
+  in the user's hand while they are editing, and this is the one section that
+  waits on neither a scan nor a brew. **View mode is unchanged** — the basics
+  are not drawn there at all, so the strip already opens the page's content,
+  and every gap either way is the one it was.
+  **The "Add img" tile shows in modify mode, or on a bean with no photographs
+  at all** (same request). An empty strip's tile is the section's whole
+  content, so gating that one on a mode leaves a heading over an empty row and
+  puts "photograph this bag" behind Modify — on the page whose subject is the
+  bag. `ImagesStrip` takes this as `canAdd`, defaulting to `enabled`, kept
+  separate from it so reorder, the long-press delete and the reorder hint stay
+  exactly as they were in view mode.
+- **Process, Origin and Variety open a picker dialog** (`0.2f`,
+  `CapsuleChoicePicker`, 2026-08-29, direct product request) rather than
+  filtering under the capsule the way the brew form's `Choices`-backed fields
+  do. These three are the fields that are *browsed*, not half-remembered:
+  `PROCESSES` is 45 named methods most of them variations on four words,
+  `VARIETIES` is ~100 cultivars, `ORIGINS` is every country — and a dropdown
+  showed them through a 30dp capsule with the keyboard over the bottom half of
+  the screen. Origin and Variety were free text until then, which is what let
+  one bag say "Ethiopia" and the next "ethiopa".
+  The dialog is a search box, the list (height-capped, the current value in
+  `primary` + SemiBold), and **Add new**, which takes whatever is in the search
+  box — the search field is also the new-value field, and the button says so by
+  carrying the typed text ("Add “Yeast Natural”"). Disabled while the box is
+  empty or holds a name the list already has. The list stays **open**, which is
+  what `Choices` is for (§9): a closed picker would reject real bags. The
+  addition lands on the bean and not in `Choices` — the desktop keeps per-user
+  additions in its own config, and there is no store for them on this side.
+- **The three lists.** `VARIETIES` runs **by family, not alphabetically** — the
+  Geshas, the Ethiopian landraces and JARC selections, the Bourbons, the
+  Typicas, their crosses, the SL and Indian selections, the Timor hybrids and
+  their descendants, the F1s, and the recent Colombian and Ecuadorian finds —
+  so "Yellow Catuaí" sits beside "Red Catuaí" instead of 40 rows away; the
+  search box is the other way of looking. `ORIGINS` leads with the twenty
+  coffee countries in the order they were asked for (Ethiopia, Colombia,
+  Kenya, Panama, Guatemala, Costa Rica, Brazil, El Salvador, Rwanda, Burundi,
+  Honduras, Indonesia, Peru, Nicaragua, Mexico, China, Yemen, Tanzania,
+  Ecuador, Papua New Guinea) and then every other country alphabetically.
+  Those are **enumerated from `Locale.getISOCountries()`, not typed out** —
+  ~250 entries is a list to maintain against a world that changes — and their
+  **English** names, because the value crosses to the desktop in a sync bundle
+  and a column whose contents depended on the phone's language would collate
+  three ways. Each row carries its **country flag**, built from the same
+  ISO alpha-2 code the name was looked up from (two regional indicator
+  symbols, so no asset and no table of 250 emoji). The flag is `display`, which
+  decorates the row and never the value: `beans.origin` holds "Ethiopia", and
+  so do the shelf card, the share card and the bundle.
 - **Scan card** — "Scan the label to update these fields", with offline and
   consent-blocked variants.
-- **Fields** — name as an outlined box; then four full capsule rows two to a
-  row: origin | variety, farm | altitude, producer | roaster, process | roast
-  date; note free-text. The order is provenance narrowing to the bag, and
-  Producer leads Roaster because the chain runs farm → producer → roaster
-  (2026-08-26, direct product request). `farm` closed the hanging half-row the
-  grid used to end on.
+- **Fields** — name as an outlined box; then **nine** capsules two to a row:
+  origin | region, variety | farm, altitude | producer, roaster | process, and
+  **roast date hanging alone**; note free-text. The order is provenance
+  narrowing to the bag — where it grew, what it is and who grew it, how high
+  and who bought it, who roasted it and how, and when — and Producer still
+  leads Roaster because the chain runs farm → producer → roaster (2026-08-26,
+  direct product request). `farm` closed the hanging half-row the grid used to
+  end on; **`region` reopened it on 2026-08-29**, because nine is odd and
+  something has to hang. The foot is where a half-row reads as the end of a
+  list rather than as a missing field.
 - **Sessions list** (`0.2`/`0.2b` only — an unsaved `0.1` bean has none yet),
-  delete-with-cascade confirm, discard-draft confirm, share disc.
+  delete-with-cascade confirm, discard-draft confirm, share disc. **With no
+  brews logged the section is a block, not a figure and a sentence**
+  (2026-08-29, direct product request: "make this block same style as
+  non-added Pour stages block") — `StagesTimerCard`'s construction, which is
+  `ScanSection`'s: a `secondaryContainer` card at `CardCorner`, 16dp padding, a
+  108dp pour-over mascot over a `titleMedium` line, a centred `labelSmall` line
+  and a filled **New brew** button. It was a 160dp mascot over one
+  `onSurfaceVariant` line — the app's colour for information already dealt with
+  — which read as a report on a page of controls. No outlined button under the
+  card, unlike the stages block: that one offers the timer *and* the same job
+  by hand, and logging a brew has one route. The heading's
+  action is a **`+`, not the words "New brew"** (2026-08-29, direct product
+  request) — `SectionHeader`'s `actionIcon`, which *renders* the action rather
+  than replacing it, so the string is still what TalkBack announces and still
+  what `check_design.py` diffs. It is one of two headings in the app that earn
+  a glyph (Home's Search is the other), and it earns it because the app already
+  spells "log a brew" as a `+` on both FABs and on the Axis bar's centre disc:
+  this heading was the last place that verb was still a word.
 - **Delete** (`0.2`/`0.2b` only) sits beside Save at the foot of the panel
   (`RemoveButton`), not as `PhotoHeroPage`'s pulled disc — that placement
   moved here 2026-08-20, direct product request. `DeleteBeanDialog` still
@@ -1190,6 +1312,16 @@ The largest screen in the app (1400 lines). One bean, created or edited.
   top-right disc. Save carries the row's weight (`Modifier.weight(1f)`) and
   Delete wraps its own icon+label — the row's primary action, not a coin
   flip between two equal buttons.
+- **Roast** — a seven-stop `Slider` (light → extra dark), the stop's shade
+  carried by the thumb and active track, its name spelled underneath; then
+  colour value, weight loss and expansion rate behind *More details*. An unset
+  bean parks the thumb on the **middle** stop and reads "Medium" while storing
+  nothing, so **a tap on that middle stop selects Medium** (2026-08-29, direct
+  product request). M3's `Slider` calls `onValueChange` only when the value
+  actually changes, so tapping the stop already under the thumb used to write
+  nothing at all and the bean saved with no roast level — the user had to drag
+  off medium and back to record what the slider was already showing them.
+  `onValueChangeFinished` is where that tap becomes visible.
 - **Freezer** (`0.2`/`0.2b` only) — under the header summary: a snowflake, a
   checkbox and, once set, "Frozen 12 Aug 2026 · 14 days" (2026-08-26, direct
   product request). Checking the box **opens the date picker and writes
@@ -1225,13 +1357,21 @@ what would change, an empty-read state, and a report control.
 
 Nothing reaches the form until the user accepts.
 
-**Ten fields, in Bean Detail's own order**: name, origin, variety, altitude,
-roaster, producer, **farm**, process, roast date, note. The list is
-`/v1/vision`'s (`prompts.BEAN_FIELD_NAMES`) and it is written out in four
-places that must agree — `BeanFieldsDto`, `ScanReviewSheet`'s map and labels,
-`BeanDraft.asMap`/`merging`, and the server. `farm` was added on 2026-08-26
-with prompt wording that keeps it apart from `producer`: the grower is a person
-or a cooperative, the farm is the estate, finca, washing station or mill.
+**Eleven fields**: name, origin, **region**, variety, altitude, roaster,
+producer, **farm**, process, roast date, note. The list is `/v1/vision`'s
+(`prompts.BEAN_FIELD_NAMES`) and it is written out in six statements that must
+agree — `BeanFieldsDto`, `ScanReviewSheet`'s map and labels,
+`BeanDraft.asMap`/`merging`, `repo.LABEL_FIELDS` and the server's prompt and
+schema — **in the same order**, which `check_couplings.py` enforces. `farm` was
+added on 2026-08-26 with prompt wording that keeps it apart from `producer`:
+the grower is a person or a cooperative, the farm is the estate, finca, washing
+station or mill. `region` was added on 2026-08-29, two revisions after the
+column itself: the column landed first with the scan deliberately left alone —
+this list reaches a deployed service, and reshaping its output schema as a side
+effect of adding a form field is the thing `repo.LABEL_FIELDS`' opt-out shape
+makes easy to do by accident. **A running `coffee_server` must be redeployed
+before the phone's scan actually returns a region**; until then the field
+arrives absent, which is what an unread field has always looked like.
 **`frozenDate` is deliberately not on the list** — a bag label cannot state the
 day its owner put it in a freezer, and the same exclusion is made on the
 desktop (`repo.LABEL_FIELDS`) and on the server for the same reason.
@@ -1635,6 +1775,18 @@ built to allow. Tried and rejected: promoting it back to a box (breaks the
 rule again) and pairing it with the address (a street line truncates badly in
 a 30dp half-width pill).
 
+**An empty café-name or note box is absent in view mode** (2026-08-29, direct
+product request). A locked field still shows its *value* — that rule is
+unchanged — but a locked field with nothing in it is a label over 88dp of
+nothing, and this page could stack two of them under a map row. `JourneyFields`
+draws each of the two only when `enabled || value.isNotBlank()`, so Modify
+still offers both unconditionally, which is the only place they could be
+offered from. In practice the note is the one this fires for: `savable`
+refuses a nameless journey and the app bar already reads `draft.name`, so a
+saved café has a name and keeps its box. The address, city and visit-date
+capsules are untouched — the request named the two boxes, and a capsule with no
+value is one 30dp row, not a section-sized hole.
+
 **The map row gained a trailing chevron.** It is the one control on the page
 that leaves the app, and a `CardColor` card with no outline and no elevation
 is a very quiet boundary for that. The chevron is the platform's own "this
@@ -1788,7 +1940,94 @@ nothing whatever its origin, and this is the only path that can produce one
 (Bean Detail refuses to save a nameless bean). Discarding counts as leaving
 without saving; an explicit save does not.
 
+**A tapped bean opens `0.2`, its own page — not a brew form** (2026-08-29,
+direct product request). It was `Routes.brewSession(id)`, because this screen
+existed only as the second step of "log a brew". Since Home's shelf heading
+also opens it, it is now the app's one *list of every bean* and its tap does
+the unsurprising thing.
+
+That has a price, and it is stated rather than hidden: the FAB path — "which
+bean?" → "pick a bean" → tap — now lands on `0.2` and needs its **New brew** to
+finish, one tap more than before. It falls only on beans that were not in the
+sheet's own shortlist, which still brews directly. The alternative considered
+and rejected was an argument on the route so the same screen could mean two
+things depending on who opened it; a screen whose tap target is invisible in
+its own source is the worse trade.
+
 ### 8.8 `0.31` Brew Session Detail
+
+**Pour stages opens on the can clock** (2026-08-29, direct product request:
+the section was being skipped every brew). What was there was one `bodyMedium`
+line in `onSurfaceVariant` — the colour this app uses for information already
+dealt with — under a heading whose only control was a right-aligned
+`TextButton`. It read as *this section is off*, which is why it got skipped.
+
+The empty state is now **`ScanSection`'s construction, reused deliberately**:
+the same `secondaryContainer` card at `CardCorner`, 16dp padding, a centred
+column, a 108dp mascot over a `titleMedium` line, a centred `labelSmall` line
+and a filled `Button`. Those two blocks are the same sentence about two
+different jobs — *this is tedious, let the app do it* — and someone who has met
+one on the new-bean form should recognise the other without reading it.
+
+**The manual route is a full-width `OutlinedButton` under the card, not inside
+it.** `ScanSection` keeps its manual hint inside because there the alternative
+is the whole form the card sits on; here the alternative is one act with one
+sheet, so it gets a real button. It carries `brew_action_add_stage` — the same
+string the section heading uses, since it is the same act, and that string
+became "Add a stage" in the same edit.
+
+**Only while editing.** A saved brew that recorded no stages is reporting a
+fact rather than being asked for one, so the old sentence stays on a read-only
+page. A café cup never reaches this at all — `keepFilledWhileFolded` already
+folds stages away for a drink you did not pour.
+
+**`Start timer` is drawn disabled, and that is the honest state.** The timer
+is not built; this pass is the block's design. A button drawn live that does
+nothing when pressed is the worse of the two lies, so it is
+`enabled = onStartTimer != null` and wiring it is the one-line change.
+
+#### 8.8a The can clock
+
+The mascot: **the same can, with a clock's face and two hand-lettered "ding"s
+over its head.** `canTorso()` and `bellyWordmark()` are unchanged, so the lid,
+body, pull tab and name are the objects every other pose draws — a timer for
+this app is *the* can with a clock on it, not a clock borrowed from an icon set
+and stood next to the brand.
+
+- **The wordmark moves down 7 units, and only here.** The dial wants the upper
+  body and the name occupies y 48..66 at the shared placement. Shifting the
+  *call* rather than the function keeps that placement true for the five poses
+  that use it, and keeps the name at its own scale — shrinking it was the other
+  way out, and the name is the one thing on this figure that may not be
+  redrawn. At +7 the glyphs sit y 55..73, the dial ends at 52.5, the body's
+  bottom curve is at 77.5.
+- **The dial is a prop and is drawn at prop weight** — 3.0, against the body's
+  5.2 and the limbs' 4.2, the same weight the pull tab uses. Four ticks, not
+  twelve: at 108dp twelve are a grey ring. The hands read **10:10**, the one
+  position that leaves the face open instead of striking through it.
+- **The ring is one burst in three seconds.** A figure that rings continuously
+  is a nag and one that rings once is missed; a burst every ~3s is about the
+  interval at which a still page re-attracts the eye, and it leaves two-thirds
+  of the cycle quiet so the card is calm to read while you type under it. The
+  burst window is `win()` — the same shape the camera flash uses — and it damps
+  the shake as well as raising the dings, so the can is still by the time they
+  have gone. The can rocks about **its own base**, not its middle: a can rung
+  by its alarm rocks on the surface it stands on.
+- **The dings are strokes, not a font**, for the reason `TapMeMark` is: this is
+  the white line every mascot is drawn in, and a typeface beside them reads as
+  a caption that wandered into the picture. They are authored in a 44×22 box on
+  a 16 baseline so the four letters share one x-height.
+- **They stay on the disc, which is what sizes them.** White on brand green,
+  with nothing but pale ground outside it — a ding that clears the edge does
+  not read as leaving, it disappears. At 0.5 scale the pair spans x 18..82
+  against a disc 15.3..84.7 wide at that height.
+
+Verified legible at 108dp (its drawn size) and 84dp; at 64dp the dial starts to
+silt up, so do not take this figure below ~84dp. `MascotPoseSheetTest`'s
+`canClockRing` is the golden that covers the burst — every other golden of this
+figure captures `phase` 0, the quiet frame.
+
+
 
 One brew, created or edited. **Bean details** (see below), then brew fields
 (dripper, grinder, grind size, filter, dose, water, **alkalinity**, ppm,
@@ -2068,6 +2307,7 @@ Eight entities:
 | `beans` | identity + provenance, `status` (`draft`/`saved`), `flavorSource` (`auto`/`manual`), and **eleven flavour columns** |
 | `beans.farm` | the estate or washing station a lot came from (2026-08-26, direct product request) — the left box on the basics grid's second line, the third item on the shelf card's lot line, and a row on the scan-review sheet: it is on `/v1/vision`'s field list and in `/v1/suggest`'s bean, unlike `frozenDate`, which no label can state. **Beside `producer`, not instead of it**: a producer is a person or a cooperative, a farm is a place, and one producer's two farms make two distinguishable coffees. Crosses as `farm` (bundle **v6**) |
 | `beans.frozenDate` | ISO-8601 day the bag went into the freezer, null for one that did not (2026-08-26, direct product request). **One nullable date is the whole state** — there is deliberately no `frozen` boolean beside it to disagree with, because freezing is a thing that happened on a day and the count of days since is the only reason anyone records it. `0.2` draws it under the name (snowflake, checkbox, "Frozen 12 Aug 2026 · 14 days"); Home draws the count alone in the card's bottom-right corner. Crosses as `frozen_date` (bundle **v6**) |
+| `beans.region` | where inside `origin` the lot grew (2026-08-29) — "Yirgacheffe" under "Ethiopia". Free text like `origin`; what the picker offers is `Regions`' list for the country, coffee regions first and ISO 3166-2 subdivisions after. **Kept when `origin` changes**: a region that no longer matches its country is wrong and visible, and deleting what someone typed is wrong and invisible. Crosses as `region` (bundle **v7**), and is storage-only on the desktop like `farm` — no CLI prompt and no GUI box reads it. **On the scan field list since 2026-08-29** (§8.5), which is a later pass than the column: a bag prints its region more often than it prints a farm |
 | `beans.roastLevel` + `colorValue`/`weightLoss`/`expansionRate` | the roast block (2026-08-24) — `roastLevel` holds a `ROAST_LEVELS` **key**, never an index and never a translated label. Crosses as `roast_level` etc. (bundle v5) |
 | `bean_images` | `position`, `filePath`, `rotation` |
 | `sessions` | brew parameters, `score`, `extraction`, `concentration`, note, **the same eleven flavour columns**, and `flavorNotes` |
@@ -2281,6 +2521,14 @@ specific statements in them are now false:
 | `api.md` §2 | `/v1/ask` is the AI endpoint | The app calls `/v1/suggest` and `/v1/vision`; `/v1/ask` is forbidden to this client |
 | `AUDIT.md` header | "Nothing here was compiled or run"; "the design is not scheme E" | The app compiles, installs and runs; the scheme E pass landed and type/shape now conform |
 | `../../v1/README.md` | "33 simulated screenshots, 1080×2400"; "All four sections pass" | 45 files, mostly 360×800 Paparazzi output; one colour token and the copy check do not pass |
+
+`scheme_e.py`'s `can_boy_news` is **three passes behind the shipped figure**
+and should not be read as its description: its spread peaks at the fold and its
+two leaves are unequal wedges (redrawn 2026-08-24), its `page` knob lifts and
+curls the right leaf out of the plane (replaced by an in-plane turn 2026-08-28,
+for want of headroom under the wordmark), and its arms are static (the right
+one turns the page since 2026-08-29). `CanBoy.kt` is the drawing for this one
+figure; nothing checks the two against each other.
 
 `scheme_e.py`'s `+2.1_create_account` page should be **retired**: it draws
 email/password sign-up, a sync data statement and a 13+ affirmation. Rule 60

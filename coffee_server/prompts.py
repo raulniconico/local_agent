@@ -27,13 +27,17 @@ from typing import Optional
 # two deploy independently). That makes it a copy, so it is one of the pairs
 # `coupling-spec.md` §4 is about: a field added here is a field to add there.
 BEAN_FIELD_NAMES = (
-    "name", "origin", "variety", "altitude", "roaster", "producer", "farm",
-    "process", "roast_date", "note",
+    # `region` is the second level of `origin` (2026-08-29) -- "Yirgacheffe"
+    # under "Ethiopia". A bag prints it far more often than it prints a farm,
+    # and it is the half of the origin a buyer actually remembers.
+    "name", "origin", "region", "variety", "altitude", "roaster", "producer",
+    "farm", "process", "roast_date", "note",
 )
 
 BEAN_FIELD_LABELS = {
     "name": "Name",
     "origin": "Origin",
+    "region": "Region",
     "variety": "Variety",
     "altitude": "Altitude",
     "roaster": "Roaster",

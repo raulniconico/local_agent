@@ -12,35 +12,57 @@
 
 ## Contents
 
-- [0. The audit, in four steps](#0-the-audit-in-four-steps)
+- [0. The audit, in five steps](#0-the-audit-in-five-steps) — **start here; step 0 decides how much of the rest you owe**
 - [1. Chokepoints — the structural rule](#1-chokepoints--the-structural-rule)
   - [1.1 The directory boundary](#11-the-directory-boundary-is-itself-a-chokepoint)
 - [2. The change → cascade table](#2-the-change--cascade-table)
 - [3. Cross-project couplings](#3-cross-project-couplings)
 - [4. Behavioural rules implemented more than once](#4-behavioural-rules-implemented-more-than-once)
 - [5. State and lifecycle couplings](#5-state-and-lifecycle-couplings)
-- [6. Verification commands](#6-verification-commands)
-- [7. The reachability discipline](#7-the-reachability-discipline)
-- [8. What this spec cannot cover](#8-what-this-spec-cannot-cover)
-- [9. Keeping this document true](#9-keeping-this-document-true)
+- [6. Verification commands](#6-verification-commands) — `./audit.sh`
+- [7. What this spec cannot cover](#7-what-this-spec-cannot-cover) — read before claiming a change is verified
+
+Method and process moved to `AUDIT.md` §9 on 2026-08-29 — the reachability
+discipline (a grep hit is a candidate, not a finding) and the rules for keeping
+this file true. Neither is about a change you are making right now, and this
+document is read while you are making one.
 
 ---
 
-## 0. The audit, in four steps
+## 0. The audit, in five steps
 
-Run this before *and* after the edit. It takes about a minute.
+Run this before *and* after the edit. Step 0 is new, and is the one that
+decides how much of the rest you owe.
+
+### Step 0 — does this change touch a coupling at all?
+
+Most edits do not. If **all** of these are true —
+
+- it adds no user-facing string, design token, database column, endpoint,
+  permission, or generated file;
+- it changes no public signature, no chokepoint's *behaviour* (§1), and no
+  constant another file derives from (§2.6 lists them);
+- it stays inside one file's own drawing or logic;
+
+— then you owe **step 4 only**: `./audit.sh`, and eyes on the frames if it is
+visual. Say so in the change description rather than implying the whole audit
+ran. A page-turning arm inside one mascot composable is exactly this case.
+
+Anything else, or any doubt, is steps 1–4. The steps are cheap; it is *reading
+all of §2* that is not, and step 0 exists so the table can stay long.
+
+### Steps 1–4
 
 1. **Locate yourself against §1.** Are you editing a chokepoint or a caller of
    one? Chokepoint → audit every caller. Caller → usually audit nothing.
 2. **Look your change up in §2.** The table is keyed by what you touched, not
-   by what breaks.
+   by what breaks. Read your row, not the table.
 3. **Grep the concept, not the symbol** (§3). Anything that crosses into
    `coffee/` or `coffee_agent/` shares a *column name* or a *file format*, never
    a function name. `grep -rn flavorAxesFor` finds two callers;
    `grep -rn flavor_source` finds the other three implementations.
-4. **Run §6.** `check_design.py` and the Paparazzi goldens are the only
-   automatic parts; everything else in this document is a grep you have to
-   choose to run.
+4. **Run `./audit.sh`** (§6). Five checks, one exit code. What it cannot see is
+   §7, and a green run is not a verified change.
 
 **Grep for your own name in comments.** This codebase records edges in prose:
 
@@ -157,7 +179,7 @@ and invisible to two thirds of the users.
 
 | You changed | Also move | Verify |
 | --- | --- | --- |
-| `data/Entities.kt` — added/renamed a column | Room `version` (currently **13**) + a new `Migration`; `data/Daos.kt`; **`data/SyncBundle.kt`** export *and* import; `../../../coffee_agent/sync_tools.py` `_BEAN_FIELDS`/`_SESSION_FIELDS`/`_STAGE_FIELDS`/`_JOURNEY_FIELDS`; `coffee/src/coffee_can/db.py` schema **and `_migrate`**; `coffee/src/coffee_can/repo.py`'s matching `*_FIELDS` allowlist; `design-spec.md` §9 | `V4`, `V4b`, `V5` |
+| `data/Entities.kt` — added/renamed a column | Room `version` (currently **14**) + a new `Migration`; `data/Daos.kt`; **`data/SyncBundle.kt`** export *and* import; `../../../coffee_agent/sync_tools.py` `_BEAN_FIELDS`/`_SESSION_FIELDS`/`_STAGE_FIELDS`/`_JOURNEY_FIELDS`; `coffee/src/coffee_can/db.py` schema **and `_migrate`**; `coffee/src/coffee_can/repo.py`'s matching `*_FIELDS` allowlist; `design-spec.md` §9 | `V4`, `V4b`, `V5` |
 | …but a column on **`journeys`** | **all of it, since 2026-08-23.** This row used to say "only the first three" because `journeys` had no desktop counterpart; it has one now (`coffee_can.db`'s `journeys`/`journey_images`, storage-only — the desktop still has no café screen and gains none), and the bundle carries cafés. Treat a journey column exactly like a session column | `V4`, `V4b`, `V5` |
 | The bundle format | `SyncBundle.VERSION` **and** `sync_tools.BUNDLE_VERSION` — they must stay equal | `V5` |
 | A DAO query | Whether `CoffeeRepository` should expose it at all; whether `TestFakes.kt` needs the new method | `V2` |
@@ -166,6 +188,8 @@ and invisible to two thirds of the users.
 | A container that wraps a whole scrolling page (`Surface`, `Card`, `Modifier.clip`, `clipToBounds`) | Nothing else in code — but every touch below **8192px** of that node's own top stops arriving, while the page keeps drawing perfectly (`design-spec.md` §4.4). Paint the background instead of clipping it, and hand `LocalContentColor` down yourself | *device only — no command in §6 sees it* |
 | A `HeroPhoto` implementation, or `PhotoHeroPage`'s image type | Both `BeanImageEntity` and `JourneyImageEntity` implement it, so a new member is a new **column** on two tables and a new migration, not just an interface change | `V2`, `V4` |
 | Anything in `CanBoyEiffel` | `screenshots.py`'s `can_boy_eiffel()`, **by hand**. This is the one figure where the Kotlin is the original and the simulator is the copy — every other mascot is read out of `res/drawable/ic_mascot_*.xml` by `_vector()`, so it cannot drift. Nothing checks this one | `V1b` |
+| A new mascot pose, or an animated knob on one | **A strip in `MascotPoseSheetTest`.** Every other golden captures a figure at knob = 0, so the motion is drawn by code no test renders — that is how `CanBoyNews` grew an arm under 84 passing goldens. Also: a screen that *contains* an animated figure should freeze it under `LocalInspectionMode` (`ReadingCanBoy`, `PolaroidCard`'s flash) so its own golden holds a stated frame | `V2` |
+| `CanBoyNews`'s `page`, its hand, or `newsLeaf` | **`NewsScreen`'s `ReadingCanBoy`, which must keep feeding `page` linearly** — since 2026-08-29 the knob is the whole gesture's clock (reach, carry, release), not the leaf's angle, so an easing on the driver eats the reach; the figure eases its own phases. The hand and the leaf must both keep reading `newsCorner`, or the grip drifts off the paper it is holding. `scheme_e.py`'s `can_boy_news` is three passes behind and is **not** the description (§12.3 of `design-spec.md`) | `V2` — but note it renders `page` = 0 only, so it proves the reading pose and **nothing about the turn**: the moving frames are eye-checked |
 | A flavour note's key, or the per-axis cap | `ui/components/FlavorNotes.kt` (catalogue), `FlavorNoteSelection` (codec + cap), all three `strings.xml`, and **anything already stored** — a renamed key is silently dropped on decode, which reads to the user as their selection vanishing | `V2`, `V3` |
 | `RadarChart`'s drawing geometry | `share/ShareCard.kt` draws through the same `drawRadar`; its `RadarStyle` is a second instance of the same data class, so a new field needs a default or the share card stops compiling | `V2` |
 | `RadarChartSize`, or a radar's `size`/`labels` at a call site | The **three** in-app charts are one size and one label set by design (`design-spec.md` §5.3a): `HomeScreen` (inside `minOf(maxWidth, …)`), `BeanDetailScreen.RadarSection`, `BrewSessionScreen`. Also `plan/v1/screenshots.py` — `home`, `bean_new`, `bean_detail_lower`, `bean_detail_lower_empty`, `bean_detail_lower_background`, `brew_lower` all draw the number by hand | `V1b`, `V2` |
@@ -194,24 +218,22 @@ proves the set is complete — it went from 108 columns to 110 and stayed green,
 which is the only evidence that neither column joined `humidity` in the
 silently-not-travelling category.
 
-**That silence is what let five fields drift, and the repair is the reason
-bundle v4 exists (2026-08-23).** `sessions.waterG`, `waterTempC`,
-`waterAlkalinity` and `totalTimeSec` had no `brew_sessions` column, and
-`session_stages.label` had no `brew_stages` column, so a bundle carried none of
-them — for months, in the first two cases. `sessions.humidity` was the mirror
-failure and the more instructive one: the column existed on **both** sides the
-whole time, and the field simply was never added to `sync_tools._SESSION_FIELDS`,
-which is an allowlist and not a reflection of the table. Nothing failed. The
-data just did not arrive.
+`beans.region` ran the same course on 2026-08-29 — Room **14**
+(`MIGRATION_13_14`), `SyncBundle.VERSION` and `BUNDLE_VERSION` → **7**,
+`db.py`, `repo.BEAN_FIELDS`, `sync_tools._BEAN_FIELDS`, §9 — and parity went
+110 → **111**. The one row it deliberately did *not* fire is §2.3b: `region`
+is excluded from `repo.LABEL_FIELDS`, so no OCR prompt and no server schema
+moved. That exclusion is the decision, not an oversight, and `LABEL_FIELDS`
+says so at the point of exclusion.
 
-The repair moved all five of the desktop's missing columns
-(`db.py` `SCHEMA` + `_migrate`, `repo.SESSION_FIELDS`, `repo.add_stage`/
-`update_stage`), both halves of `SyncBundle`, `sync_tools._SESSION_FIELDS` and
-the new `sync_tools._STAGE_FIELDS`, and the version on both sides — **no Room
-column changed, so `CoffeeDatabase` stayed at version 9 and no migration was
-owed**. That is the shape of a bundle-only change, and it is worth recognising:
-a row in §2.3 keyed on `Entities.kt` does not fire, and the one keyed on "the
-bundle format" does.
+The evidence for that rule is five fields that quietly stopped travelling and
+were repaired in bundle v4 (2026-08-23) — including `sessions.humidity`, which
+had a column on **both** sides the whole time and simply was not on
+`sync_tools._SESSION_FIELDS`, an allowlist and not a reflection of the table.
+Nothing failed; the data did not arrive. The blow-by-blow is `AUDIT.md` §9.3,
+and its shape is worth knowing: **no Room column changed**, so no migration was
+owed and the row above keyed on `Entities.kt` never fired — the one keyed on
+"the bundle format" did.
 
 The lesson for the table above: when you add a column, the failure you are
 guarding against is not a crash. It is a field that quietly stops travelling,
@@ -371,15 +393,41 @@ coupling into places grep does not reach.
 
 ## 6. Verification commands
 
-**The checks run from two different directories**, which is the practical face
-of the boundary in §1.1: the standalone Python tooling lives on the audit side,
-and the Gradle tasks must run inside the module because Gradle owns them.
+```bash
+cd coffee_android/plan/v1
+./audit.sh            # everything with a pass/fail: V1, V2, V2b, V3, V4b, V5, V6, V7
+./audit.sh --fast     # the same minus the Paparazzi goldens (~20s of the ~25s)
+```
+
+One command, one exit code, a summary naming whichever check failed. It runs
+from the audit side and shells into the module for the Gradle half, which is
+the practical face of §1.1's boundary: the Python tooling may not live inside
+the thing it checks, and the goldens may not live outside it.
+
+**What `audit.sh` covers, and what it replaced.** V3, V5, V6 and V7 used to be
+greps whose output a human had to read and judge; they are now
+`check_couplings.py`, because each already had exactly one right answer and was
+a grep only in the sense that nobody had written the loop. Each of its four
+checks has been fault-injected — break the coupling, watch the check name it —
+which is the only evidence that a checker that has never failed is worth
+running.
+
+**What is still yours.** `V4` (Room version and migrations) and `V2a` (the
+device gesture harness) have no pass/fail this side of a schema diff or a
+device, and are below. So are steps 1–3 of §0, which is where most of the
+coupling in this repo lives.
+
+<details>
+<summary>The individual commands, for when you want one of them alone</summary>
 
 ```bash
 # ============ from coffee_android/plan/v1/  (the audit side) ============
 
 # V1 — design tokens + mock copy fidelity (36 colour, 11 type, 5 shape, 110 strings)
 python3 check_design.py            # must exit 0
+
+# V3/V5/V6/V7 — locale parity, bundle version, network surface, scan field list
+python3 check_couplings.py         # must exit 0
 
 # V1b — redraw the simulator frames after any copy or visual change
 python3 screenshots.py             # -> screenshots/*.png
@@ -391,11 +439,10 @@ python3 check_schema_parity.py     # must exit 0
 
 # ============ from coffee_android/v1/  (the module) ============
 
-# V2 — Paparazzi goldens (84 images, 113 @Test).  SEE THE TWO WARNINGS BELOW.
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64   # NOT the default JDK -- see below
-./gradlew :app:verifyPaparazziDebug                 # verify against the 84 goldens
-./gradlew :app:recordPaparazziDebug                 # re-record, then READ the diff
-./gradlew :app:testDebugUnitTest                    # goldens + geometry + ingest tests
+# V2 — Paparazzi goldens (89 images, 118 @Test).  -Ppaparazzi IS REQUIRED.
+./gradlew :app:verifyPaparazziDebug -Ppaparazzi     # verify against the 89 goldens
+./gradlew :app:recordPaparazziDebug -Ppaparazzi     # re-record, then READ the diff
+./gradlew :app:testDebugUnitTest    -Ppaparazzi     # goldens + geometry + ingest tests
 
 # V2a — the ONE gesture harness. Paparazzi renders a static frame and adb
 # cannot press-hold-then-move (`input motionevent` is per-process; `sendevent`
@@ -418,7 +465,8 @@ export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64   # NOT the default JDK -- s
 # V2b — the dripper icons are generated; the XML must not be hand-edited
 cd ../plan/dripper_icons && python3 convert_drippers.py --check   # 0 = in step
 
-# V3 — locale parity: must print exactly app_name and app_title_home, nothing else
+# V3 — locale parity. Now check_couplings.py; this is the hand version, kept
+# because it prints the keys and the script prints the verdict.
 cd app/src/main/res && for L in fr zh; do echo "== $L =="; comm -23 \
   <(grep -o 'name="[^"]*"' values/strings.xml   | LC_ALL=C sort -u) \
   <(grep -o 'name="[^"]*"' values-$L/strings.xml | LC_ALL=C sort -u); done
@@ -430,8 +478,11 @@ grep -n 'version = \|MIGRATION' app/src/main/java/app/coffeecan/data/CoffeeDatab
 grep -rn 'BUNDLE_VERSION *=\|const val VERSION' \
   app/src/main/java/app/coffeecan/data/SyncBundle.kt ../../coffee_agent/sync_tools.py
 
-# V7 — the scan field list, in the five places that state it. All five lists
-# must hold the same field names; nothing checks this automatically.
+# V7 — the scan field list. SIX places state it now (repo.LABEL_FIELDS,
+# prompts.BEAN_FIELD_NAMES, prompts.BEAN_FIELD_LABELS, BeanFieldsDto, and
+# ScanReviewSheet's two), and check_couplings.py compares all six as ordered
+# sequences -- the order is part of the rule. "Nothing checks this
+# automatically" was true until 2026-08-29.
 grep -n 'BEAN_FIELD_NAMES = \|LABEL_FIELDS = ' \
   ../../../coffee_server/prompts.py ../../../coffee/src/coffee_can/repo.py -A 4
 grep -n 'farm' app/src/main/java/app/coffeecan/net/ServerApi.kt \
@@ -443,52 +494,74 @@ grep -rn '@GET\|@POST\|@DELETE' app/src/main/java/app/coffeecan/net/ServerApi.kt
 grep -rn 'ServerApi\|ApiClient' app/src/main/java/app/coffeecan/ui/   # must be empty
 ```
 
-### V2 needs JDK 17 explicitly
+</details>
 
-The default JDK on this machine is **25.0.3**, which this toolchain cannot
-parse: `JavaVersion.parse` throws `IllegalArgumentException: 25.0.3` before any
-of this project's code is looked at. The failure is not a helpful one — the
-build aborts in under a second with the bare message `25.0.3` and no stack
-trace, which reads like a corrupt install rather than a toolchain mismatch.
-JDK 17 is installed alongside it; set `JAVA_HOME` as in V2 above and every
-Gradle task works.
+### V2's two traps are now closed in the build, not in your head
 
-### The `compileSdk` flip is part of V2, and it is easy to leave broken
+Both used to live here as prose you had to remember, and both failed silently
+when you didn't. Neither is your problem any more; this section records what
+changed so nobody re-adds the ritual.
 
-Paparazzi 1.3.5 cannot render at `compileSdk = 36` — its `android.os.Build`
-reflection shim throws before a composable draws. The documented workflow
-(`app/src/test/java/app/coffeecan/screenshot/PaparazziEnvironment.kt:20`) is to
-flip `compileSdk` to **35 for the duration of a screenshot run and restore 36
-immediately after**. `targetSdk` stays 36 always — that one is
-`specs/legal-android.md` §4 rule 18 and it ships.
+**The JDK.** This machine's default is 25, which the bundled Kotlin plugin
+cannot parse — `JavaVersion.parse` throws during configuration and Gradle
+prints the bare message `25.0.4`, no stack trace, no task name, which reads
+like a corrupt checkout. `gradle/gradle-daemon-jvm.properties` (`toolchainVersion=17`)
+now selects the daemon's JVM before any of that runs, so **no `JAVA_HOME`
+export is needed for any command in this file**. It has to be that file: a
+guard in `settings.gradle.kts` is already too late, because the Kotlin DSL
+compiles that script on the same bad JVM. Regenerate with
+`./gradlew updateDaemonJvm --jvm-version=17`.
+
+**The `compileSdk` flip.** Paparazzi 1.3.5 cannot render at `compileSdk = 36`
+(its `android.os.Build` shim throws `NoSuchElementException` from
+`Renderer.configureBuildProperties` before a composable draws). This was a hand
+edit to 35 before a screenshot run and back to 36 after, and it was called the
+easiest coupling in this repo to leave in the wrong state *because nothing
+failed when you did* — while `specs/legal-android.md` rule 18 says 36 is what
+ships. It is now `compileSdk = if (paparazziRun) 35 else 36`, driven by
+`-Ppaparazzi`: the source can no longer hold 35, and a screenshot task without
+the flag stops on a `taskGraph` guard that names it. `targetSdk` never moves.
 
 ```bash
-grep -n 'compileSdk\|targetSdk' app/build.gradle.kts   # compileSdk MUST read 36 at rest
+grep -n 'compileSdk\|targetSdk' app/build.gradle.kts   # both read 36; the 35 is a branch
 ```
 
-Run that after every screenshot session. It is the single easiest coupling in
-this repo to leave in the wrong state, because nothing fails when you do.
+### V2 renders one frame, so animated figures need a pose sheet
+
+Paparazzi never advances an animation clock: a composable driven by
+`rememberInfiniteTransition` is captured at whatever value it holds on first
+composition, and everything after that is unchecked. That is a real hole and it
+was open — `CanBoyNews` grew a page-turning arm on 2026-08-29 while all 84
+goldens passed, because none of them draws the figure past `page` = 0.
+
+`MascotPoseSheetTest` closes it for that figure: one golden holding six frames
+of the gesture at the phase boundaries `CanBoy.kt` names, so a diff points at
+the constant that moved. A trajectory also fails differently from a pose — the
+bug it would have caught first was an elbow that drew the arm hooking back on
+itself, obvious with the frames side by side and invisible in any one of them.
+**Any figure whose knob is animated wants a strip, not another single frame.**
+
+Screens that *contain* such a figure should freeze it under
+`LocalInspectionMode` (`NewsScreen.kt`'s `ReadingCanBoy`, `PolaroidCard.kt`'s
+flash), so their goldens hold a stated frame rather than a nearly-zero one.
+
+### Eight goldens do not reproduce byte-for-byte on this machine
+
+Recording twice in a row is byte-identical, so this is not jitter: seven images
+(`home` ×3, `flavorCardWithCaption`, `searchMatchingEveryBean…`, `journeyNew`,
+`pickBean`) simply render slightly differently here than on whatever machine
+recorded them — 0.03–0.23% of pixels, max channel delta 20–227, always in one
+small box. `verifyPaparazziDebug` passes them on tolerance.
+
+The cost is that `recordPaparazziDebug` shows seven phantom diffs on every run,
+which is exactly the noise that teaches people to stop reading diffs. Left
+alone deliberately: re-recording them belongs in its own commit that changes
+nothing else, not folded into an unrelated edit. Until then, after any record,
+restore the images your change cannot explain.
 
 ---
 
-## 7. The reachability discipline
-
-A grep hit is a *candidate*, not a finding. Before reporting or "fixing":
-
-1. **Can the divergent state actually be produced?** Trace every writer. §4.1 is
-   the worked example — two genuinely different predicates, and no writer that
-   reaches the gap.
-2. **If not reachable today, what would make it reachable?** Say so, and label
-   the finding **latent** rather than a bug. A latent divergence with the path
-   named is useful; a bug report that turns out to be unreachable burns the
-   reader's trust in the next one.
-3. **Only then** decide whether unifying is right. §3's conflict-resolution
-   asymmetry is a case where two different behaviours are *correct* and merging
-   them would be the regression.
-
----
-
-## 8. What this spec cannot cover
+## 7. What this spec cannot cover
 
 Be explicit about this in any review that claims a change is verified.
 
@@ -517,20 +590,3 @@ golden; 28 have drifted, several of them still labelled real captures in
 → that directory last. Never validate a design claim against it.
 
 ---
-
-## 9. Keeping this document true
-
-This file is only worth reading if it is accurate, and a coupling spec decays
-faster than the code it describes.
-
-- Add a row when you create a coupling that a reader of one file could not
-  infer from that file.
-- **Delete a row when you remove the coupling.** A stale entry sends the next
-  reader to audit something that no longer exists, which is how a checklist
-  stops being read at all.
-- Prefer making a coupling *structural* (route it through a chokepoint in §1)
-  over documenting it here. A row in this table is the fallback for coupling
-  that could not be designed away — not the goal.
-- When a count in this document changes (498/496 strings, 96 goldens, Room
-  version 3, `disclosureVersion` 1), update it in the same commit. Those
-  numbers are the tripwires; a wrong one is worse than none.

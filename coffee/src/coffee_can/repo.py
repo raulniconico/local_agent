@@ -67,6 +67,15 @@ CONCENTRATION_ZONE_EDGE = (CONCENTRATION_MAX - CONCENTRATION_MIN) / 6.0
 BEAN_FIELDS = (
     "name",
     "origin",
+    # The region inside the origin, 2026-08-29 (bundle v7). Storage only here
+    # for the same reason `farm` is -- no CLI prompt and no GUI box reads it --
+    # but it *is* on LABEL_FIELDS, so all three OCR paths ask for it.
+    #
+    # POSITIONED, NOT APPENDED: `LABEL_FIELDS` derives from this tuple in
+    # order, and `check_couplings.py` holds all six statements of the scan
+    # field list to the *same* order, so "after origin" here is what keeps the
+    # server prompt, the DTO and the review sheet agreeing with it.
+    "region",
     "variety",
     "altitude",
     "roaster",
@@ -93,6 +102,13 @@ BEAN_FIELDS = (
 #:   brews, not printed on a bag;
 #: - `frozen_date` -- the day *you* put the bag in your freezer, which no
 #:   roaster can know and no label can say.
+#:
+#: `region` is *not* excluded (2026-08-29). It was, for the two revisions
+#: between the column landing and the scan being asked for, on the reasoning
+#: that letting a column through here silently reshapes a deployed service's
+#: output schema -- `coffee_server/prompts.BEAN_FIELD_NAMES` mirrors this list.
+#: That reasoning was about *when*, never about *whether*: a bag prints its
+#: region more often than it prints a farm.
 #:
 #: The three OCR modules used to filter `BEAN_FIELDS` themselves with
 #: `"flavor_" not in field`, which is why this list exists: when `frozen_date`

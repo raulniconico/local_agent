@@ -53,6 +53,11 @@ class BeanFields(BaseModel):
 
     name: Optional[str] = Field(default=None, max_length=200)
     origin: Optional[str] = Field(default=None, max_length=200)
+    # Where inside the origin the lot grew (2026-08-29). Read off a label by
+    # /v1/vision and passed back in by /v1/suggest, like every other field
+    # here: a region is often the single most useful thing a recipe prompt can
+    # be told about an unfamiliar bag.
+    region: Optional[str] = Field(default=None, max_length=200)
     variety: Optional[str] = Field(default=None, max_length=200)
     altitude: Optional[str] = Field(default=None, max_length=100)
     roaster: Optional[str] = Field(default=None, max_length=200)

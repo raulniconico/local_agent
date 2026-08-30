@@ -1,0 +1,40 @@
+{
+  "_readme": [
+    "Trade-press RSS feeds behind /v1/news. NOT the roaster allowlist -- see",
+    "allowlist.json for that, and crawler.py's 'NEWS SOURCES' note for why the two",
+    "are separate files rather than one list with a flag.",
+    "",
+    "Short version: specs/legal.md is titled and scoped to crawling *French",
+    "roasters' e-commerce catalogues*, and its rules 2-3 (outreach email, 14-day",
+    "wait, per-domain CGU quotation) are the paperwork that makes taking a shop's",
+    "product data permissible. An RSS feed is the opposite situation: the publisher",
+    "emits it *for* syndication, which is the tier-2 first-party structured endpoint",
+    "3.2 rule 7 asks you to prefer. Demanding an outreach email before reading a",
+    "feed someone publishes in order to be read is not compliance, it is a category",
+    "error.",
+    "",
+    "What still applies, and is enforced in code by routing every fetch through",
+    "Fetcher: robots.txt, the per-host delay, conditional GETs, and the truthful",
+    "User-Agent with a contact address. And legal-accounts.md rule 74 caps what may",
+    "be *shown* to headline, source, date and link -- no snippet, and specifically",
+    "no AI-written summary, which is a derivative use the droit voisin exclusion for",
+    "hyperlinks and very short extracts does not cover.",
+    "",
+    "These eight are the set coffee/src/coffee_can/coffee_news.py has polled from",
+    "the desktop since before the Android app existed. Moving them here is what",
+    "legal-android.md rule 23 requires: the fetch happens once, centrally, on a",
+    "schedule -- never once per installed device."
+  ],
+  "sources": [
+    {"display_name": "Sprudge",             "domain": "sprudge.com",           "news_feed_url": "https://sprudge.com/feed"},
+    {"display_name": "Daily Coffee News",   "domain": "dailycoffeenews.com",   "news_feed_url": "https://dailycoffeenews.com/feed/"},
+    {"display_name": "Perfect Daily Grind", "domain": "perfectdailygrind.com", "news_feed_url": "https://perfectdailygrind.com/feed/"},
+    {"display_name": "Comunicaffe",         "domain": "comunicaffe.com",       "news_feed_url": "https://www.comunicaffe.com/feed/",
+     "enabled": false,
+     "_disabled_reason": "Returns 403 to this crawler (2026-08-23) while serving robots.txt 200. A 403 on the feed itself is the publisher declining this client, and legal.md treats a documented refusal as a result worth keeping rather than a problem to route around. Left here, disabled, so nobody re-adds it without reading this. Do not retry hourly against a refusal, and do not change the User-Agent to get past it -- rule 18 forbids exactly that."},
+    {"display_name": "Barista Magazine",    "domain": "baristamagazine.com",   "news_feed_url": "https://www.baristamagazine.com/feed/"},
+    {"display_name": "Fresh Cup",           "domain": "freshcup.com",          "news_feed_url": "https://freshcup.com/feed/"},
+    {"display_name": "World Coffee Portal", "domain": "worldcoffeeportal.com", "news_feed_url": "https://www.worldcoffeeportal.com/rss"},
+    {"display_name": "Coffee Review",       "domain": "coffeereview.com",      "news_feed_url": "https://www.coffeereview.com/feed/"}
+  ]
+}

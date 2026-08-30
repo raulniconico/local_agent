@@ -147,9 +147,17 @@ done
 
 # --- 5. Ship code + secrets --------------------------------------------------
 echo "Syncing code..."
+# `.env.bak.*` and `accounts.db*` are excluded for the same reason `.env` and
+# `*.pem` are, and were not until 2026-08-29: a timestamped backup of the env
+# file is the env file, keys and all, and `.dockerignore` only knew the exact
+# name `.env` -- so one would have travelled to the instance *and* into an
+# image layer. `accounts.db` here is a local copy; the live one is the
+# bind-mounted `data/accounts.db`, and shipping a stale sibling next to it is
+# a file waiting to be opened by mistake.
 rsync -az -e "ssh ${SSH_OPTS[*]}" \
   --exclude='.venv' --exclude='__pycache__' --exclude='.git' \
-  --exclude='.env' --exclude='*.pem' --exclude='*.ppk' \
+  --exclude='.env' --exclude='.env.bak.*' --exclude='*.pem' --exclude='*.ppk' \
+  --exclude='accounts.db' --exclude='accounts.db-wal' --exclude='accounts.db-shm' \
   ../ "ec2-user@$PUBLIC_IP:/home/ec2-user/coffee_server/"
 scp "${SSH_OPTS[@]}" ../.env "ec2-user@$PUBLIC_IP:/home/ec2-user/coffee_server/.env"
 

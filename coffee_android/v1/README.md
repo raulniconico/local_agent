@@ -36,14 +36,16 @@ compliance documents live in `../../specs/`.
 ## Building and installing
 
 The wrapper is generated (Gradle 8.11.1) and `local.properties` points at a
-real SDK, so this checkout builds as it stands. **`JAVA_HOME` must name a JDK
-17** — it is not tidiness: on a newer JDK the Kotlin compiler aborts with
-`IllegalArgumentException: <version>` out of `JavaVersion.parse` before it
-looks at any of this code.
+real SDK, so this checkout builds as it stands. **You do not need to set
+`JAVA_HOME`** — since 2026-08-29 `gradle/gradle-daemon-jvm.properties` pins the
+daemon to JDK 17, which this toolchain requires and a newer default JDK breaks
+in the least legible way available (`IllegalArgumentException: <version>` out
+of `JavaVersion.parse`, reported as a bare version number). That file's own
+comment has the detail.
 
 ```bash
 cd coffee_android/v1
-JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 ./gradlew assembleDebug
+./gradlew assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk    # -r keeps the database
 adb shell am start -n app.coffeecan/.MainActivity           # optional
 ```
@@ -106,14 +108,16 @@ a review that trusted it missed a type scale wrong in ten of eleven roles.
 The tests that *do* live here are the ones Gradle owns:
 
 ```bash
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-./gradlew :app:verifyPaparazziDebug   # 72 goldens
-./gradlew :app:recordPaparazziDebug   # re-record, then read the diff
+./gradlew :app:verifyPaparazziDebug -Ppaparazzi   # 86 goldens
+./gradlew :app:recordPaparazziDebug -Ppaparazzi   # re-record, then read the diff
 ```
 
-Paparazzi needs `compileSdk = 35` for the duration of a run and **36 restored
-immediately after** — see `app/src/test/.../PaparazziEnvironment.kt`, and
-`../plan/v1/coupling-spec.md` §6, which is where that trap is documented.
+**`-Ppaparazzi` is not optional and not a preference.** Paparazzi 1.3.5 cannot
+render at this module's real `compileSdk = 36`, and the flag lowers it to 35
+for that one invocation. It used to be a hand edit of `build.gradle.kts` with
+36 to be restored afterwards — a trap that failed silently, since a build left
+at 35 still ships. Forgetting the flag now fails in one sentence that names it;
+the source always reads 36. See `app/src/test/.../PaparazziEnvironment.kt`.
 
 **None of this covers layout, density, component choice, illustration, window
 insets, gesture timing or share targets.** For the first four, render a deck

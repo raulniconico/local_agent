@@ -1535,3 +1535,69 @@ it; Process, Roast date and Note are below the fold.)*
 9. **B4** and TLS in front of `coffee_server` — release-configuration gates that
    are nobody's design problem but block everything downstream of them.
 10. Then the unbuilt v1 surface: Share Card, the heatmap, the mark.
+
+
+---
+
+## 9. Method, and the histories the coupling spec cites
+
+Moved here on 2026-08-29 from `coupling-spec.md`, which is read *before* an
+edit and had grown two sections that are not about any particular change, plus
+one history long enough to bury the rule it explains. Nothing was deleted and
+no rule moved: what is here is method, process, and evidence.
+
+### 9.1 The reachability discipline
+
+A grep hit is a *candidate*, not a finding. Before reporting or "fixing":
+
+1. **Can the divergent state actually be produced?** Trace every writer. §4.1 is
+   the worked example — two genuinely different predicates, and no writer that
+   reaches the gap.
+2. **If not reachable today, what would make it reachable?** Say so, and label
+   the finding **latent** rather than a bug. A latent divergence with the path
+   named is useful; a bug report that turns out to be unreachable burns the
+   reader's trust in the next one.
+3. **Only then** decide whether unifying is right. §3's conflict-resolution
+   asymmetry is a case where two different behaviours are *correct* and merging
+   them would be the regression.
+
+### 9.2 Keeping this document true
+
+This file is only worth reading if it is accurate, and a coupling spec decays
+faster than the code it describes.
+
+- Add a row when you create a coupling that a reader of one file could not
+  infer from that file.
+- **Delete a row when you remove the coupling.** A stale entry sends the next
+  reader to audit something that no longer exists, which is how a checklist
+  stops being read at all.
+- Prefer making a coupling *structural* (route it through a chokepoint in §1)
+  over documenting it here. A row in this table is the fallback for coupling
+  that could not be designed away — not the goal.
+- When a count in this document changes (498/496 strings, 96 goldens, Room
+  version 3, `disclosureVersion` 1), update it in the same commit. Those
+  numbers are the tripwires; a wrong one is worse than none.
+
+### 9.3 The five fields that stopped travelling (2026-08-23)
+
+The evidence behind `coupling-spec.md` §2.3's rule that a bundle-only change
+is a real change with its own cascade.
+
+**That silence is what let five fields drift, and the repair is the reason
+bundle v4 exists (2026-08-23).** `sessions.waterG`, `waterTempC`,
+`waterAlkalinity` and `totalTimeSec` had no `brew_sessions` column, and
+`session_stages.label` had no `brew_stages` column, so a bundle carried none of
+them — for months, in the first two cases. `sessions.humidity` was the mirror
+failure and the more instructive one: the column existed on **both** sides the
+whole time, and the field simply was never added to `sync_tools._SESSION_FIELDS`,
+which is an allowlist and not a reflection of the table. Nothing failed. The
+data just did not arrive.
+
+The repair moved all five of the desktop's missing columns
+(`db.py` `SCHEMA` + `_migrate`, `repo.SESSION_FIELDS`, `repo.add_stage`/
+`update_stage`), both halves of `SyncBundle`, `sync_tools._SESSION_FIELDS` and
+the new `sync_tools._STAGE_FIELDS`, and the version on both sides — **no Room
+column changed, so `CoffeeDatabase` stayed at version 9 and no migration was
+owed**. That is the shape of a bundle-only change, and it is worth recognising:
+a row in §2.3 keyed on `Entities.kt` does not fire, and the one keyed on "the
+bundle format" does.

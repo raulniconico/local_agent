@@ -21,6 +21,11 @@ CREATE TABLE IF NOT EXISTS beans (
     -- is a person or a cooperative, a farm is a place. Storage only here, the
     -- same as the roast block below.
     farm        TEXT,
+    -- Where inside `origin` the lot grew (2026-08-29) -- "Yirgacheffe" under
+    -- "Ethiopia". Storage only here, as `farm` is: the phone's form fills it,
+    -- no CLI prompt or GUI box on this side reads it, and the column exists so
+    -- a phone -> desktop -> phone round trip does not lose it.
+    region      TEXT,
     process     TEXT,
     roast_date  TEXT,
     -- The day the bag went into the freezer, ISO-8601, or NULL for a bag that
@@ -321,7 +326,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
                    # 2026-08-26. Same treatment as the roast block: no desktop
                    # UI reads either, they exist so a phone -> desktop -> phone
                    # round trip does not drop them.
-                   "farm", "frozen_date"):
+                   "farm", "frozen_date",
+                   # The region, 2026-08-29 (bundle v7).
+                   "region"):
         if column not in bean_columns:
             # The roast block the phone gained on 2026-08-24. No desktop UI
             # reads these yet -- they exist so a phone -> desktop -> phone round

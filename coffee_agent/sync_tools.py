@@ -140,7 +140,7 @@ from coffee_can.repo import FLAVOR_FIELDS  # noqa: E402
 #: exactly the sense v5 was -- an older reader ignores the keys, and a v6
 #: reader given an older bundle finds them absent, which is "no farm recorded"
 #: and "not frozen" rather than an empty string and an epoch.
-BUNDLE_VERSION = 6
+BUNDLE_VERSION = 7
 
 _MANIFEST = "manifest.json"
 _BEANS = "beans.json"
@@ -169,6 +169,10 @@ _BEAN_FIELDS = (
     # into the freezer. Both are storage-only on this side, like the roast
     # block below -- listed the moment the columns existed on both sides.
     "farm", "frozen_date",
+    # The region inside the origin, bundle v7 (2026-08-29). Listed the moment
+    # the column existed on both sides -- an unlisted column is silently not
+    # synced, which is what `humidity` did for months.
+    "region",
     # The roast block, 2026-08-24. Listed the moment the columns existed --
     # `humidity` had a column on both sides for months and simply was not here,
     # so it silently never travelled and nothing failed.

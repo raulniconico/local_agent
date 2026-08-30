@@ -390,7 +390,7 @@ SECTION_GAP = 16
 
 
 def section(c: Canvas, y, text, action=None, caption=None, secondary=None,
-            action_icon=None):
+            action_icon=None, count=None):
     """SectionHeader from ui/screens/AiDisclosureScreen.kt (shared).
     padding top 12, then `SECTION_GAP`; the heading on the left at `SectionHeadingSize`
     (20sp -- titleMedium's role with a per-component size override, 2026-08-22),
@@ -404,19 +404,43 @@ def section(c: Canvas, y, text, action=None, caption=None, secondary=None,
     Measured off the primary's width so the two never overlap; the Kotlin lays
     them out in a Row and does not have to.
 
-    `action_icon` draws `action` as a glyph instead of a word -- only "search"
-    exists, and only Home uses it (2026-08-25). The string is still passed and
-    still what the app announces to TalkBack; drawing it as a symbol is a
-    presentation choice, which is why this is a flag on the action rather than
-    a way of having a control with no copy."""
+    `action_icon` draws `action` as a glyph instead of a word. Three exist:
+    "search" (2026-08-25), "more" (2026-08-29, which replaced it on Home) and
+    "add" (2026-08-29, which replaced the words "New brew" on `0.2`).
+    The string is still passed and still what the app announces to TalkBack;
+    drawing it as a symbol is a presentation choice, which is why this is a
+    flag on the action rather than a way of having a control with no copy.
+
+    `count` is a plain-weight note set immediately after the heading, at the
+    heading's own size -- Home's `(N)` (2026-08-29). Same size, `Normal`
+    weight, `onSurfaceVariant`, so it reads as an aside to the name."""
     # The heading's own baseline sits lower than the actions beside it: the Row
     # centres them on each other, and at 20sp against labelLarge's 14 the two
     # baselines are no longer the same line.
     c.text(GUTTER, y + 12 + 18, text, "titleMedium", size=SECTION_HEADING)
+    if count:
+        # Measured off the heading rather than laid out beside it: the Kotlin
+        # puts both in a Row and lets Compose do this.
+        c.text(GUTTER + len(text) * SECTION_HEADING * 0.56 + 6, y + 12 + 18,
+               count, "titleMedium", C["onSurfaceVariant"],
+               size=SECTION_HEADING, weight=400)
     if secondary:
         c.text(W - GUTTER - (len(action) * 7 + 16 if action else 0),
                y + 12 + 16, secondary, "labelLarge", C["primary"], "end")
-    if action and action_icon == "search":
+    if action and action_icon == "more":
+        # `ic_action_more.xml`: three r=2 dots at 4.5/12/19.5 in a 24 box,
+        # filled on `primary` like the glyph it replaced.
+        gy = y + 12 + 11
+        for dx in (-7.5, 0, 7.5):
+            c.circle(W - GUTTER - 12 + dx, gy, 2, C["primary"])
+    elif action and action_icon == "add":
+        # `Icons.Filled.Add` at 24dp: a plain cross on `primary`, the same
+        # glyph both FABs and the Axis bar's centre disc already use for "log
+        # a brew" (2026-08-29). The word is still passed and still announced.
+        gx, gy, a = W - GUTTER - 12, y + 12 + 11, 6.5
+        c.path(f"M{gx - a} {gy} h{2 * a}", stroke=C["primary"], sw=2)
+        c.path(f"M{gx} {gy - a} v{2 * a}", stroke=C["primary"], sw=2)
+    elif action and action_icon == "search":
         # The M3 Search glyph at 24dp: a ring with a stem out of its
         # lower-right, drawn on `primary` like the TextButton it replaces.
         gx, gy, r = W - GUTTER - 9, y + 12 + 11, 7
@@ -1210,7 +1234,13 @@ for _row in SESSIONS:
     BREW_DAYS[_day] = BREW_DAYS.get(_day, 0) + 1
 
 BEAN = dict(
-    name="Ethiopia Guji Natural", origin="Ethiopia", variety="Heirloom",
+    name="Ethiopia Guji Natural", origin="Ethiopia",
+    # The region inside the origin, 2026-08-29 -- the right box on the grid's
+    # first line. Guji is one of the twenty coffee regions `Regions` puts
+    # ahead of Ethiopia's ISO subdivisions, which is the half of that list
+    # that makes the picker worth opening.
+    region="Guji",
+    variety="Heirloom",
     altitude="1 950 m", roaster="Terres de Café", producer="Buku Abel",
     # The estate, 2026-08-26 -- the left box on the grid's second line, and
     # the third item on a shelf card's lot line. Beside the producer, never
@@ -1229,8 +1259,8 @@ BEAN = dict(
 def home():
     """00 -- HomeScreen.kt, populated.
 
-    Three cards of the four on the shelf, then a "See all N beans" row: the
-    list is capped at three. That cap used to be enough to land both summary
+    Three cards of the four on the shelf, and no row under them: the list is
+    capped at three and the rest is a page (`0.31a`), not a longer list. That cap used to be enough to land both summary
     panes above the fold and no longer is -- at the shared 260dp chart the
     flavour card starts near the bottom of an 800dp frame and finishes below
     it, which is what a phone with three bags on the shelf actually shows.
@@ -1254,9 +1284,13 @@ def home():
     c = Canvas("00 Home")
     status_bar(c)
     y = top_bar(c, "Coffee Can", action_text="History")
-    # A magnifying glass since 2026-08-25, not the word. The string is still
-    # what the control is called; see section()'s `action_icon`.
-    y = section(c, y, "Your beans", action="Search", action_icon="search")
+    # THE HEADING COUNTS THE SHELF AND OPENS IT (2026-08-29). The magnifying
+    # glass became a "...", the count came into the heading, and the "See all
+    # N beans" row below the cards went away with the search it shared a job
+    # with -- `0.31a` Pick a bean does both now. The words are a second tap
+    # target for the same destination; nothing here draws that.
+    y = section(c, y, "Your beans", count=f"({len([b for b in BEANS if b[6] is None])})",
+                action="All beans", action_icon="more")
 
     # Home's own list: everything BEANS holds, less the beans that came from a
     # café. `pick_bean()` below deliberately draws the unfiltered set.
@@ -1311,10 +1345,6 @@ def home():
         y += 78
     y -= 6                      # the 6dp gap sits between cards, not after the last
 
-    # A Text with 8dp of padding above and below its 20dp line box.
-    c.text(W - GUTTER, y + 23, f"See all {len(shelf)} beans", "labelLarge",
-           C["primary"], "end")
-    y += 36
 
     # Both headings pay `SECTION_SPACING` -- the deck said "no spacer before
     # either heading" until 2026-08-24 and the app disagreed with it, spacing
@@ -1412,11 +1442,17 @@ def bean_new():
     # it and where exactly, who bought and roasted it, what was done to it --
     # and the grid reads left to right, top to bottom, so the chain
     # farm -> producer -> roaster falls out of the ordering.
-    y = capsule_pair(c, y, ("Origin", ""), ("Variety", "")) + 10
+    y = capsule_pair(c, y, ("Origin", ""), ("Region", "")) + 10
+    # PROCESS BESIDE VARIETY (2026-08-29, direct product request), which put
+    # farm|altitude and producer|roaster back into the pairs they were before
+    # `region` shifted the grid by one.
+    y = capsule_pair(c, y, ("Variety", ""), ("Process", "")) + 10
     y = capsule_pair(c, y, ("Farm", ""), ("Altitude", "")) + 10
     y = capsule_pair(c, y, ("Producer", ""), ("Roaster", "")) + 10
-    y = capsule_pair(c, y, ("Process", ""),
-                     ("Roast date", "", "Not set")) + 14
+    # THE HANGING HALF IS BACK (2026-08-29). `region` is the ninth field, and
+    # nine is odd -- it ends on Roast date alone, which is exactly where the
+    # grid ended before `farm` closed the gap on 2026-08-26.
+    y = capsule_pair(c, y, ("Roast date", "", "Not set"), None) + 14
     y = field(c, y, "Note", h=96) + 24
     # IMAGES BEFORE THE RADAR, ON `0.1` ONLY (2026-08-26, direct product
     # request). Nothing has been tasted yet on a bean this form is creating, so
@@ -1424,15 +1460,7 @@ def bean_new():
     # the bag in the user's hand is photographable right now. `0.2` keeps
     # Images, Sessions, Flavor, because there the radar is what the sessions
     # above it have been accumulating.
-    y = section(c, y, "Images")
-    t = image_tile()
-    c.rect(GUTTER, y, t, t, C["secondaryContainer"], R_THUMB)
-    cx, cy = GUTTER + t / 2, y + t / 2 - 8
-    c.path(f"M{cx - 8} {cy} h16 M{cx} {cy - 8} v16",
-           stroke=C["onSecondaryContainer"], sw=2)
-    c.text(cx, y + t / 2 + 22, "Add img", "labelSmall",
-           C["onSecondaryContainer"], "middle")
-    y += t + SECTION_SPACING
+    y = images_strip(c, y) + SECTION_SPACING
     y = section(c, y, "Radar", action="Set manually")
     card(c, y, 300)
     radar(c, W / 2, y + 140, 260, None, labels=SHORT_AXES)
@@ -1482,6 +1510,22 @@ def bean_detail():
            "bodyMedium", C["onSurfaceVariant"])
     y += 24 + 16
 
+    # IMAGES LEAD THE MODIFY FORM (2026-08-29, direct product request: "in the
+    # modification mode of bean profile, the image section should be before
+    # Basic information"). Same argument as `bean_new`'s Images-before-Radar,
+    # one section further up: the bag is in the user's hand while they edit,
+    # and this is the section that waits on neither a scan nor a brew. View
+    # mode draws no basics at all, so nothing moves there.
+    #
+    # THE TILE IS DRAWN BECAUSE THIS FRAME IS IN MODIFY MODE (see the
+    # docstring). From 2026-08-29 a locked `0.2` offers it only on a bean with
+    # no photographs at all, where the tile is the strip's whole content.
+    y = images_strip(c, y) + SECTION_SPACING
+
+    # The heading the app has always drawn over this block in modify mode, and
+    # the frame did not until Images arrived above it: one titled section over
+    # an untitled one read as a single run-on section.
+    y = section(c, y, "Basic information")
     card(c, y, 56, fill=C["secondaryContainer"])
     c.text(GUTTER + 16, y + 33, "Scan the label to update these fields",
            "bodyMedium", C["onSecondaryContainer"])
@@ -1493,13 +1537,15 @@ def bean_detail():
     # same way the box did, which is why the stored process is cut: it is
     # longer than half a row.
     y = capsule_pair(c, y, ("Origin", BEAN["origin"]),
-                     ("Variety", BEAN["variety"])) + 10
+                     ("Region", BEAN["region"])) + 10
+    y = capsule_pair(c, y, ("Variety", BEAN["variety"]),
+                     ("Process", BEAN["process"][:13] + "…")) + 10
     y = capsule_pair(c, y, ("Farm", BEAN["farm"][:13] + "…"),
                      ("Altitude", BEAN["altitude"])) + 10
     y = capsule_pair(c, y, ("Producer", BEAN["producer"]),
                      ("Roaster", BEAN["roaster"])) + 10
-    y = capsule_pair(c, y, ("Process", BEAN["process"][:13] + "…"),
-                     ("Roast date", BEAN["roast"])) + 14
+    # The hanging half -- see bean_new().
+    y = capsule_pair(c, y, ("Roast date", BEAN["roast"]), None) + 14
     y = field(c, y, "Note", BEAN["note"].split("\n")[0], h=96)
     gesture_bar(c)
     return c
@@ -1531,7 +1577,7 @@ def bean_detail_lower():
            "labelSmall", C["onSurfaceVariant"], "middle", size=9)
     y += 300 + 24
 
-    y = section(c, y, "Sessions", action="New brew")
+    y = section(c, y, "Sessions", action="New brew", action_icon="add")
     mine = [s for s in SESSIONS if s[0] == BEAN["name"]][:3]
     for i, (name, outcome, method, day, _cafe) in enumerate(mine):
         if i:
@@ -1558,16 +1604,19 @@ def bean_detail_lower():
 def bean_detail_lower_empty():
     """0.2b_empty -- a saved bean with nothing brewed against it yet.
 
-    A separate frame and not a variant note, because it is where the pour-over
-    mascot runs at 132dp: the same figure and the same beat as the whole-app
-    +1_sessions_empty, sized down because here it shares the screen. The radar
-    is at its empty net and its caption says so, which is the state the deck
-    draws too."""
+    A separate frame and not a variant note, because it is where the empty
+    Sessions block runs as a card: the same pour-over figure as the whole-app
+    +1_sessions_empty, at 108dp inside `ScanSection`'s construction rather than
+    at 160 on the page. The radar is at its empty net and its caption says so,
+    which is the state the deck draws too."""
     c = Canvas("0.2b Bean detail, no sessions")
     status_bar(c)
     y = top_bar(c, BEAN["name"], back=True, actions=["delete"])
 
-    y = field(c, y, "Note", "", h=96) + 24
+    # CUT ONE SECTION LOWER THAN `bean_detail_lower`, which opens on the Note
+    # box: the empty Sessions block became a 253dp card on 2026-08-29 and the
+    # frame that exists to show it has to hold all of it. Same page, one
+    # scroll position further down.
     y = section(c, y, "Radar", action="Set manually")
     card(c, y, 300)
     radar(c, W / 2, y + 140, 260, None, labels=SHORT_AXES)
@@ -1575,10 +1624,22 @@ def bean_detail_lower_empty():
            "labelSmall", C["onSurfaceVariant"], "middle", size=9)
     y += 300 + 24
 
-    y = section(c, y, "Sessions", action="New brew")
-    illustration(c, "ic_mascot_pour_over", W / 2, y + 8 + 80, 160)
-    c.text(W / 2, y + 8 + 160 + 12 + 11, "No brews logged for this bean yet.",
-           "bodyMedium", C["onSurfaceVariant"], "middle")
+    y = section(c, y, "Sessions", action="New brew", action_icon="add")
+    # A BLOCK, NOT A FIGURE AND A SENTENCE (2026-08-29, direct product request:
+    # "make this block same style as non-added Pour stages block"). That block
+    # is `StagesTimerCard`, which is itself a copy of `ScanSection` -- so this
+    # is `bean_new`'s scan card with a different mascot, a different two lines
+    # and no "or by hand" hint under the button, because logging a brew has one
+    # route and a second control would point at the same act twice.
+    card(c, y, 253, fill=C["secondaryContainer"])
+    illustration(c, "ic_mascot_pour_over", W / 2, y + 70, 108)
+    c.text(W / 2, y + 150, "No brews yet", "titleMedium",
+           C["onSecondaryContainer"], "middle")
+    c.wrap(W / 2, y + 170,
+           "Log how you brewed it and this bean's flavor profile starts to "
+           "fill in.", W - 2 * GUTTER - 64, "labelSmall",
+           C["onSecondaryContainer"], anchor="middle")
+    button(c, y + 197, "New brew", x=W / 2 - 55, w=110)
     gesture_bar(c)
     return c
 
@@ -1783,10 +1844,13 @@ def scan_review():
     bag_tile(c, 24, y, 72, "Et")
     y += 84
 
-    # ScanReviewSheet renders all nine of LABELS; the sheet scrolls, so this
-    # frame is the top of it. Process / Roast date / Note are below the fold.
+    # ScanReviewSheet renders all eleven of LABELS; the sheet scrolls, so this
+    # frame is the top of it. Farm / Process / Roast date / Note are below the
+    # fold. `Region` joined the list on 2026-08-29, second as it is on the
+    # form, when the scan was wired to read it off the label.
     rows = [("Bean name", "Ethiopia Guji Natural", ""),
             ("Origin", "Ethiopia", ""),
+            ("Region", BEAN["region"], ""),
             ("Variety", "Heirloom", ""),
             ("Altitude", "1 950 m", ""),
             ("Roaster", "Terres de Café", "Terre de Cafe"),
@@ -1840,6 +1904,56 @@ def delete_bean():
            "brews. It can't be undone.", W - 104, "bodyMedium")
     c.text(W - 52, top + 164, "Delete", "labelLarge", C["primary"], "end")
     c.text(W - 128, top + 164, "Cancel", "labelLarge", C["primary"], "end")
+    return c
+
+
+#: The head of `Choices.PROCESSES`, which is what the picker's height-capped
+#: list shows without scrolling. Not the whole 45: the frame documents the
+#: dialog, and a list drawn past its own clip would document nothing.
+PROCESS_PICKER_ROWS = [
+    "Washed (Wet) Process",
+    "Natural (Dry) Process",
+    "Honey Process (general)",
+    "Pulped Natural",
+    "Wet Hulled (Giling Basah)",
+    "Semi-Washed",
+]
+
+def process_picker():
+    """0.2f -- the process picker (2026-08-29, direct product request: "the
+    options should be shown on a pop up window", with a search box on top and
+    an "add new" at the end).
+
+    THE ONE FIELD ON THIS PAGE THAT IS BROWSED RATHER THAN HALF-REMEMBERED.
+    `Choices.PROCESSES` is 45 named methods, most of them variations on four
+    words, and the dropdown the other choice fields use showed them through a
+    30dp capsule with the keyboard over the bottom of the screen. The list
+    stays *open*, which is what `Choices` is for -- Add new takes whatever is
+    in the search box, and is disabled while there is nothing to add."""
+    c = Canvas("0.2f Process picker")
+    bean_detail_background(c)
+    scrim(c)
+    top = 150
+    dh = 500
+    dialog(c, top, dh)
+    c.text(52, top + 42, "Process", "headlineSmall", size=22)
+    field(c, top + 62, "Search", "", x=52, w=W - 104)
+    ry = top + 62 + 56 + 16
+    for name in PROCESS_PICKER_ROWS:
+        chosen = name == BEAN["process"]
+        c.text(52, ry + 14, name, "bodyLarge",
+               C["primary"] if chosen else C["onSurface"],
+               weight=600 if chosen else None)
+        ry += 44
+    ry += 4
+    # DRAWN DISABLED, which is the state it opens in: there is nothing in the
+    # search box to add, and the app disables it rather than letting a press
+    # write an empty process. Not `button(kind="outlined")`, which is the
+    # live one -- an enabled button here would be the deck claiming an
+    # affordance the build does not offer.
+    c.rect(52, ry, W - 104, 40, "none", 20, stroke=C["outlineVariant"], sw=1)
+    c.text(W / 2, ry + 25, "Add new", "labelLarge", C["onSurfaceVariant"], "middle")
+    c.text(W - 52, top + dh - 26, "Cancel", "labelLarge", C["primary"], "end")
     return c
 
 
@@ -1963,6 +2077,28 @@ IMAGES_PER_LINE = 3
 IMAGE_GAP = 8
 
 
+def images_strip(c: Canvas, y, heading="Images"):
+    """`ImagesStrip` -- the "Images" heading over its trailing "Add img" tile.
+
+    Every frame that draws a strip draws an *empty* one: the deck composites no
+    photographs, so the tile is the strip. Three frames had a copy of this
+    geometry each until 2026-08-29, which is the duplication `coupling-spec.md`
+    keeps naming -- the tile is `R_THUMB` on `secondaryContainer` with a plus
+    over its label, and its size is [image_tile]'s, not a constant.
+
+    Returns the y the strip ends at, with no spacing of its own -- the caller
+    decides what follows."""
+    y = section(c, y, heading)
+    t = image_tile()
+    c.rect(GUTTER, y, t, t, C["secondaryContainer"], R_THUMB)
+    cx, cy = GUTTER + t / 2, y + t / 2 - 8
+    c.path(f"M{cx - 8} {cy} h16 M{cx} {cy - 8} v16",
+           stroke=C["onSecondaryContainer"], sw=2)
+    c.text(cx, y + t / 2 + 22, "Add img", "labelSmall",
+           C["onSecondaryContainer"], "middle")
+    return y + t
+
+
 def image_tile():
     """One `ImagesStrip` tile: the gutter-to-gutter width, divided three ways.
 
@@ -2024,23 +2160,9 @@ def bean_block(c: Canvas, y, name="", photos=False):
     # "drawn first", which had put an Images heading between a bean's name and
     # the rest of its own fields.
     if photos:
-        y = section(c, y + 6, "Images")
-        # ImagesStrip's add tile, R_THUMB, secondaryContainer, a plus over the
-        # label. No thumbnails beside it -- a new cup has none.
-        #
-        # THE TILE IS THE COLUMN'S WIDTH DIVIDED BY THREE (2026-08-24), not the
-        # 88dp it was: `ImagesPerLine` photographs and the gaps between them
-        # are exactly the strip's width, so the third one ends flush with the
-        # gutter. The deck has to divide the same way or it draws a tile size
-        # no handset produces.
-        t = image_tile()
-        c.rect(GUTTER, y, t, t, C["secondaryContainer"], R_THUMB)
-        cx, cy = GUTTER + t / 2, y + t / 2 - 8
-        c.path(f"M{cx - 8} {cy} h16 M{cx} {cy - 8} v16",
-               stroke=C["onSecondaryContainer"], sw=2)
-        c.text(cx, y + t / 2 + 22, "Add img", "labelSmall",
-               C["onSecondaryContainer"], "middle")
-        y += t
+        # No thumbnails beside the tile -- a new cup has none. See
+        # [images_strip], which owns the geometry.
+        y = images_strip(c, y + 6)
     return y + 8
 
 
@@ -2109,7 +2231,7 @@ def brew():
                       ("Water ppm", "72"), x=ix, w=iw)
     y += ch + 20
 
-    y = section(c, y, "Pour stages", action="Add stage")
+    y = section(c, y, "Pour stages", action="Add a stage")
     for i, (water, temp, at, label) in enumerate(
             [("45 g", "93 °C", "0:00", "Bloom"), ("120 g", "93 °C", "0:45", "")]):
         c.text(GUTTER, y + 26, str(i + 1), "titleMedium")
@@ -2155,8 +2277,8 @@ def brew_lower():
     iy = ey + 12
     c.text(ix, iy + 12, "Concentration", "labelLarge")
     iy = extraction_bar(c, ix, iy + 22, iw, -0.5,
-                        low="Too weak", mid_label="Just right",
-                        high="Too strong") + 12
+                        low="Weak", mid_label="Right",
+                        high="Strong") + 12
     field(c, iy, "Note", "Bright, clean. Cut the bloom shorter.", x=ix, w=iw, h=88)
     y += 320 + 20
 
@@ -2435,12 +2557,19 @@ def journey_profile():
            "bodyMedium", C["onSurfaceVariant"])
     # The trailing chevron: the one row on this page that leaves the app.
     c.path(f"M{W - GUTTER - 22} {y + 22} l6 6 l-6 6", stroke=C["onSurfaceVariant"], sw=1.8)
-    y += 56 + 14
-    # THE NOTE IS BACK, UNDER THE MAP ROW (2026-08-25), after five days away.
-    # No heading of its own this time -- what it had before was a full-width
-    # box *and* a section heading for one field, which is what made it look
-    # like a demand. It closes the Café section instead of opening a third one.
-    y = field(c, y, "Note", "", h=88) + SECTION_SPACING
+    # NO NOTE BOX ON THIS FRAME (2026-08-29, direct product request: on `+1.1`
+    # the café-name and note boxes are hidden when they are empty and the page
+    # is locked). Both frames here are locked -- the foot capsule draws a
+    # pencil, not a tick -- and `JOURNEY` carries no note, so the 88dp box that
+    # used to close the Café section is simply absent. It comes back under
+    # Modify, and on a café somebody did write about. The café name above it
+    # stays for the opposite reason: it has a value, and a locked field still
+    # shows its value.
+    #
+    # The note, when it is drawn, has no heading of its own -- what it had
+    # before 2026-08-25 was a full-width box *and* a section heading for one
+    # field, which is what made it look like a demand.
+    y += 56 + SECTION_SPACING
     y = section(c, y, "Cups", action="Add a cup")
     # `0.3`'s card since 2026-08-22 -- see session_card(). The bean names the
     # row (this page already supplies the café), nothing trails, and `cup=False`
@@ -2497,12 +2626,19 @@ def journey_profile_lower():
     c.text(GUTTER + 44, y + 42, f"Search for {JOURNEY['address']}, {JOURNEY['city']}",
            "bodyMedium", C["onSurfaceVariant"])
     c.path(f"M{W - GUTTER - 22} {y + 22} l6 6 l-6 6", stroke=C["onSurfaceVariant"], sw=1.8)
-    y += 56 + 14
-    # THE NOTE IS BACK, UNDER THE MAP ROW (2026-08-25), after five days away.
-    # No heading of its own this time -- what it had before was a full-width
-    # box *and* a section heading for one field, which is what made it look
-    # like a demand. It closes the Café section instead of opening a third one.
-    y = field(c, y, "Note", "", h=88) + SECTION_SPACING
+    # NO NOTE BOX ON THIS FRAME (2026-08-29, direct product request: on `+1.1`
+    # the café-name and note boxes are hidden when they are empty and the page
+    # is locked). Both frames here are locked -- the foot capsule draws a
+    # pencil, not a tick -- and `JOURNEY` carries no note, so the 88dp box that
+    # used to close the Café section is simply absent. It comes back under
+    # Modify, and on a café somebody did write about. The café name above it
+    # stays for the opposite reason: it has a value, and a locked field still
+    # shows its value.
+    #
+    # The note, when it is drawn, has no heading of its own -- what it had
+    # before 2026-08-25 was a full-width box *and* a section heading for one
+    # field, which is what made it look like a demand.
+    y += 56 + SECTION_SPACING
     y = section(c, y, "Cups", action="Add a cup")
     for i, (name, outcome, method) in enumerate(CUPS):
         if i:
@@ -2994,8 +3130,12 @@ def cup_profile():
     c.text(ix, iy + 12, "Extraction", "labelLarge")
     iy = extraction_bar(c, ix, iy + 22, iw, None) + 8
     c.text(ix, iy + 12, "Concentration", "labelLarge")
-    extraction_bar(c, ix, iy + 22, iw, None, low="Too weak",
-                   mid_label="Just right", high="Too strong")
+    # SHORT ZONE WORDS SINCE 2026-08-29 (direct product request). The long
+    # ones -- "Too weak", "Just right", "Too strong" -- are still what
+    # `concentrationVerdict` hands TalkBack, exactly as extraction draws
+    # "Under" and announces "Under-extracted".
+    extraction_bar(c, ix, iy + 22, iw, None, low="Weak",
+                   mid_label="Right", high="Strong")
     y += 212 + 12
     # Disabled until the coffee is named -- `+1.2`'s own rule, kept when it
     # moved onto `0.31`: a nameless cup is a row in a café's list with nothing
@@ -3016,6 +3156,7 @@ PAGES = [
     ("0.2c_flavor_manual.png", bean_flavor_sheet),
     ("0.2d_delete_bean.png", delete_bean),
     ("0.2e_saved_snackbar.png", saved_snackbar),
+    ("0.2f_process_picker.png", process_picker),
     ("0.11_photo_source.png", photo_source_sheet),
     ("0.11a_ai_disclosure_labels.png", ai_disclosure_labels),
     ("0.12_scanning.png", scanning),
