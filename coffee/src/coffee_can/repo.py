@@ -360,11 +360,30 @@ def add_stage(
     time_seconds: Optional[int],
     circling: Optional[str],
     label: Optional[str] = None,
+    velocity: Optional[float] = None,
+    end_seconds: Optional[int] = None,
+    stage_start_seconds: Optional[int] = None,
+    stage_end_seconds: Optional[int] = None,
 ) -> int:
     """`label` is trailing and defaults to None so the four existing positional
     callers (the CLI, both GUI dialogs, the agent) keep working untouched. It
     names the pour -- "Bloom", "Second pour" -- and is not a synonym for
     `circling`, which says how the pour was circled; only sync writes it today.
+
+    `velocity` (grams per second, 2026-08-30) is trailing for the same reason
+    and is in the same position: the phone asks for it, nothing here does, and
+    it exists so a round trip through this database keeps it.
+
+    `end_seconds` (2026-08-31) is the third of those, and is when the pour
+    stopped -- `time_seconds` is when it started, and what sits between one
+    pour's end and the next one's start is the drawdown, so no arithmetic over
+    the other columns produces it. The phone's pour timer records it with a
+    tap.
+
+    `stage_start_seconds` / `stage_end_seconds` (2026-09-01) are the fourth and
+    fifth, and they are the *stage's* span rather than the pour's: the phone
+    profiles a stage as a pour with a drawdown after it, so the pour's two
+    times sit inside these two. Same trailing-and-defaulted shape, same reason.
     """
     next_number = conn.execute(
         "SELECT COALESCE(MAX(stage_number), 0) + 1 AS n FROM brew_stages WHERE session_id = ?",
@@ -372,10 +391,13 @@ def add_stage(
     ).fetchone()["n"]
     conn.execute(
         """
-        INSERT INTO brew_stages (session_id, stage_number, temperature_c, water_g, time_seconds, circling, label)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO brew_stages (session_id, stage_number, temperature_c, water_g, time_seconds,
+                                 end_seconds, stage_start_seconds, stage_end_seconds,
+                                 circling, label, velocity)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (session_id, next_number, temperature_c, water_g, time_seconds, circling, label),
+        (session_id, next_number, temperature_c, water_g, time_seconds, end_seconds,
+         stage_start_seconds, stage_end_seconds, circling, label, velocity),
     )
     _touch(conn, "brew_sessions", session_id)
     conn.commit()
@@ -400,19 +422,27 @@ def update_stage(
     time_seconds: Optional[int],
     circling: Optional[str],
     label: Optional[str] = None,
+    velocity: Optional[float] = None,
+    end_seconds: Optional[int] = None,
+    stage_start_seconds: Optional[int] = None,
+    stage_end_seconds: Optional[int] = None,
 ) -> None:
-    """`label` defaults to None for the same positional-caller reason as
-    :func:`add_stage` -- but note the consequence: an existing caller that
-    omits it *clears* the label, because this is a full-row update rather than
-    a patch. Only the GUI stage editor calls this, and it has no label field to
-    lose; give it one and it must pass the value through here too.
+    """`label`, `velocity`, `end_seconds` and the stage's own span default to
+    None for the same positional-caller reason as :func:`add_stage` -- but note
+    the consequence: an existing caller that omits any of them *clears* it,
+    because this is a full-row update rather than a patch. Only the GUI stage
+    editor calls this, and it has a field for none of the five; give it one and
+    it must pass the value through here too.
     """
     row = conn.execute("SELECT session_id FROM brew_stages WHERE id = ?", (stage_id,)).fetchone()
     if row is None:
         return
     conn.execute(
-        "UPDATE brew_stages SET temperature_c = ?, water_g = ?, time_seconds = ?, circling = ?, label = ? WHERE id = ?",
-        (temperature_c, water_g, time_seconds, circling, label, stage_id),
+        "UPDATE brew_stages SET temperature_c = ?, water_g = ?, time_seconds = ?, "
+        "end_seconds = ?, stage_start_seconds = ?, stage_end_seconds = ?, "
+        "circling = ?, label = ?, velocity = ? WHERE id = ?",
+        (temperature_c, water_g, time_seconds, end_seconds, stage_start_seconds,
+         stage_end_seconds, circling, label, velocity, stage_id),
     )
     _touch(conn, "brew_sessions", row["session_id"])
     conn.commit()

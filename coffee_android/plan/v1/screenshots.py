@@ -383,10 +383,12 @@ SECTION_CARD_TOP = 0
 SECTION_SPACING = 20
 
 #: `SectionHeaderGap` -- the one gap between any section heading and its
-#: content, on every page. 16 since 2026-08-24, taken from what the Images
-#: strip had always shown; before that the app had three values at once and
-#: the deck only ever drew the smallest of them.
-SECTION_GAP = 16
+#: content, on every page. 16 from 2026-08-24, taken from what the Images strip
+#: had always shown; **24 since 2026-08-30**, half again, by direct product
+#: request -- tried on one Home section first and then applied everywhere.
+#: `-1 Can read` is the one page it does not reach, and not by exception: that
+#: page has no section heading on it at all.
+SECTION_GAP = 24
 
 
 def section(c: Canvas, y, text, action=None, caption=None, secondary=None,
@@ -522,10 +524,16 @@ def session_card(c: Canvas, y, title, outcome, method="", trailing=None,
     return y + h
 
 
-def session_divider(c: Canvas, y, x=GUTTER):
-    """The inset rule between two cards -- clears the dripper disc, the way
-    Home's clears the bean tile. `x` is the list's margin; see session_card."""
-    c.line(x + 64 + SHELF_CARD_PAD * 2, y, W - x, y, C["outlineVariant"], 1)
+# THERE IS NO `session_divider` ANY MORE (2026-08-30, direct product request:
+# "remove split line between session card, and split line between stages"). It
+# drew an inset rule between two cards, clearing the dripper disc the way
+# Home's cleared the bean tile -- and that parallel is what removed it: the
+# shelf lost its own rule the same day `section_rule` arrived, because a
+# horizontal line now means "a new section starts here" and cannot also mean
+# "here is the next item". Cards abut; the air around each dripper disc is the
+# separation. `+2.5`'s share card keeps a rule between cups, and that is not
+# drift -- there a cup is four blocks and a radar, closer to a section than to
+# a row.
 
 
 def card(c: Canvas, y, h, x=GUTTER, w=None, fill=None, r=R_CARD):
@@ -537,6 +545,26 @@ def card(c: Canvas, y, h, x=GUTTER, w=None, fill=None, r=R_CARD):
 def divider(c: Canvas, y, x=GUTTER, w=None):
     w = w or (W - 2 * GUTTER)
     c.line(x, y, x + w, y, C["outlineVariant"], 1)
+
+
+def section_rule(c: Canvas, y):
+    """`SectionRule` -- the hairline between one section and the next, on every
+    page that has sections (2026-08-30, direct product request: Home first,
+    then "apply … to every page except can read").
+
+    It replaces the `SECTION_SPACING` gap rather than adding to it: the rule
+    lands on the midpoint of the whole distance between one section's last
+    pixel and the next one's first word -- `SECTION_SPACING` plus the heading's
+    own 12dp top padding -- so the page is exactly as tall as it was. Home is
+    the one page where that matters twice over: §5.8's above-the-fold budget is
+    why the shelf is capped at three.
+
+    Returns the y `section()` should be called at, i.e. the caller does **not**
+    also add `SECTION_SPACING`.
+    """
+    half = (SECTION_SPACING + 12) / 2
+    divider(c, y + half)
+    return y + half + (half - 12)
 
 
 def button(c: Canvas, y, label, x=GUTTER, w=None, kind="filled", h=40):
@@ -637,13 +665,51 @@ def chip(c: Canvas, x, y, label, selected=False, h=32):
     return x + w + 8
 
 
-def action_capsule(c: Canvas, modify="pencil"):
-    """`ui/DetailActionBar.kt` -- the foot capsule on `0.2` and `0.31`/`+1.2`.
+def _share_glyph(c: Canvas, cx, cy, colour, sw=2):
+    """The `IosShare` tray-and-arrow. `cy` is the glyph's own centre: the tray
+    hangs below it and the arrow rises above, which is where the disc version
+    has always drawn it."""
+    c.path(f"M{cx} {cy - 10} l0 14", stroke=colour, sw=sw)
+    c.path(f"M{cx - 5} {cy - 5} l5 -5 l5 5", stroke=colour, sw=sw)
+    c.rect(cx - 8, cy, 16, 12, "none", 2, stroke=colour, sw=sw)
+
+
+def _trash_glyph(c: Canvas, cx, cy, colour):
+    """The same trash the foot button drew, in `error` rather than filled --
+    the colour carries the meaning, the weight keeps it quiet."""
+    c.rect(cx - 5, cy - 4, 10, 11, "none", 1.5, stroke=colour, sw=1.6)
+    c.path(f"M{cx - 7} {cy - 6} l14 0", stroke=colour, sw=1.6)
+    c.path(f"M{cx - 2.5} {cy - 6} l0 -2 l5 0 l0 2", stroke=colour, sw=1.6)
+
+
+def _modify_glyph(c: Canvas, cx, cy, modify):
+    """The pencil of res/drawable/ic_action_modify.xml at 45 degrees, or the
+    tick it becomes once the mode is unlocked. See `DetailActionBar.isSaving`."""
+    if modify == "save":
+        c.path(f"M{cx - 7} {cy} l5 5 l9 -10", stroke=C["onSurface"], sw=2.4)
+    else:
+        c.path(f"M{cx - 7} {cy + 7} l1.6 -4.6 l9 -9 l3 3 l-9 9 Z",
+               fill=C["onSurface"], stroke="none")
+
+
+def action_capsule(c: Canvas, add, modify="pencil"):
+    """`ui/DetailActionBar.kt` -- the foot capsule on `0.2`, `+1.1` and `+1.2`.
 
     HOME'S CAPSULE WITH ACTION SLOTS, not a bar of its own: same height, same
-    frosted fill, same shadow, same green full-height centre disc. Three slots
-    -- modify, share, delete -- where the axis bar has four destinations around
-    a `+`.
+    frosted fill, same shadow, same green full-height centre disc, the same `+`
+    in it.
+
+    ONE ARRANGEMENT -- share, `+`, modify, and delete **only** in
+    `modify="save"` (2026-08-30, direct product request). Every page that has
+    this bar is a page about a list, so the disc adds to it: `add` is the label
+    of what it makes -- "New brew" on `0.2`, "Add a cup" on `+1.1`, "Add a
+    stage" on `+1.2`. The label is not drawn (the slot is a glyph, like every
+    other one here); naming it at the call site is what keeps these frames
+    honest about which page's `+` does what.
+
+    The bar carried share in the disc, modify left and a permanent delete right
+    until that request. Delete moved behind Modify because on a bar whose thumb
+    rests on `+`, a delete one slot away is a mis-tap that destroys a record.
 
     NOT DRAWN ON `00 Home` HERE, and that is a gap this file already had: the
     app replaced Home's FAB with the axis capsule on 2026-08-24 and `fab()`
@@ -651,34 +717,25 @@ def action_capsule(c: Canvas, modify="pencil"):
     interlocking selection indicator, which is a bigger job than this frame
     needed; flagged rather than silently half-done.
     """
-    bar_h, margin = 60, 10
-    w = 54 + 60 + 54
+    bar_h, margin, end_tab = 60, 10, 54
+    deletable = modify == "save"
+    w = end_tab + bar_h + end_tab + (end_tab if deletable else 0)
     x = (W - w) / 2
     y = H - 16 - margin - bar_h
+    cy = y + bar_h / 2
     # The frosted fill plus the shadow that separates it from the page -- the
     # capsule has no outline, so the shadow is its edge.
     c.rect(x, y + 3, w, bar_h, "#000000", bar_h / 2, opacity=0.10)
     c.rect(x, y, w, bar_h, C["surface"], bar_h / 2, opacity=0.88)
-    # Modify: the pencil of res/drawable/ic_action_modify.xml at 45 degrees,
-    # or the tick it becomes once the mode is unlocked -- and always, on
-    # `+1.1`, which has no mode to unlock. See `DetailActionBar.isSaving`.
-    px, py = x + 27, y + bar_h / 2
-    if modify == "save":
-        c.path(f"M{px - 7} {py} l5 5 l9 -10", stroke=C["onSurface"], sw=2.4)
-    else:
-        c.path(f"M{px - 7} {py + 7} l1.6 -4.6 l9 -9 l3 3 l-9 9 Z",
-               fill=C["onSurface"], stroke="none")
-    # Share: the green disc, inscribed so it touches both capsule edges.
-    c.circle(W / 2, y + bar_h / 2, bar_h / 2, C["primary"])
-    c.path(f"M{W / 2} {y + 20} l0 14", stroke="#FFFFFF", sw=2)
-    c.path(f"M{W / 2 - 5} {y + 25} l5 -5 l5 5", stroke="#FFFFFF", sw=2)
-    c.rect(W / 2 - 8, y + 30, 16, 12, "none", 2, stroke="#FFFFFF", sw=2)
-    # Delete: the same trash the foot button drew, in `error` rather than
-    # filled -- the colour carries the meaning, the weight keeps it quiet.
-    dx, dy = W - x - 27, y + bar_h / 2
-    c.rect(dx - 5, dy - 4, 10, 11, "none", 1.5, stroke=C["error"], sw=1.6)
-    c.path(f"M{dx - 7} {dy - 6} l14 0", stroke=C["error"], sw=1.6)
-    c.path(f"M{dx - 2.5} {dy - 6} l0 -2 l5 0 l0 2", stroke=C["error"], sw=1.6)
+    _share_glyph(c, x + end_tab / 2, cy - 1, C["onSurface"], sw=1.8)
+    # Add: the disc, inscribed so it touches both capsule edges, and the `+`
+    # of the axis bar inside it.
+    dx = x + end_tab + bar_h / 2
+    c.circle(dx, cy, bar_h / 2, C["primary"])
+    c.path(f"M{dx - 10} {cy} h20 M{dx} {cy - 10} v20", stroke="#FFFFFF", sw=2.4)
+    _modify_glyph(c, x + end_tab + bar_h + end_tab / 2, cy, modify)
+    if deletable:
+        _trash_glyph(c, x + w - end_tab / 2, cy, C["error"])
 
 
 def foot_fade(c: Canvas):
@@ -1342,14 +1399,23 @@ def home():
             bx = W - SHELF_GUTTER - SHELF_CARD_PAD
             snowflake(c, bx - 24, y + 62, 7)
             c.text(bx, y + 66, str(frozen), "labelSmall", FROZEN, "end")
-        y += 78
-    y -= 6                      # the 6dp gap sits between cards, not after the last
+        # FLUSH, AND WITH NOTHING BETWEEN THEM (2026-08-30, direct product
+        # request: "remove split line between beans in home page"). The app
+        # drew an inset hairline here and this file never did; what it drew
+        # instead was a 6dp gap the app did not have. Both are gone -- the
+        # cards abut, and on this page `CardColor` is the background colour, so
+        # what separates one bag from the next is the air around its own
+        # artwork. The one horizontal line on Home now means "new section".
+        y += 72
 
 
-    # Both headings pay `SECTION_SPACING` -- the deck said "no spacer before
-    # either heading" until 2026-08-24 and the app disagreed with it, spacing
-    # them 24 apart. One token now, on both sides.
-    y += SECTION_SPACING
+    # A RULE BETWEEN THE SECTIONS SINCE 2026-08-30 (direct product request),
+    # in the gap both headings already paid -- see `section_rule`, which spends
+    # `SECTION_SPACING` rather than adding to it. The deck had said "no spacer
+    # before either heading" until 2026-08-24 and the app disagreed with it,
+    # spacing them 24 apart; one token now, on both sides, with the line on its
+    # midpoint.
+    y = section_rule(c, y)
     y = section(c, y, "Brewing activity")
     # 128, down from 140, tracking `heatmap`'s own `grid_top`. Leaving it would
     # give back as trailing white exactly what came off the top.
@@ -1357,7 +1423,7 @@ def home():
     heatmap(c, GUTTER, y, W - 2 * GUTTER, BREW_DAYS, TODAY)
     y += 128
 
-    y += SECTION_SPACING
+    y = section_rule(c, y)
     # THE CAPTION IS UNDER THE CHART NOW, CENTRED (2026-08-25) -- not in the
     # heading's caption slot, and not in the card's top-left corner where it
     # sat before that. The heading carries the section name alone.
@@ -1460,7 +1526,7 @@ def bean_new():
     # the bag in the user's hand is photographable right now. `0.2` keeps
     # Images, Sessions, Flavor, because there the radar is what the sessions
     # above it have been accumulating.
-    y = images_strip(c, y) + SECTION_SPACING
+    y = section_rule(c, images_strip(c, y))
     y = section(c, y, "Radar", action="Set manually")
     card(c, y, 300)
     radar(c, W / 2, y + 140, 260, None, labels=SHORT_AXES)
@@ -1520,7 +1586,7 @@ def bean_detail():
     # THE TILE IS DRAWN BECAUSE THIS FRAME IS IN MODIFY MODE (see the
     # docstring). From 2026-08-29 a locked `0.2` offers it only on a bean with
     # no photographs at all, where the tile is the strip's whole content.
-    y = images_strip(c, y) + SECTION_SPACING
+    y = section_rule(c, images_strip(c, y))
 
     # The heading the app has always drawn over this block in modify mode, and
     # the frame did not until Images arrived above it: one titled section over
@@ -1580,8 +1646,6 @@ def bean_detail_lower():
     y = section(c, y, "Sessions", action="New brew", action_icon="add")
     mine = [s for s in SESSIONS if s[0] == BEAN["name"]][:3]
     for i, (name, outcome, method, day, _cafe) in enumerate(mine):
-        if i:
-            session_divider(c, y, x=SHELF_GUTTER)
         # `0.3`'s card with the two strings swapped -- the date names the row
         # because this page is already one bean's. See session_card().
         #
@@ -1592,11 +1656,13 @@ def bean_detail_lower():
         # inside a padded column.
         y = session_card(c, y, f"{day} 2026", outcome, method, cup=bool(_cafe),
                          x=SHELF_GUTTER)
-    # THE THREE ACTIONS ARE IN THE FOOT CAPSULE NOW (2026-08-25), not a
-    # full-width "Save changes" with a red Delete beside it -- see
-    # `action_capsule`, which is Home's bar with action slots.
+    # THE ACTIONS ARE IN THE FOOT CAPSULE (2026-08-25), not a full-width
+    # "Save changes" with a red Delete beside it -- see `action_capsule`,
+    # which is Home's bar with action slots. Since 2026-08-30 this page takes
+    # the same `+` as the other two: a bean is a list of brews, so the disc
+    # logs one, and the trash waits behind the pencil.
     foot_fade(c)
-    action_capsule(c)
+    action_capsule(c, add="New brew")
     gesture_bar(c)
     return c
 
@@ -1981,8 +2047,6 @@ def sessions():
            "labelMedium", C["onSurfaceVariant"])
     y += 32
     for i, (name, outcome, method, day, cafe) in enumerate(SESSIONS):
-        if i:
-            session_divider(c, y)
         # The bean is the bold line and the date trails it (2026-08-25): this
         # page spans every bean, so the bean is what identifies a row.
         y = session_card(c, y, name, outcome, method, trailing=day, cafe=cafe)
@@ -2231,16 +2295,35 @@ def brew():
                       ("Water ppm", "72"), x=ix, w=iw)
     y += ch + 20
 
-    y = section(c, y, "Pour stages", action="Add a stage")
-    for i, (water, temp, at, label) in enumerate(
-            [("45 g", "93 °C", "0:00", "Bloom"), ("120 g", "93 °C", "0:45", "")]):
-        c.text(GUTTER, y + 26, str(i + 1), "titleMedium")
-        c.text(GUTTER + 36, y + 26, " · ".join([water, temp, at]), "bodyLarge")
+    # THE ACTION IS A "+" SINCE 2026-08-30 (direct product request), the same
+    # move `0.2`'s Sessions heading made on 2026-08-29. The string is still
+    # what the app announces and what `check_design.py` diffs; drawing it as a
+    # glyph is a presentation choice -- see `section`'s `action_icon`.
+    y = section(c, y, "Pour stages", action="Add a stage", action_icon="add")
+    # THE POURS SIT ON `StagesTimerCard`'s OWN GREEN CARD (2026-08-30, direct
+    # product request). Filled and empty are one object in one place on the
+    # page: the empty state's card does not vanish when the first pour lands,
+    # it fills up -- so this is the same `secondaryContainer` at the same
+    # corner, minus the clock mascot and the three lines that were there to
+    # ask. Each row pays 12 top and bottom, so 4 at the card's ends makes 16.
+    rows = [("45 g", "93 °C", "0:00", "", "Bloom"),
+            ("120 g", "93 °C", "0:45", "4.5 g/s", "")]
+    card(c, y, 8 + 56 * len(rows), fill=C["secondaryContainer"])
+    y += 4
+    for i, (water, temp, at, vel, label) in enumerate(rows):
+        c.text(GUTTER + 16, y + 26, str(i + 1), "titleMedium",
+               C["onSecondaryContainer"])
+        c.text(GUTTER + 52, y + 26,
+               " · ".join(x for x in (water, temp, at, vel) if x), "bodyLarge",
+               C["onSecondaryContainer"])
         if label:
-            c.text(GUTTER + 36, y + 44, label, "bodyMedium", C["onSurfaceVariant"])
-        c.path(f"M{W - GUTTER - 18} {y + 20} l10 10 M{W - GUTTER - 8} {y + 20} "
-               f"l-10 10", stroke=C["onSurface"], sw=1.6)
-        divider(c, y + 56)
+            c.text(GUTTER + 52, y + 44, label, "bodyMedium", C["onSurfaceVariant"])
+        c.path(f"M{W - GUTTER - 34} {y + 20} l10 10 M{W - GUTTER - 24} {y + 20} "
+               f"l-10 10", stroke=C["onSecondaryContainer"], sw=1.6)
+        # NO RULE BETWEEN POURS (2026-08-30, direct product request). What
+        # separates them is the number down the left and each row's own 12dp,
+        # top and bottom. The session list's rule went the same day and
+        # for the same reason -- see the note where `session_divider` was.
         y += 56
     gesture_bar(c)
     return c
@@ -2536,8 +2619,12 @@ def journey_profile():
     c.text(W / 2, y, "Tap the camera to add a photo", "labelMedium",
            C["onSurfaceVariant"], anchor="middle")
     y = polaroid_tiles(c, y + 14) + 24
-    y = section(c, y, "Caf\u00e9")
-    y = field(c, y, "Caf\u00e9 name", JOURNEY["name"]) + 14
+    # NO "CAFÉ" HEADING AND NO NAME BOX (2026-08-30, direct product request).
+    # Both frames here are locked -- the foot capsule draws a pencil -- and the
+    # name box is modify-mode only now, while the heading is gone in both
+    # modes. The app bar at the top of the frame is already the café's name; a
+    # heading labelling it and a box repeating it said it twice more.
+    y += 4
     # Address and city as a capsule pair. The address was a full-width field
     # until 2026-08-20, which made the optional half of the location as heavy
     # as the required café name above it.
@@ -2569,7 +2656,7 @@ def journey_profile():
     # The note, when it is drawn, has no heading of its own -- what it had
     # before 2026-08-25 was a full-width box *and* a section heading for one
     # field, which is what made it look like a demand.
-    y += 56 + SECTION_SPACING
+    y = section_rule(c, y + 56)
     y = section(c, y, "Cups", action="Add a cup")
     # `0.3`'s card since 2026-08-22 -- see session_card(). The bean names the
     # row (this page already supplies the café), nothing trails, and `cup=False`
@@ -2577,21 +2664,25 @@ def journey_profile():
     # JourneyGround, so a cup tinted the same green would be a card with no
     # boundary on a ground of its own colour.
     for i, (name, outcome, method) in enumerate(CUPS):
-        if i:
-            session_divider(c, y)
         # THE CUP'S NAME BOLD, NO DATE AT ALL (2026-08-25). It briefly ran the
         # other way round -- date bold, bean trailing -- on the reasoning that
         # a page which is one visit is distinguished by date. Backwards: a fact
         # identical on every row identifies nothing, and printing this visit's
         # date beside each of its own cups says it twice for no reader.
         y = session_card(c, y, name, outcome, method, cup=False)
-    # THE THREE ACTIONS ARE IN THE FOOT CAPSULE NOW (2026-08-25), as on `0.2`
-    # and `0.31` -- see `action_capsule`. A pencil, because `+1.1` gained the
-    # same view/edit mode the other two detail pages have later the same day:
-    # it opened as a permanently-greyed tick, which reads as a dead control and
-    # was reported as "why i can't modify in the journey profile page?".
+    # THE ACTIONS ARE IN THE FOOT CAPSULE (2026-08-25), as on `0.2` -- see
+    # `action_capsule`. A pencil, because `+1.1` gained the same view/edit mode
+    # the other two detail pages have later the same day: it opened as a
+    # permanently-greyed tick, which reads as a dead control and was reported
+    # as "why i can't modify in the journey profile page?".
+    #
+    # AND IT IS THE `add` ARRANGEMENT SINCE 2026-08-30 (direct product
+    # request): green `+` in the middle for a cup, share demoted to the left
+    # flat slot, modify to the right of the disc -- and NO TRASH IN THIS FRAME,
+    # because the pencil says the page is in view mode and delete now waits
+    # behind Modify. The frame that shows it is the one with the tick.
     foot_fade(c)
-    action_capsule(c)
+    action_capsule(c, add="Add a cup")
     gesture_bar(c)
     return c
 
@@ -2609,8 +2700,12 @@ def journey_profile_lower():
     c.rect(0, 0, W, H, C["surfaceContainerLow"])
     status_bar(c)
     y = top_bar(c, JOURNEY["name"], back=True)
-    y = section(c, y, "Caf\u00e9")
-    y = field(c, y, "Caf\u00e9 name", JOURNEY["name"]) + 14
+    # NO "CAFÉ" HEADING AND NO NAME BOX (2026-08-30, direct product request).
+    # Both frames here are locked -- the foot capsule draws a pencil -- and the
+    # name box is modify-mode only now, while the heading is gone in both
+    # modes. The app bar at the top of the frame is already the café's name; a
+    # heading labelling it and a box repeating it said it twice more.
+    y += 4
     y = capsule_pair(c, y, ("Address", JOURNEY["address"]),
                      ("City", JOURNEY["city"])) + SECTION_SPACING
     # ONE SECTION, NOT TWO (2026-08-25, direct product request). "The visit"
@@ -2638,24 +2733,28 @@ def journey_profile_lower():
     # The note, when it is drawn, has no heading of its own -- what it had
     # before 2026-08-25 was a full-width box *and* a section heading for one
     # field, which is what made it look like a demand.
-    y += 56 + SECTION_SPACING
+    y = section_rule(c, y + 56)
     y = section(c, y, "Cups", action="Add a cup")
     for i, (name, outcome, method) in enumerate(CUPS):
-        if i:
-            session_divider(c, y)
         # THE CUP'S NAME BOLD, NO DATE AT ALL (2026-08-25). It briefly ran the
         # other way round -- date bold, bean trailing -- on the reasoning that
         # a page which is one visit is distinguished by date. Backwards: a fact
         # identical on every row identifies nothing, and printing this visit's
         # date beside each of its own cups says it twice for no reader.
         y = session_card(c, y, name, outcome, method, cup=False)
-    # THE THREE ACTIONS ARE IN THE FOOT CAPSULE NOW (2026-08-25), as on `0.2`
-    # and `0.31` -- see `action_capsule`. A pencil, because `+1.1` gained the
-    # same view/edit mode the other two detail pages have later the same day:
-    # it opened as a permanently-greyed tick, which reads as a dead control and
-    # was reported as "why i can't modify in the journey profile page?".
+    # THE ACTIONS ARE IN THE FOOT CAPSULE (2026-08-25), as on `0.2` -- see
+    # `action_capsule`. A pencil, because `+1.1` gained the same view/edit mode
+    # the other two detail pages have later the same day: it opened as a
+    # permanently-greyed tick, which reads as a dead control and was reported
+    # as "why i can't modify in the journey profile page?".
+    #
+    # AND IT IS THE `add` ARRANGEMENT SINCE 2026-08-30 (direct product
+    # request): green `+` in the middle for a cup, share demoted to the left
+    # flat slot, modify to the right of the disc -- and NO TRASH IN THIS FRAME,
+    # because the pencil says the page is in view mode and delete now waits
+    # behind Modify. The frame that shows it is the one with the tick.
     foot_fade(c)
-    action_capsule(c)
+    action_capsule(c, add="Add a cup")
     gesture_bar(c)
     return c
 
@@ -2677,10 +2776,17 @@ def stage_editor():
     field(c, y, "Temp (°C)", "93", x=24 + half + 12, w=half)
     y += 68
     at_y = y
-    y = field(c, y, "At (time)", "0:45", x=24, w=W - 48) + 12
+    # AT (TIME) AND VELOCITY AS A PAIR (2026-08-30, direct product request:
+    # "an input box beside At (time) named velocity"). Grams per second, and
+    # not derivable from the three fields above it -- `At` is when the pour
+    # starts, not how long it runs. It has a column on both sides and a key in
+    # the bundle; see `SessionStageEntity.velocity` and bundle v8.
+    field(c, y, "At (time)", "0:45", x=24, w=half)
+    field(c, y, "Velocity (g/s)", "4.5", x=24 + half + 12, w=half)
+    y += 68
     # the trailing clock disc: outline circle plus two hands, matching
     # Icons.Filled.Schedule closely enough to read as the same affordance
-    cx, cy = W - 48, at_y + 28
+    cx, cy = 24 + half - 24, at_y + 28
     c.circle(cx, cy, 9, "none", stroke=C["onSurfaceVariant"], sw=1.6)
     c.line(cx, cy, cx, cy - 5, C["onSurfaceVariant"], sw=1.6)
     c.line(cx, cy, cx + 4, cy + 2, C["onSurfaceVariant"], sw=1.6)

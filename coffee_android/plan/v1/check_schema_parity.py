@@ -71,6 +71,16 @@ RENAMES = {
     # the brew's temperature against this pour's. Same Kotlin name, two tables.
     ("session_stages", "waterTempC"): "temperature_c",
     ("session_stages", "atSec"): "time_seconds",
+    # ...and when it stopped. Named for its pair rather than snake_cased from
+    # the Kotlin, so the desktop reads `time_seconds` / `end_seconds` the way
+    # the phone reads `atSec` / `endSec`.
+    ("session_stages", "endSec"): "end_seconds",
+    # The stage's own span, as against the pour's two above. Same reasoning as
+    # `endSec`: named for the pair it belongs to on each side, so the desktop
+    # reads `stage_start_seconds` / `stage_end_seconds` where the phone reads
+    # `stageStartSec` / `stageEndSec`.
+    ("session_stages", "stageStartSec"): "stage_start_seconds",
+    ("session_stages", "stageEndSec"): "stage_end_seconds",
 }
 
 #: Room columns with no desktop counterpart and no need of one. Keep this list

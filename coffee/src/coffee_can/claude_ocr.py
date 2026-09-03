@@ -76,11 +76,33 @@ def guess_bean_fields(image_path: Path) -> dict:
         "required": list(FIELDS),
         "additionalProperties": False,
     }
+    # ORIGIN AND REGION ARE DEFINED TOGETHER (2026-09-03). `region` reached
+    # `LABEL_FIELDS` on 2026-08-29 and the schema below has asked for it ever
+    # since, but nothing here said what it meant -- so a bag reading "Ethiopia
+    # Yirgacheffe" came back with the whole string in `origin` and `region`
+    # empty, or with "Ethiopia" in both. The split into a country plus a
+    # subdivision is the app's, not the label's, and it cannot be stated in
+    # either field alone. Same wording as `coffee_server/prompts.LABEL_OCR`;
+    # the two are a `coupling-spec.md` §4 pair and the phone and the desktop
+    # should read a bag the same way.
     prompt = (
         "This is a photo of a coffee bag label. Extract these fields, using an "
         "empty string for anything not present on the label. \"name\" is the "
         "specific coffee's name or lot -- not the roaster's brand, which goes "
-        "in \"roaster\". \"process\" should be a short, standard process name "
+        "in \"roaster\". \"origin\" is the COUNTRY the coffee was grown in, and "
+        "nothing else -- its plain English name on its own (\"Ethiopia\", "
+        "\"Colombia\", \"Panama\"), never a country and a region run together. "
+        "\"region\" is the growing area INSIDE that country, at whatever level "
+        "the label states it: a coffee region, department, zone, municipality "
+        "or washing-station district (e.g. \"Yirgacheffe\", \"Guji\", \"Huila\", "
+        "\"Boquete\", \"Nyeri\"). A label that prints one line like \"Ethiopia "
+        "Yirgacheffe\", \"Colombia - Huila\" or \"Huila, Colombia\" is stating "
+        "both: split it, country into \"origin\" and the rest into \"region\". "
+        "If the label names only a region and no country, put the region in "
+        "\"region\" and the country it belongs to in \"origin\"; if it names "
+        "only a country, leave \"region\" empty rather than repeating the "
+        "country there. Do not put a farm, estate, mill or cooperative name in "
+        "\"region\". \"process\" should be a short, standard process name "
         "(e.g. Washed, Natural, Honey, Anaerobic Natural) matching the label's "
         "own wording rather than an invented one. \"roast_date\" should be ISO "
         "format (YYYY-MM-DD) if a full date is printed, otherwise whatever "

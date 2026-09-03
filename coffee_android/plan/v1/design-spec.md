@@ -259,8 +259,8 @@ is the deck's own number and Compose clamps to half the shorter side anyway.
 | Token | Value | Meaning |
 | --- | --- | --- |
 | `Gutter` | 16dp | the page gutter — **every** scrolling column pads by this |
-| `SectionHeaderGap` | 16dp | every section heading to its content, on every page |
-| `SectionSpacing` | 20dp | the end of one section to the next section's heading |
+| `SectionHeaderGap` | 24dp | every section heading to its content, on every page |
+| `SectionSpacing` | 20dp | the end of one section to the next section's heading — and where `SectionRule` draws |
 | `SectionCardPadding` | 16dp, **top 0** | inside a card that sits directly under a section heading |
 | `ShelfCardHeight` | 124dp | Home's bean card: `ShelfTile` plus `ShelfCardPadV` above and below |
 | `ShelfTile` | 104dp | the artwork inside that card |
@@ -275,10 +275,58 @@ card edge lines up with a section heading lines up with a divider on every
 screen. It was 20dp in the first build, which compounded with the type scale
 into a measurable density gap.
 
+**`SectionRule` is the line between one section and the next** (2026-08-30,
+direct product request: a split line between sections on Home, then "apply … to
+every page except can read"). A `HorizontalDivider` in `outlineVariant`, in the
+page's own gutter, on every page that has sections: `00` Home, `0.1`/`0.2` Bean
+Detail, `0.31`/`+1.2` Brew and Cup, `+1.1` Journey, `+2` I can, `+2.2a` Privacy
+and `+2.2b` How we use AI. **`-1` Can read is the one page without it, and not
+by exception** — it is a feed of cards with no `SectionHeader` anywhere on it,
+so the request's carve-out took no code.
+
+Three rules govern where it goes, and the last two are what keep it from
+becoming decoration:
+
+- **It replaces `SectionSpacing`, it never adds to it.** The rule lands on the
+  midpoint of `SectionSpacing + SectionHeaderTop` — the whole distance from a
+  section's last pixel to the next one's first word — and the two spacers it
+  emits sum to the single one it replaced. Every page is exactly as tall as it
+  was, which on Home is the difference between the flavour card being above the
+  fold and below it (§5.8).
+- **Never under a page's own header.** `0.2`'s panel headline, `+1.2`'s bean
+  summary, `+1.1`'s Polaroid stack and `+2`'s avatar are not sections; a rule
+  under one reads as chrome divided from content on a page that has no chrome
+  there — the same argument that removed `TopBarDivider` from `+1.1` and from
+  `0.2`'s panel on 2026-08-25. **The first section of a page gets no rule above
+  it.** Two call sites are conditional for exactly this reason: `0.2`'s rule
+  above Sessions is drawn only while `editing` (in view mode the basics block
+  above it is absent, so Images becomes the first section), and `0.31`/`+1.2`'s
+  rule above the brew sections only when the bean block is shown.
+- **Never between the items *inside* a section.** The inset hairline between
+  Home's bean cards went out with the same request that brought this one, and
+  **`SessionCardDivider` and the pour-stage rule went out the next**
+  (2026-08-30: "remove split line between session card, and split line between
+  stages"). It is one decision: if a horizontal line means "a new section starts
+  here", it cannot also mean "here is the next bag of coffee", "the next brew"
+  or "the next pour". Brew cards abut on `0.2`, `0.3` and `+1.1` and are told
+  apart by the air around each dripper disc, exactly as beans are; pour rows are
+  told apart by the number down their left and the 12dp each pads by. There is
+  no `SessionCardDivider` any more, and no rule under the last stage — that one
+  had also been closing the section with a line that meant nothing.
+
+  **`+2.5`'s share card keeps its rule between cups, and that is not drift.**
+  In the app a cup is a dense row; on the card it is a name, a photograph, a
+  facts line and its own radar, with 28dp of air either side of the line — what
+  it separates is closer to two sections than to two rows.
+
 **`SectionHeaderGap` is one number for the whole app** (2026-08-24, direct
 product request: "unify all section-title margin in all the pages, use the
-Images section margin by default"). 16dp, because that is what the images strip
-had always shown. `SectionHeader` emits it itself; **callers must not add a
+Images section margin by default"). It was 16dp, which is what the images strip
+had always shown, and is **24dp since 2026-08-30** — half again, by direct
+product request, tried on one Home section and then applied everywhere. Being
+one number is what made that a two-line change: the trial needed a per-caller
+override on `SectionHeader`, and promoting it meant deleting the override again
+rather than leaving a knob behind for the next caller to reach for. `SectionHeader` emits it itself; **callers must not add a
 `Spacer` after a heading**, which is how three different gaps came to exist —
 8dp from the composable, 16 wherever a caller added its own, and 20 on any
 heading carrying a verb. That last one was invisible in the source: a
@@ -983,6 +1031,75 @@ square, `AxisEndTab`.
 
 This supersedes `README.md` resolution #19, which declined bottom navigation.
 
+### 7.1a The same capsule on a detail page — `DetailActionBar`
+
+A saved record's page carries the **same capsule with actions in the slots**
+(2026-08-25, direct product request: "use the same nav bar assembly in the
+homepage on the bean profile page and journey cup page"). `ui/DetailActionBar.kt`
+reads every value from the axis bar's own tokens — `AxisBarHeight`,
+`AxisBarMargin`, `AxisChromeAlpha`, `AxisBarShadow`, `axisChromeSheen`,
+`AxisEndTab`, `CircleShape` — rather than copying numbers, so a theme change
+moves both and the two cannot drift into being *nearly* the same capsule. Its
+caller pairs it with `AxisFootFade` and pays `AxisBarClearance` inside the
+scroll, exactly as an axis page does.
+
+**It appears only on a record that exists.** A blank form has nothing to share
+and nothing to delete; its one act is Save, which the foot of the form still
+carries. So `0.1`, a new brew and a new café show the button and no capsule.
+
+**One arrangement, on all three pages** (2026-08-30, direct product request,
+first for a café and a cup, then "put the same nav bar in the bean profile
+page"):
+
+| Slot | | |
+| --- | --- | --- |
+| share | flat, left | `IosShare`, `onBackground` |
+| **add** | **the disc** | `+`, `primary`, full height |
+| modify | flat | the pencil, then the tick |
+| delete | flat, right | `error` — **only while modifying** |
+
+The disc is the bar's one filled, full-height, brand-coloured slot, and it
+carries the act the page is *for* — on Home, logging a brew. Every page that
+has this bar is a page about a list, so the disc adds to it: a **brew** on
+`0.2` (the same call as the Sessions heading's `+`), a **cup** on `+1.1` (the
+Cups heading's "Add a cup") and a **pour stage** on `0.31`/`+1.2` (the Pour
+stages heading's `StageEdit.new`). Share, which was the disc until that
+request, steps down into the flat slot to its left — the arrangement Home
+already teaches, a green `+` between quieter things. There is no second
+arrangement: the leaf variant this bar had for five days is gone, because the
+last page that was a leaf turned out not to be one, and a branch no caller
+takes is a branch that drifts.
+
+**Delete is red, never the disc, and in the `add` arrangement it is not drawn
+until Modify has been pressed.** A full-height disc under the thumb is exactly
+where an accidental press lands, so delete stays a flat slot tinted
+`colorScheme.error` — the same treatment `RemoveButton` gives it at the foot of
+a form. Where the bar's centre is a `+`, a permanent delete one slot from it is
+a mis-tap that destroys a visit; Modify is already the page's "I am here to
+change this" gesture, so it is the gate, and the slot arrives with an
+`expandHorizontally` so the capsule is seen to grow it. The bean bar keeps
+delete always visible: it has no `+` for it to be confused with.
+
+**Modify is a mode, so its slot has two states** — the pencil of
+`ic_action_modify`, then `Icons.Filled.Check` once pressed, greyed until
+something differs (`modifyEnabled`). Drawn greyed rather than removed, for the
+reason §8.8 gives at length: an empty slot reads as "pressing Modify did
+nothing".
+
+**Back leaves the mode before it leaves the page** (2026-08-30, direct product
+request). On a saved record — all three pages — the back control, the system
+gesture and `+1.1`'s right-swipe all drop modify mode and stay put; a second
+back leaves. A record being *created* is editing from its first frame and has
+no view mode to fall back to, so back there means what it always did. What
+happens to a pending edit is each page's existing policy, unchanged: `0.31` and
+`+1.1` ask (`Discard changes?`) and then revert to what was loaded, while `0.2`
+flushes it, because a bean's edit is never lost by leaving (§8.4) and a mode
+that dropped it would leave the header showing values the database does not
+have.
+
+`DetailActionBarScreenshotTest` is the golden for the four states, because each
+screen golden covers only whichever one its page opens in.
+
 ### 7.2 Routes
 
 Named for the deck's page numbers so a screen can be found from a wireframe
@@ -1063,6 +1180,16 @@ reach and return are eased in the figure.
 Bean shelf, **Brewing activity** contribution calendar, and **My flavor** — an
 eleven-axis radar averaged across every session, labelled with the session
 count.
+
+**A rule between the sections, and none between the bags** (2026-08-30, direct
+product request, both halves of it). Home draws `SectionRule` (§4.2) between
+the shelf and **Brewing activity**, and again between the calendar and **My
+flavor** — and the inset hairline that used to separate one bean card from the
+next is gone. It is one decision: a horizontal line now means *a new section
+starts here*, so spending the same mark between two bags of coffee made the
+shelf read as three things rather than as the one block its heading counts.
+Bean cards are flush, and since `CardColor` and `background` are the same white
+(§4.1), what separates them is the air around each one's artwork.
 
 **The shelf heading counts the shelf and is the door to it** (2026-08-29,
 direct product request). It reads `My beans (4)` — the name at
@@ -1295,9 +1422,9 @@ The largest screen in the app (1400 lines). One bean, created or edited.
   108dp pour-over mascot over a `titleMedium` line, a centred `labelSmall` line
   and a filled **New brew** button. It was a 160dp mascot over one
   `onSurfaceVariant` line — the app's colour for information already dealt with
-  — which read as a report on a page of controls. No outlined button under the
-  card, unlike the stages block: that one offers the timer *and* the same job
-  by hand, and logging a brew has one route. The heading's
+  — which read as a report on a page of controls. No button under the card — and the
+  stages block has none either since 2026-08-30, so the two are now the same
+  shape as well as the same construction. The heading's
   action is a **`+`, not the words "New brew"** (2026-08-29, direct product
   request) — `SectionHeader`'s `actionIcon`, which *renders* the action rather
   than replacing it, so the string is still what TalkBack announces and still
@@ -1357,6 +1484,16 @@ what would change, an empty-read state, and a report control.
 
 Nothing reaches the form until the user accepts.
 
+**Roast date is a picker here too, not a text box** (2026-09-03). It opens the
+same `DatePickerDialog` the bean page's roast-date capsule opens and shares the
+same three ISO helpers (`formatIsoDate`, `toEpochMillisOrNull`, `toIsoDate`, all
+`internal` in `BeanDetailScreen.kt`) — a second parse would be a second answer
+to what a date is. It is the field a scan gets wrong most often, because a bag
+printing "07/08/26" does not say which number is the month, and correcting that
+meant retyping ISO-8601 on a keyboard. A guess the picker cannot represent
+("2026-07", "July 2026") is shown verbatim and applied verbatim; blanking it
+would delete something the label actually said.
+
 **Eleven fields**: name, origin, **region**, variety, altitude, roaster,
 producer, **farm**, process, roast date, note. The list is `/v1/vision`'s
 (`prompts.BEAN_FIELD_NAMES`) and it is written out in six statements that must
@@ -1369,7 +1506,20 @@ station or mill. `region` was added on 2026-08-29, two revisions after the
 column itself: the column landed first with the scan deliberately left alone —
 this list reaches a deployed service, and reshaping its output schema as a side
 effect of adding a form field is the thing `repo.LABEL_FIELDS`' opt-out shape
-makes easy to do by accident. **A running `coffee_server` must be redeployed
+makes easy to do by accident. **Origin and region are defined to the model as one
+instruction** (`prompts.LABEL_OCR`, corrected 2026-09-03). Adding `region` to
+the field list made the schema *ask* for it without the prompt ever saying what
+it was, and a key defined only by its name is answered from the name: a bag
+reading "Ethiopia Yirgacheffe" came back with the whole string in `origin` and
+`region` empty, or with "Ethiopia" in both. The two-level split — a country
+from `Choices.ORIGINS`, then a subdivision from `Regions.forOrigin` — is this
+app's, not the label's, and cannot be stated in either field alone, so the
+prompt names `origin` as the country and nothing else, `region` as the area
+inside it, and says explicitly to split a combined line. The same wording is in
+`coffee/src/coffee_can/claude_ocr.py` and `qwen_ocr.py`; the three are a §4
+pair-set and a bag should read the same on any of them.
+
+**A running `coffee_server` must be redeployed
 before the phone's scan actually returns a region**; until then the field
 arrives absent, which is what an unread field has always looked like.
 **`frozenDate` is deliberately not on the list** — a bag label cannot state the
@@ -1586,7 +1736,11 @@ claiming only top and sides would leave its last row under the system bar).
 ### 8.6b `+1.1` Journey Profile
 
 One café: name, visit date, city, **address**, note, up to three photographs,
-and the **Cups** block. No scan card (a café has no label) and no radar (a
+and the **Cups** block. A saved café carries the foot capsule (§7.1a) in
+its `add` arrangement — share, a green `+` that adds a cup, modify, and delete
+once modify is pressed. The `+` is deliberately **not** gated on modify mode: a
+cup is a row of its own, so adding one changes nothing about the café, and the
+Cups heading's action was never gated either. No scan card (a café has no label) and no radar (a
 journey has no flavour). **No barista either, since 2026-08-25** — a café has
 many and which one made the cup is a fact about the cup, so the box is on
 `+1.2` (§8.6c). The paragraphs under "The 2026-08-20 redesign" below still
@@ -1750,8 +1904,10 @@ form, and 321dp of it landed before the first field. Rendered at both sizes,
 156 loses nothing: the hood, lens and livery all still read, and the camera
 remains the page's obvious first action rather than merely its largest object.
 
-**The form is sectioned** — *Café* (name, then address | city as a capsule
-pair), *The visit* (visited on | barista). **Address became a capsule**
+**The form was sectioned** — *Café* (name, then address | city as a capsule
+pair), *The visit* (visited on | barista). Both headings are gone now: *The
+visit* on 2026-08-25 and *Café* on 2026-08-30 (above), so what the paragraphs
+below describe as two sections is one unheaded form. **Address became a capsule**
 (2026-08-20, direct product request: it should match the date and barista
 boxes) — as a full-width field it made the optional half of the location as
 heavy as the required café name, the same §5.1 rule the barista was demoted
@@ -1775,17 +1931,25 @@ built to allow. Tried and rejected: promoting it back to a box (breaks the
 rule again) and pairing it with the address (a street line truncates badly in
 a 30dp half-width pill).
 
-**An empty café-name or note box is absent in view mode** (2026-08-29, direct
-product request). A locked field still shows its *value* — that rule is
-unchanged — but a locked field with nothing in it is a label over 88dp of
-nothing, and this page could stack two of them under a map row. `JourneyFields`
-draws each of the two only when `enabled || value.isNotBlank()`, so Modify
-still offers both unconditionally, which is the only place they could be
-offered from. In practice the note is the one this fires for: `savable`
-refuses a nameless journey and the app bar already reads `draft.name`, so a
-saved café has a name and keeps its box. The address, city and visit-date
-capsules are untouched — the request named the two boxes, and a capsule with no
-value is one 30dp row, not a section-sized hole.
+**There is no "Café" heading, and the name box is modify-mode only**
+(2026-08-30, direct product request). Both halves say the same thing: the app
+bar above this form is already the café's name, in `titleLarge`, on every frame
+of the page. A heading reading *Café* over a box reading *Belleville Brûlerie*
+under a bar reading *Belleville Brûlerie* is the name twice and a label for it
+once, on a page whose entire subject is that café. What is left is a form of
+the *other* facts — address, city, date, note — which needs no heading to say
+whose they are. `journey_section_place` was deleted from all three locales.
+
+**An empty note box is absent in view mode** (2026-08-29, direct product
+request). A locked field still shows its *value* — that rule is unchanged for
+every field but the name — but a locked field with nothing in it is a label
+over 88dp of nothing. `JourneyFields` draws the note only when
+`enabled || value.isNotBlank()`, so Modify still offers it unconditionally,
+which is the only place it could be offered from. The name box was the other
+half of that rule until 2026-08-30 and is now simply absent while locked, which
+does not contradict it: the value is not lost, it is in the bar. The address,
+city and visit-date capsules are untouched — the request named the boxes, and a
+capsule with no value is one 30dp row, not a section-sized hole.
 
 **The map row gained a trailing chevron.** It is the one control on the page
 that leaves the app, and a `CardColor` card with no outline and no elevation
@@ -1808,7 +1972,17 @@ user's back, the same rule `0.2`'s sessions list follows.
 
 ### 8.6c `+1.2` Cup Profile
 
-One **cup**: a coffee you drank at a café.
+One **cup**: a coffee you drank at a café. A saved one carries the same foot
+capsule as `0.31` (§7.1a, §8.8) in its `add` arrangement, where the green `+`
+adds a **pour stage** — a café is a list of cups, a cup is a list of pours.
+Unlike `+1.1`'s, that `+` **unlocks modify mode — on the write, not on the
+press**: a pour is a field of this record, written into `stages` and persisted
+only by the tick, so a page that stayed locked would strand the edit with no
+control on screen to commit it, and on the cup path the Pour stages section is
+folded away until a stage exists. But a `+` that registered nothing must leave
+the page as it was found (2026-08-30, direct product request), so the unlock
+sits beside the commit: press `+`, dismiss, and the page is still locked and
+still clean.
 
 **It is `0.31` with a café behind it, and has no composable of its own**
 (2026-08-21, direct product request: a cup "will also use this vibe brewing
@@ -1969,22 +2143,128 @@ and a filled `Button`. Those two blocks are the same sentence about two
 different jobs — *this is tedious, let the app do it* — and someone who has met
 one on the new-bean form should recognise the other without reading it.
 
-**The manual route is a full-width `OutlinedButton` under the card, not inside
-it.** `ScanSection` keeps its manual hint inside because there the alternative
-is the whole form the card sits on; here the alternative is one act with one
-sheet, so it gets a real button. It carries `brew_action_add_stage` — the same
-string the section heading uses, since it is the same act, and that string
-became "Add a stage" in the same edit.
+**And the pours land in that same card** (2026-08-30, direct product request:
+the stages "shown on a green background just as 'Time your pours' block but
+without clock and other texts"). Filled and empty are one object in one place
+on the page — the card does not vanish when the first pour arrives, it fills
+up. It keeps the `secondaryContainer`, the `CardCorner` and the 16dp gutter,
+and drops everything that was there to *ask*: the mascot, the title, the body
+and the timer button. Rows keep no colour of their own —
+`CardDefaults.cardColors(containerColor = …)` resolves content to
+`onSecondaryContainer` — and carry no rule between them (§4.2).
+
+**And the block is the same size locked as unlocked** (2026-08-30, direct
+product request). `StageRow`'s delete slot is always laid out; only the
+`IconButton` inside it comes and goes. Dropping the button outright changed the
+section twice over: the row lost the 48dp that Material's
+`minimumInteractiveComponentSize` was setting through it, so every pour — and
+the card around them — got shorter, and the two weights left behind re-divided
+the whole width, so the numbers moved sideways too. A locked page has to be the
+same page. The slot holds an *empty* `Box` rather than a disabled button: a
+greyed X on a page with no editing on it offers something the page cannot do,
+which is the opposite trade from `DetailActionBar`'s greyed tick (§7.1a) — that
+one is greyed precisely because the mode it belongs to is on screen.
+
+`BrewStagesScreenshotTest` carries three goldens (the third is the timer, below): the section in place at 1600dp,
+because every session in the main brew test records no pours at all, and the two
+modes stacked, because `editing` is the screen's own state and a saved session
+always opens locked, so the only way to photograph both is to draw the rows
+directly.
+
+**The manual route is the heading's `+`, and there is nothing under the card**
+(2026-08-30, direct product request: "remove add a stage button under the green
+block, replace the 'add a stage' button beside title by + icon"). A full-width
+`OutlinedButton` sat below it, on the argument that the alternative here is one
+act with one sheet and so deserves a real button; what that missed is that the
+heading already carried the same words as a `TextButton`. One section, one act,
+two controls — the lower of them the widest thing in the block. The heading's
+survives, now as `Icons.Filled.Add` via `actionIcon`, the same move `0.2`'s
+Sessions heading made on 2026-08-29 and for the same reason: the app spells
+"add one of these" as a `+` on both FABs, on the axis bar's centre disc and on
+every detail page's foot capsule. `brew_action_add_stage` is still passed and is
+still what TalkBack reads and what `check_design.py` diffs. The card is left
+saying what the section is for and offering the timer, which is the one thing it
+can do that the heading cannot.
 
 **Only while editing.** A saved brew that recorded no stages is reporting a
 fact rather than being asked for one, so the old sentence stays on a read-only
 page. A café cup never reaches this at all — `keepFilledWhileFolded` already
 folds stages away for a drink you did not pour.
 
-**`Start timer` is drawn disabled, and that is the honest state.** The timer
-is not built; this pass is the block's design. A button drawn live that does
-nothing when pressed is the worse of the two lies, so it is
-`enabled = onStartTimer != null` and wiring it is the one-line change.
+**The timer is built** (2026-08-31, direct product request: "when start timer,
+the can clock logo will show be bigger and show timer instead the can clock.
+Double tap on the timer will start timing a new stage, single tap when a stage
+starts will note the time when the pouring is over in this stage. Add a final
+button when all the stages are finished"). `Start timer` was drawn disabled
+until then, which was the honest state of a block whose timer did not exist;
+`enabled = onStartTimer != null` survived the wiring rather than being deleted
+with it, because the same expression is what keeps the button honest on any
+future path that cannot offer timing.
+
+**The card has three heads, and the pours sit under whichever is drawn.** The
+section had branched into two whole cards — the invitation, or the list — and
+the timer would have made it a third; what actually varies is the *head*:
+nothing (a list on a locked page), the invitation (mascot, title, body,
+`Start timer`), or the running clock. The card, its `secondaryContainer`, its
+`CardCorner` and its 16dp are the section's; the head is drawn inside it. This
+is not a tidy-up: **the running timer appends pours to the list as they
+happen**, so a timer that lived in a card the pours did not share would vanish
+at the moment it started being useful.
+
+**The readout stands in the mascot's own 108dp.** Starting the clock swaps one
+object for another in place rather than resizing the card under a thumb that is
+about to tap it again. The figure is not shrunk beside the numbers or moved to
+a corner: the request is that the clock *becomes* the timer, and a can with a
+painted-on 10:10 dial standing next to a real running clock would be the page
+telling the time twice.
+
+**It is the app's one scaled type role, and it is scaled, not invented.**
+`displaySmall` — the largest role in the theme, declared there precisely so a
+screen does not invent one — is 36sp, which is *smaller* than the mascot it
+replaces, and the request was that it get bigger. The readout keeps everything
+that makes the role this app's type (Fredoka, SemiBold) and overrides only the
+size, at 64sp: a stopwatch read at arm's length across a counter, not a new
+heading level anything else may reach for.
+
+**Two gestures on one target, and the target is the readout.** A double tap
+starts a pour (`atSec` = now); a single tap ends the open one (`endSec` = now).
+A pour is timed with wet hands while water is going into a cone, so what the
+block needs is one target the size of the card and a gesture that cannot be
+missed by aiming — not two small buttons. Compose delays the single tap by the
+double-tap timeout when both are registered, so a double tap never also fires a
+single one and the two cannot both write to the same pour. The line under the
+readout says which state it is in: *Double tap to start a pour* when nothing is
+running, *Pour N is running — tap when it's done* when one is.
+
+**Nothing is stamped with a time nobody observed.** A double tap while a pour
+is still open does *not* close it — the pour may have ended twenty seconds
+earlier and the user simply did not tap, and the gap between a pour ending and
+the next starting is the drawdown. The end stays unmarked, which the facts line
+draws as the absence it is. The final button follows the same rule.
+
+**The final button is at the foot of the card, under everything the task
+produced**, and it is the only way out of the running state. It stops the clock
+and leaves what was recorded; it invents no end for an open pour, and there is
+nothing else for it to do, because the pours are already in the list.
+
+**The clock is an origin, not a tick count**, and it is `BrewSessionScreen`'s
+`rememberSaveable`, not the block's `remember`. A brew is four minutes with the
+phone on the counter: a timer that lived in the composable that draws it would
+be reset by a rotation, and one that accumulated ticks would drift and would
+have to be paused. What is stored is the wall time of `Start` plus which pour
+is open; the elapsed seconds are computed every frame. It reads the clock
+through `BrewClock`, the seam that already exists so a golden of a *running*
+timer is not a picture of the second it was recorded in.
+
+**TalkBack gets named actions, not gestures.** A double tap *is* TalkBack's
+activate, so the pair is unusable with a screen reader by construction; both
+acts are published as custom accessibility actions on the same node, which
+offers them without a second set of visible controls everybody else has to look
+at. The section heading's `+` remains the route that needs no timer at all.
+
+`BrewStagesScreenshotTest.pourTimerHeads` is the golden: the invitation and the
+running clock, in the card, with a pour timed end to end and a second one still
+open.
 
 #### 8.8a The can clock
 
@@ -2195,12 +2475,13 @@ their eyes to find it.
 Drafts, discard confirm and delete confirm are all built. Ask-AI opens as a
 sheet over the form.
 
-**Delete** (an already-saved brew only) sits beside Modify/Save changes at
-the form's foot (`RemoveButton`), the same relocation as Bean Detail's and
-for the same reason — moved off `PhotoHeroPage`'s pulled disc 2026-08-20,
-direct product request. `DeleteBrewDialog` still gates the actual delete.
-Modify/Save changes carries the row's weight; Delete wraps its own
-icon+label, same sizing rule as Bean Detail's.
+**Delete** (an already-saved brew only) is a slot of the foot capsule
+(§7.1a) — moved off `PhotoHeroPage`'s pulled disc 2026-08-20 to sit beside
+Modify/Save changes at the form's foot as a `RemoveButton`, then into the
+capsule with them on 2026-08-25, and behind Modify on 2026-08-30, once the
+capsule's centre became `+`. `DeleteBrewDialog` still gates the actual delete.
+On a *new* brew, which has no capsule, the foot Row is still the one place
+Save lives.
 
 **A new brew pre-fills from the bean's last one** — dripper, grinder, grind
 size, filter, dose, water, temperature and ppm, i.e. the whole **Brew details**
@@ -2227,10 +2508,53 @@ something that cannot be pressed. Read-only rows keep the *answer* — the chose
 note names, as plain text — and drop the control; an axis with nothing chosen
 shows nothing at all rather than greying out.
 
-**The stage sheet's `At (time)` is a picker, not a typed field** — a trailing
-clock icon, tapping anywhere on the field opens `DurationPickerDialog`. It
-writes `m:ss`; `parseSeconds` still accepts `"105"` and `"1m45"` for AI
-suggestions and older rows.
+**A stage nobody typed into is never registered** (2026-08-30, direct product
+request). All three add actions — the Pour stages heading, the empty-state
+card and the foot capsule's `+` — used to append a blank `StageDraft` and
+*then* open the editor on it, so dismissing the sheet left a row of dashes in
+the list and a form that had only been looked at believed it had unsaved
+changes. A new pour is now held outside `stages` until Done (`StageEdit`, with
+its seed): dismiss adds nothing, Done on an empty form adds nothing, and Done
+on an *existing* pour cleared to empty removes it — the same end state as the
+row's own X. Neither confirm button greys itself out; a dead control explains
+nothing, and Done simply has nothing to add.
+
+**`Velocity (g/s)`** (2026-08-30, direct product request) is a **fourth
+measurement, not a derived one** — `At` is when the pour *starts*, so
+`waterG / atSec` is a different number and no arithmetic over the other three
+produces it. That is why it needed a column on both sides (`MIGRATION_14_15`,
+`brew_stages.velocity`), an entry in `sync_tools._STAGE_FIELDS` and a
+`SyncBundle` key, taking the bundle to **v8**; a stage field missing from any
+one of those simply never travels, and nothing fails when it does not. It also
+joins the row's facts line — that line is *every measurement this pour has*,
+and a field the editor asks for but the list never shows is one nobody can
+check without reopening the sheet.
+
+**`At` and `Ends` are the pair in one `Row`, and Velocity moved down a row**
+(2026-08-31). It shipped for a day beside `At`, on the argument that when a
+pour happens and how fast it goes read as one question; a pour's *two clock
+times* are a closer pair than that, the timer fills both with its two taps, and
+three numeric fields across a 360dp sheet is three fields nobody can read.
+Velocity keeps its half-width box with nothing beside it so every input on the
+sheet is one of two widths. Both times are pickers sharing one
+`DurationPickerDialog` and one piece of state — two booleans could both be
+true, and the second dialog would open behind the first with the same title.
+
+`Ends`, not `Ends (time)`: at half width with a trailing clock icon the longer
+label wraps to two lines and the empty field grows taller than `At` beside it.
+
+**A pour's end is `session_stages.endSec`, and it is a third independent
+measurement.** It is not the next pour's `atSec` — what sits between the two is
+the drawdown — and not derivable from velocity. Same cascade as `velocity` one
+day earlier: `MIGRATION_15_16`, `brew_stages.end_seconds`, `_STAGE_FIELDS`,
+both halves of `SyncBundle`, bundle **v9**. In the facts line the two read as
+one range, `0:00 → 0:35`, which is also what makes an unmarked end visible: a
+pour the timer never closed reads as a bare `0:00`.
+
+**The stage sheet's clock fields are pickers, not typed fields** — a trailing
+clock icon on each of `At (time)` and `Ends`, tapping anywhere on the field
+opens `DurationPickerDialog`. They write `m:ss`; `parseSeconds` still accepts
+`"105"` and `"1m45"` for AI suggestions and older rows.
 
 ### 8.9 `+2` I can
 
@@ -2279,6 +2603,20 @@ previews it, and hands it to the system share sheet through `FileProvider`.
 Renders coffee-can desktop's card design, not the wireframe's — the two specs
 disagreed and the desktop's implemented design was chosen.
 
+**The sheet opens fully expanded and shows the card whole** (2026-08-30, direct
+product request). `ModalBottomSheet` is partially expanded by default, which
+left the preview cut off at the fold until it was dragged up, so it takes
+`skipPartiallyExpanded` — the same call `StageEditorSheet` makes, for the same
+reason: this sheet has one subject, and half a view of it is not a state worth
+stopping in. The preview is also no longer sized from the width alone: a card
+is 1080 wide and *as tall as its content* (a journey's grows with its cups), so
+it takes the smaller of 62% of the column and what 55% of the window leaves,
+which keeps the Share button under it on every card. The column scrolls
+regardless, so a short screen degrades to scrolling rather than to a button
+nobody can reach. `ShareCardSheetScreenshotTest` is the golden for the fit, at
+both card shapes; `ShareCardSheetContent` is split out for it exactly as
+`StageEditorSheetContent` is.
+
 ### 8.13 `-1 (v2)` Can Drink
 
 Complete and unwired — see §1.
@@ -2294,8 +2632,8 @@ desktop grew `brew_sessions.water_g` / `water_temp_c` / `water_alkalinity` /
 `total_time_sec` and `brew_stages.label`, which had drifted phone-only, so the
 only session column with no counterpart is `journeyId` — and that one is
 structural, since `journeys` is ours alone.
-**`version = 13`, `exportSchema = true`**, with named `MIGRATION_1_2` through
-`MIGRATION_12_13`. `fallbackToDestructiveMigration()` is banned, and every
+**`version = 15`, `exportSchema = true`**, with named `MIGRATION_1_2` through
+`MIGRATION_14_15`. `fallbackToDestructiveMigration()` is banned, and every
 migration is **additive only** — which is why two sets of columns are still in
 the schema with nothing reading them (`journeys.latitude`/`longitude`, §8.6b,
 and `sessions.waterTempC`, below).
@@ -2314,7 +2652,7 @@ Eight entities:
 | `sessions.concentration` | −1…+1, how strong the cup was — the second slider in How was it (2026-08-22, direct product request). Null is "not rated", never a balanced zero. It was the first of the late columns to cross: the desktop grew `brew_sessions.concentration`, a CLI prompt and a GUI bar the same day, taking `SyncBundle.VERSION`/`BUNDLE_VERSION` to **3** |
 | `sessions.waterAlkalinity` | carbonate hardness, ppm as CaCO₃ — the Brew details field that took Water °C's place (2026-08-21, direct product request). **Beside `waterPpm`, not instead of it**: ppm is total dissolved solids, alkalinity is buffering, and two waters at the same TDS read completely differently in the cup. Phone-only for two days; **it crosses since 2026-08-23** (bundle **v4**), together with `waterG`, `waterTempC` and `totalTimeSec` |
 | `sessions.waterTempC` | **retained, no longer surfaced** — the field the line above replaced. Dropping it means rebuilding the table and destroying temperatures a user typed, with no server-side copy to restore from. Unlike `journeys.latitude` it is still *carried*, twice over: `SessionDraft` hydrates it and writes it back untouched, so re-saving an older brew keeps it, and the bundle carries it as `water_temp_c` since v4. A pour's temperature was never this column — `session_stages.waterTempC` is, and it is unaffected |
-| `session_stages` | one pour each. `label` (which pour) and `note` (how it was poured) are two columns and cross as two — `note` as the desktop's `circling`, `label` as `brew_stages.label`, which the desktop grew on 2026-08-23 |
+| `session_stages` | one pour each. `label` (which pour) and `note` (how it was poured) are two columns and cross as two — `note` as the desktop's `circling`, `label` as `brew_stages.label`, which the desktop grew on 2026-08-23. **`velocity`** (grams per second, 2026-08-30, `MIGRATION_14_15`) is the fourth measurement and is *not* derivable from the other three: `atSec` is when the pour starts, not how long it runs. `brew_stages.velocity` and bundle **v8** are its other two halves. **`endSec`** (2026-08-31, `MIGRATION_15_16`) is the fifth, and is when the pour *stopped* — not the next pour's `atSec`, which is separated from it by the drawdown. `brew_stages.end_seconds` and bundle **v9**; the Pour stages timer's single tap is what records it |
 | `catalogue_items` | crawler cache |
 | `news_items` | feed cache — four fields, no snippet column |
 | `sessions.journeyId` | nullable, indexed — the café a brew was drunk at, which is what makes it a **cup** (§8.6c). **No foreign key, deliberately**: a cascade would delete a brew because the user tidied away a café, so deleting a journey orphans its cups back into ordinary brews (`coffee_can.db`'s `journey_id` copies that, unenforced for the same reason). **Sync carries it by name, not by id** (v4, 2026-08-23): the session goes out with a `journey` key holding the café's name and the café rows travel in `journeys.json`, because the two `journeys.id` sequences are as unrelated as the two `beans.id` ones |
@@ -2375,6 +2713,30 @@ to storage.
 
 and **nothing retries**. A queued retry would silently re-send a photo after the
 user believed they had cancelled — a consent problem, not merely a UX one.
+
+**Step 3 fails on its own schedule, and the UI must offer a way back
+(2026-09-03).** `AccountStore` is durable; Credential Manager's authorisation
+state is not. When the silent mint stops working — Play services' One Tap
+cooldown after a dismissed sheet is the usual mechanism, which is why the
+symptom is "it worked when I signed in and stopped days later" — the profile
+screen still reads *signed in* while every metered call is refused. Three
+things follow, and all three are load-bearing:
+
+- `GoogleAuth.reauthenticate()` uses **`GetSignInWithGoogleOption`**, not the
+  `GetGoogleIdOption` everything else uses. The cooldown is attached to the One
+  Tap option, so a retry built on it cannot escape it; the button flow has no
+  such state. It is reached only from a deliberate tap, which is why it does
+  not violate the "never open a chooser mid-operation" rule that keeps
+  `idToken()` silent.
+- Credential Manager's *cancellation* and *interrupted* exceptions map to
+  `SignInRequired`, not `SignInUnavailable`. On the silent path there is no
+  sheet for anyone to cancel, so a cancellation there is Play services
+  declining by itself — and sorted as "unavailable" it surfaced as the scan
+  card's generic "couldn't read that photo", sending the user to retake a
+  photograph that was never the problem.
+- The failed-scan card offers **Sign in** in place of Try again whenever the
+  failure was the account, and re-sends the photo already taken rather than
+  restarting at the camera.
 
 `CatalogueGateway` is its read-only sibling for `/v1/catalogue` and `/v1/news`,
 which take neither consent nor auth.
@@ -2449,6 +2811,17 @@ on the second — which is not withdrawal.
   system Photo Picker and `ACTION_IMAGE_CAPTURE`. Adding the permission does
   not enable capture, it **breaks** it: Android requires an app that *declares*
   `CAMERA` to also hold it before `ACTION_IMAGE_CAPTURE` will launch.
+  - **The capture intent asks for the back lens** (`media/PhotoSources.kt`,
+    `RearCameraCapture`, 2026-09-03). Delegating capture means the camera app
+    picks the lens, and camera apps reopen on the one their user last chose —
+    so a phone whose owner last took a selfie opened the *front* camera on a
+    bean bag. Three extras are sent because Android never standardised one:
+    `android.intent.extras.CAMERA_FACING=0`,
+    `android.intent.extras.LENS_FACING_BACK=1`,
+    `android.intent.extra.USE_FRONT_CAMERA=false`. **They are hints.** A camera
+    app that reads none of them behaves exactly as before; there is no
+    stronger version short of declaring `CAMERA` and driving CameraX in-app,
+    which is the trade the bullet above refuses.
 - **No `READ_MEDIA_IMAGES`** — the Photo Picker hands over one photo.
 - **`allowBackup="false"`**, with `tools:replace`, because a merged manifest can
   otherwise re-add it. Verify in the *merged* manifest.

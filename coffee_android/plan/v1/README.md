@@ -50,7 +50,7 @@ as `APP = ../../v1` and read it read-only.
 
 | File | |
 | --- | --- |
-| `check_schema_parity.py` | Proves every Room column still has a desktop column *and* a place on `sync_tools`' allowlists. Added 2026-08-23 after six fields were found to have silently stopped travelling — the failure it catches is not a crash but a field that quietly does not arrive. 8 tables, 110 columns (measured 2026-08-26) |
+| `check_schema_parity.py` | Proves every Room column still has a desktop column *and* a place on `sync_tools`' allowlists. Added 2026-08-23 after six fields were found to have silently stopped travelling — the failure it catches is not a crash but a field that quietly does not arrive. 8 tables, 113 columns (measured 2026-08-31) |
 | `audit.sh` | The one entry point: `check_design.py`, `check_couplings.py`, `check_schema_parity.py`, the dripper icon check and the Paparazzi goldens, with a summary naming whichever failed. It is **step 4 of the audit, not the audit** — §0's first three steps have no exit code |
 | `check_couplings.py` | The four couplings that used to be greps you had to read and judge: locale parity across three `strings.xml`, `SyncBundle.VERSION` against `sync_tools.BUNDLE_VERSION`, the network surface (endpoints declared only in `ServerApi.kt`, no screen naming a client), and the scan field list as an **ordered** sequence in six places across three languages. Each check has been fault-injected |
 | `check_design.py` | The drift checker. Its `ACCEPTED_DEVIATIONS` is **not** a suppression list — an entry needs a decision recorded in `Theme.kt`, and both values still print on every run |

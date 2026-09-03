@@ -115,8 +115,28 @@ CREATE TABLE IF NOT EXISTS brew_stages (
     temperature_c REAL,
     water_g       REAL,
     time_seconds  INTEGER,
+    -- When the pour *stopped*, on the same brew clock `time_seconds` starts it
+    -- on. A second measurement and not arithmetic over the first: the gap
+    -- between one pour ending and the next beginning is the drawdown, which is
+    -- why `end_seconds` is not the next stage's `time_seconds`. The phone's
+    -- pour timer records it with a tap (2026-08-31); nothing on this side
+    -- reads it, exactly like `velocity` below.
+    end_seconds   INTEGER,
+    -- When the *stage* ran, as against when water was going into it:
+    -- `time_seconds`/`end_seconds` are the pour, these two are the pour plus
+    -- the drawdown that follows it. Four numbers and not two because a bloom
+    -- is eight seconds of pouring and forty of waiting, and the forty are part
+    -- of the bloom. The phone profiles a stage with all four (2026-09-01);
+    -- nothing on this side reads them, exactly like `velocity` below.
+    stage_start_seconds INTEGER,
+    stage_end_seconds   INTEGER,
     circling      TEXT,
-    label         TEXT
+    label         TEXT,
+    -- How fast the pour was poured, in grams per second. The phone asks for
+    -- it beside the pour's clock time (2026-08-30); nothing on this side
+    -- reads it, exactly like the journey tables above -- it is here so a
+    -- phone -> desktop -> phone round trip keeps it.
+    velocity      REAL
 );
 
 -- THE JOURNEY TABLES EXIST HERE SO THE SCHEMAS MATCH, NOT BECAUSE THIS APP
@@ -309,6 +329,31 @@ def _migrate(conn: sqlite3.Connection) -> None:
     stage_columns = {row["name"] for row in conn.execute("PRAGMA table_info(brew_stages)")}
     if "water_g" not in stage_columns:
         conn.execute("ALTER TABLE brew_stages ADD COLUMN water_g REAL")
+        conn.commit()
+    if "velocity" not in stage_columns:
+        # Grams per second, asked for beside the pour's clock time on the
+        # phone (2026-08-30). Additive and nullable like every column above:
+        # no existing pour has a speed recorded, and NULL is what that says --
+        # deriving one from water_g and time_seconds would be inventing a
+        # measurement, since `time_seconds` is when the pour *started*, not
+        # how long it ran.
+        conn.execute("ALTER TABLE brew_stages ADD COLUMN velocity REAL")
+        conn.commit()
+    if "stage_start_seconds" not in stage_columns:
+        # When the stage began and ended, as against when the pour inside it
+        # did (2026-09-01). Additive and nullable like every column above, and
+        # with nothing to backfill from: a stage that began at its pour is a
+        # claim about a brew nobody made, so an older row keeps two numbers
+        # rather than being given four.
+        conn.execute("ALTER TABLE brew_stages ADD COLUMN stage_start_seconds INTEGER")
+        conn.execute("ALTER TABLE brew_stages ADD COLUMN stage_end_seconds INTEGER")
+        conn.commit()
+    if "end_seconds" not in stage_columns:
+        # When the pour stopped (2026-08-31). Additive and nullable like every
+        # column above, and with nothing to backfill from: `time_seconds` is
+        # when the pour *started*, and the next stage's start is separated from
+        # this one's end by the drawdown, so neither is this number.
+        conn.execute("ALTER TABLE brew_stages ADD COLUMN end_seconds INTEGER")
         conn.commit()
     if "label" not in stage_columns:
         # What the pour is called -- "Bloom", "Second pour". The phone has had

@@ -200,7 +200,7 @@ There is no dedicated file-import tool: for CSV/spreadsheet/text sources the age
 ### 3.3 Desktop ↔ Android sync tools (`sync_tools.py`)
 
 ```python
-BUNDLE_VERSION: int = 6     # must equal coffee_android's SyncBundle.VERSION
+BUNDLE_VERSION: int = 9     # must equal coffee_android's SyncBundle.VERSION
 
 export_coffee_bundle(destination: str) -> str
 inspect_coffee_bundle(bundle: str) -> str

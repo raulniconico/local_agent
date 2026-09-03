@@ -432,8 +432,20 @@ class BrewDialog(QDialog):
         stage = repo.get_stage(self.conn, stage_id)
         dialog = StageDialog(self, stage=stage)
         if dialog.exec():
+            # THE FIVE FIELDS THIS DIALOG DOES NOT EDIT ARE PASSED BACK
+            # UNCHANGED. `update_stage` is a full-row write, not a patch (see
+            # its docstring), so omitting them *clears* them -- and all five
+            # come from the phone: the pour's name, its speed, when it stopped,
+            # and the stage's own span. Editing a synced pour's temperature
+            # here would have silently thrown the rest away, and the next
+            # bundle would have carried the loss back.
             repo.update_stage(
-                self.conn, stage_id, dialog.temperature, dialog.water_g, dialog.time_seconds, dialog.circling
+                self.conn, stage_id, dialog.temperature, dialog.water_g, dialog.time_seconds, dialog.circling,
+                label=stage["label"],
+                velocity=stage["velocity"],
+                end_seconds=stage["end_seconds"],
+                stage_start_seconds=stage["stage_start_seconds"],
+                stage_end_seconds=stage["stage_end_seconds"],
             )
             self._refresh_stages()
 

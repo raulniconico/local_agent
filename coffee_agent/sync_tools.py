@@ -140,7 +140,39 @@ from coffee_can.repo import FLAVOR_FIELDS  # noqa: E402
 #: exactly the sense v5 was -- an older reader ignores the keys, and a v6
 #: reader given an older bundle finds them absent, which is "no farm recorded"
 #: and "not frozen" rather than an empty string and an epoch.
-BUNDLE_VERSION = 7
+#:
+#: v6 -> v7 (2026-08-29) carries one more bean field, ``region`` -- the level
+#: between the country and the farm -- on the same terms: a column on both
+#: sides and an entry in `_BEAN_FIELDS`.
+#:
+#: v7 -> v8 (2026-08-30) is the first bump that is about a **stage** rather
+#: than a bean or a session: ``velocity``, how fast a pour was poured, in
+#: grams per second. The phone asks for it beside the pour's clock time; this
+#: side stores it and no CLI or GUI reads it, exactly like the journey tables.
+#: A column on both sides (`coffee_can.db._migrate`, and Room's
+#: MIGRATION_14_15), an entry in `_STAGE_FIELDS`, and `SyncBundle` writing and
+#: reading the key -- the same four places every bump before it touched, one
+#: table further down.
+#:
+#: v8 -> v9 (2026-08-31) carries a second stage field, ``end_seconds``: when a
+#: pour *stopped*. The phone's Pour stages block grew a running timer whose
+#: single tap records it, so it is a measurement the phone can now make and
+#: this side must be able to receive. Not derivable from what was already
+#: carried -- ``time_seconds`` is when the pour started, and the gap to the
+#: next pour's start is the drawdown -- so it needed a column of its own on
+#: both sides (`coffee_can.db._migrate`, and Room's MIGRATION_15_16), an entry
+#: in `_STAGE_FIELDS`, and `SyncBundle` writing and reading the key: the same
+#: four places as v8.
+#:
+#: v9 -> v10 (2026-09-01) carries the stage's own span, ``stage_start_seconds``
+#: and ``stage_end_seconds``: when the *stage* ran, as against
+#: ``time_seconds``/``end_seconds``, which are when water was going into it.
+#: The phone now profiles a stage as a pour with a drawdown after it, so a
+#: bloom is four numbers and not two. Two keys in one bump because a span with
+#: only one end recorded says nothing; the same four places as v8 and v9
+#: (`coffee_can.db._migrate`, Room's MIGRATION_16_17, `_STAGE_FIELDS` here, and
+#: `SyncBundle` at both ends).
+BUNDLE_VERSION = 10
 
 _MANIFEST = "manifest.json"
 _BEANS = "beans.json"
@@ -233,7 +265,17 @@ _SESSION_FIELDS = (
 #: became `circling` -- how the pour was poured -- long before this table had
 #: anywhere to put the pour's *name*, and now that it does, folding them
 #: together would lose whichever was written second.
-_STAGE_FIELDS = ("temperature_c", "water_g", "time_seconds", "circling", "label")
+_STAGE_FIELDS = ("temperature_c", "water_g", "time_seconds", "circling", "label",
+                 # Grams per second, bundle v8 (2026-08-30).
+                 "velocity",
+                 # When the pour stopped, bundle v9 (2026-08-31). Beside
+                 # `time_seconds`, which is when it started -- the phone's pour
+                 # timer records the two with separate taps.
+                 "end_seconds",
+                 # The stage's own span, bundle v10 (2026-09-01). The two
+                 # above are the pour; these two are the pour plus the
+                 # drawdown that follows it, which is the rest of the stage.
+                 "stage_start_seconds", "stage_end_seconds")
 
 
 def _row_to_dict(row, fields) -> dict:
@@ -828,6 +870,10 @@ def _write_session(conn, session: dict, bean_id: int, journey_ids: Optional[dict
             time_seconds=stage.get("time_seconds"),
             circling=stage.get("circling"),
             label=stage.get("label"),
+            velocity=stage.get("velocity"),
+            end_seconds=stage.get("end_seconds"),
+            stage_start_seconds=stage.get("stage_start_seconds"),
+            stage_end_seconds=stage.get("stage_end_seconds"),
         )
 
 

@@ -179,7 +179,7 @@ and invisible to two thirds of the users.
 
 | You changed | Also move | Verify |
 | --- | --- | --- |
-| `data/Entities.kt` — added/renamed a column | Room `version` (currently **14**) + a new `Migration`; `data/Daos.kt`; **`data/SyncBundle.kt`** export *and* import; `../../../coffee_agent/sync_tools.py` `_BEAN_FIELDS`/`_SESSION_FIELDS`/`_STAGE_FIELDS`/`_JOURNEY_FIELDS`; `coffee/src/coffee_can/db.py` schema **and `_migrate`**; `coffee/src/coffee_can/repo.py`'s matching `*_FIELDS` allowlist; `design-spec.md` §9 | `V4`, `V4b`, `V5` |
+| `data/Entities.kt` — added/renamed a column | Room `version` (currently **15**) + a new `Migration`; `data/Daos.kt`; **`data/SyncBundle.kt`** export *and* import; `../../../coffee_agent/sync_tools.py` `_BEAN_FIELDS`/`_SESSION_FIELDS`/`_STAGE_FIELDS`/`_JOURNEY_FIELDS`; `coffee/src/coffee_can/db.py` schema **and `_migrate`**; `coffee/src/coffee_can/repo.py`'s matching `*_FIELDS` allowlist; `design-spec.md` §9 | `V4`, `V4b`, `V5` |
 | …but a column on **`journeys`** | **all of it, since 2026-08-23.** This row used to say "only the first three" because `journeys` had no desktop counterpart; it has one now (`coffee_can.db`'s `journeys`/`journey_images`, storage-only — the desktop still has no café screen and gains none), and the bundle carries cafés. Treat a journey column exactly like a session column | `V4`, `V4b`, `V5` |
 | The bundle format | `SyncBundle.VERSION` **and** `sync_tools.BUNDLE_VERSION` — they must stay equal | `V5` |
 | A DAO query | Whether `CoffeeRepository` should expose it at all; whether `TestFakes.kt` needs the new method | `V2` |
@@ -221,7 +221,30 @@ silently-not-travelling category.
 `beans.region` ran the same course on 2026-08-29 — Room **14**
 (`MIGRATION_13_14`), `SyncBundle.VERSION` and `BUNDLE_VERSION` → **7**,
 `db.py`, `repo.BEAN_FIELDS`, `sync_tools._BEAN_FIELDS`, §9 — and parity went
-110 → **111**. The one row it deliberately did *not* fire is §2.3b: `region`
+110 → **111**. `session_stages.velocity` ran it again on
+2026-08-30 — Room **15** (`MIGRATION_14_15`), `VERSION`/`BUNDLE_VERSION` →
+**8**, `db.py`, `sync_tools._STAGE_FIELDS`, §9 — and parity went 111 →
+**112**. It is the first one on the *stage* table rather than on `beans` or
+`sessions`, and the only row of the table that behaved differently is
+`repo.py`: a stage is written through `add_stage`/`update_stage`, which take
+arguments rather than reading a `*_FIELDS` allowlist, so the column had to be
+added to both signatures **and** both SQL statements. `update_stage` is a
+full-row update, so a caller that omits the new argument clears the column —
+the docstring says so at the point where it matters.
+
+`session_stages.endSec` ran the identical course on 2026-08-31 — Room **16**
+(`MIGRATION_15_16`), `VERSION`/`BUNDLE_VERSION` → **9**, `db.py`'s `SCHEMA`
+*and* `_migrate`, both `repo.add_stage`/`update_stage` signatures and their SQL,
+`sync_tools._STAGE_FIELDS`, both halves of `SyncBundle`, §9 — and parity went
+112 → **113**. It is worth reading beside `velocity` rather than instead of it:
+the two are the same row of this table fired one day apart on the same table,
+which is what a well-behaved column addition looks like when the map is
+followed. What made this one arrive at all is a **UI** change (the Pour stages
+timer, §8.8), which is the direction to watch: an interaction that can measure
+something new is a schema change wearing a screen's clothes, and the cascade is
+owed in full.
+
+The one row it deliberately did *not* fire is §2.3b: `region`
 is excluded from `repo.LABEL_FIELDS`, so no OCR prompt and no server schema
 moved. That exclusion is the decision, not an oversight, and `LABEL_FIELDS`
 says so at the point of exclusion.

@@ -150,11 +150,11 @@ Created by `db.SCHEMA`, migrated by `db._migrate()`. `{flavor}` expands to the e
 
 **`brew_sessions`** — `id`, `bean_id` (FK, CASCADE), `journey_id` INTEGER (nullable, **no FK** — see below), `brew_date`, `dripper`, `filter_paper`, `grinder`, `grind_size`, `water_ppm`, `humidity` TEXT; `dose_g`, `water_g`, `water_temp_c`, `water_alkalinity` REAL; `total_time_sec` INTEGER; `score` REAL (NULL = unscored); `extraction` REAL (−1…+1, NULL = not assessed); `concentration` REAL (−1…+1, NULL = not assessed); `note` TEXT; `flavor_notes` TEXT; `status`; `created_at`/`updated_at`; `{flavor}`.
 
-> **The storage-only columns.** On `beans`: `farm`, `frozen_date` and the four-column roast block. On `brew_sessions`: `water_g`, `water_temp_c`, `water_alkalinity`, `total_time_sec`, `flavor_notes` and `journey_id`. All of them are written and read by nothing in this project — no CLI prompt, no GUI field, no display. They exist because `coffee_android` records them and a `phone → desktop → phone` round trip must not lose what the phone put there. `water_temp_c` is the *brew's* water temperature; a single pour's is `brew_stages.temperature_c` and always was. `water_alkalinity` is carbonate hardness, beside `water_ppm`'s total dissolved solids rather than instead of it. The session columns were added 2026-08-23 with `BUNDLE_VERSION` 4; `farm` and `frozen_date` on 2026-08-26 with `BUNDLE_VERSION` 6.
+> **The storage-only columns.** On `beans`: `farm`, `frozen_date` and the four-column roast block. On `brew_sessions`: `water_g`, `water_temp_c`, `water_alkalinity`, `total_time_sec`, `flavor_notes` and `journey_id`. All of them are written and read by nothing in this project — no CLI prompt, no GUI field, no display. They exist because `coffee_android` records them and a `phone → desktop → phone` round trip must not lose what the phone put there. `water_temp_c` is the *brew's* water temperature; a single pour's is `brew_stages.temperature_c` and always was. `water_alkalinity` is carbonate hardness, beside `water_ppm`'s total dissolved solids rather than instead of it. On `brew_stages`: `velocity`, how fast a pour was poured in grams per second, and `end_seconds`, when the pour stopped. The session columns were added 2026-08-23 with `BUNDLE_VERSION` 4; `farm` and `frozen_date` on 2026-08-26 with `BUNDLE_VERSION` 6; `region` on 2026-08-29 with 7; `velocity` on 2026-08-30 with 8 — the first storage-only column on a *stage*, and the one place `add_stage`/`update_stage` grew an argument rather than a `*_FIELDS` entry — and `end_seconds` on 2026-08-31 with 9, by the same route. `end_seconds` is not derivable from anything already here: `time_seconds` is when the pour *started*, and what separates one pour's end from the next one's start is the drawdown. The phone's pour timer records both with two taps.
 
 > **Concentration** (added 2026-08-22, following the Android app the same day) is the other axis of the brewing control chart: how *strong* the cup was, where extraction is how far it was extracted. Symmetric like extraction and for the same reason — both ends are a miss, so a light-to-strong magnitude would make one end look like the good one. Zones are `repo.CONCENTRATION_ZONES` (`Too weak` / `Just right` / `Too strong`), a third of the range each, and it is carried in the sync bundle (`BUNDLE_VERSION` 3, now 4).
 
-**`brew_stages`** — `id`, `session_id` (FK, CASCADE), `stage_number` INTEGER, `temperature_c` REAL, `water_g` REAL, `time_seconds` INTEGER, `circling` TEXT, `label` TEXT.
+**`brew_stages`** — `id`, `session_id` (FK, CASCADE), `stage_number` INTEGER, `temperature_c` REAL, `water_g` REAL, `time_seconds` INTEGER, `end_seconds` INTEGER, `circling` TEXT, `label` TEXT, `velocity` REAL.
 
 > **`label` is not a rename of `circling`.** `circling` says how the pour was poured; `label` says which pour it was ("Bloom", "Second pour"). The phone has carried both as separate fields all along, and until 2026-08-23 only `circling` had a column here, so a stage crossing a bundle arrived unnamed. Storage-only, like the columns above — `add_stage`/`update_stage` accept it as a trailing keyword argument and nothing in the CLI or GUI passes one.
 
@@ -221,14 +221,16 @@ count_sessions_by_date(conn) -> dict                            # {ISO date: cou
 **Stages**
 
 ```python
-add_stage(conn, session_id, temperature_c, water_g, time_seconds, circling, label=None) -> int  # returns stage_number
+add_stage(conn, session_id, temperature_c, water_g, time_seconds, circling,
+          label=None, velocity=None, end_seconds=None) -> int   # returns stage_number
 list_stages(conn, session_id)
 get_stage(conn, stage_id) -> sqlite3.Row | None
-update_stage(conn, stage_id, temperature_c, water_g, time_seconds, circling, label=None) -> None
+update_stage(conn, stage_id, temperature_c, water_g, time_seconds, circling,
+             label=None, velocity=None, end_seconds=None) -> None
 delete_stage(conn, stage_id) -> None
 ```
 
-`label` is trailing with a default so the four existing positional callers (the CLI, both GUI dialogs, the agent) keep working. Note `update_stage` is a full-row update, not a patch: a caller that omits `label` **clears** it. Only the GUI stage editor calls it, and it has no label field to lose — give it one and it must pass the value through.
+The three keyword arguments are trailing with defaults so the four existing positional callers (the CLI, both GUI dialogs, the agent) keep working; only sync passes any of them. Note `update_stage` is a full-row update, not a patch: a caller that omits one **clears** it. Only the GUI stage editor calls it, and it has a field for none of the three — give it one and it must pass the value through.
 
 **Journeys** — storage for `coffee_android`'s cafés. No CLI or GUI path calls any of these; `coffee_agent/sync_tools.py` is the only caller.
 
@@ -278,6 +280,8 @@ Four independent modules, each with the same contract shape: an `is_configured()
 | --- | --- | --- | --- | --- |
 | `ocr.py` | `extract_text(path)`, `guess_bean_fields(path)` | local Tesseract + regex heuristics | — | `OcrUnavailableError` |
 | `claude_ocr.py` | `guess_bean_fields(path) -> dict` | Anthropic vision, `ANTHROPIC_OCR_MODEL` (default `claude-opus-5`) | `ANTHROPIC_API_KEY` | `ClaudeOcrUnavailableError` |
+
+Both vision prompts define **`origin` and `region` together** (2026-09-03): `origin` is the country and nothing else, `region` is the growing area inside it, a label printing one line ("Ethiopia Yirgacheffe") is to be split between them, and a farm or washing-station name belongs in `farm`. `region` reached `LABEL_FIELDS` on 2026-08-29 and both schemas asked for it from that day, but neither prompt said what it meant — so it came back empty, or holding a second copy of the country. The wording is shared verbatim with `coffee_server/prompts.LABEL_OCR`; the three are a coupling pair-set and a bag should read the same on the phone and the desktop.
 | `qwen_ocr.py` | `guess_bean_fields(path) -> dict` | Qwen vision via DashScope, `QWEN_OMNI_MODEL` (default `qwen3.5-omni-flash`) | `QWEN_API_KEY`, `QWEN_BASE_URL` | `QwenOcrUnavailableError` |
 | `qwen_brew_suggest.py` | `suggest_brew(bean_info, dripper) -> dict` | Qwen text chat via DashScope, `QWEN_CHAT_MODEL` (default `qwen3.6-plus`) | `QWEN_API_KEY`, `QWEN_BASE_URL` | `QwenBrewUnavailableError` |
 | `qwen_brew.py` | `transcribe_brew_session(audio_bytes, audio_format, bean_info) -> dict` | Qwen-Omni audio, `QWEN_OMNI_MODEL` | `QWEN_API_KEY`, `QWEN_BASE_URL` | `QwenUnavailableError` |

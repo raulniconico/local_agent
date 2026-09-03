@@ -100,11 +100,34 @@ def brew_suggestion(bean: dict, dripper: str, dose_g: Optional[float] = None) ->
     )
 
 
+# WHY EVERY FIELD ON THIS LIST NEEDS A SENTENCE. The schema below makes the
+# model return all eleven keys; it does not tell it what any of them mean. A key
+# the prompt never defines is answered from the name alone, and "region" is the
+# one where that fails visibly: with nothing said, a label reading "Ethiopia
+# Yirgacheffe" comes back with the whole string in `origin` and `region` empty,
+# or with "Ethiopia" in both. Neither is wrong *as English* -- it is the app's
+# two-level split (a country from `Choices.ORIGINS`, then a subdivision from
+# `Regions.forOrigin`) that the model was never told about. `origin` and
+# `region` are defined together, as one instruction, for that reason: the split
+# is between them and cannot be stated in either alone.
 LABEL_OCR = (
     "This is a photo of a coffee bag label. Extract these fields, using an "
     'empty string for anything not present on the label. "name" is the '
     "specific coffee's name or lot -- not the roaster's brand, which goes "
-    'in "roaster". "producer" is the grower -- a person, a family or a '
+    'in "roaster". "origin" is the COUNTRY the coffee was grown in, and '
+    'nothing else -- its plain English name on its own ("Ethiopia", '
+    '"Colombia", "Panama"), never a country and a region run together. '
+    '"region" is the growing area INSIDE that country, at whatever level the '
+    'label states it: a coffee region, department, zone, municipality or '
+    'washing-station district (e.g. "Yirgacheffe", "Guji", "Huila", '
+    '"Boquete", "Nyeri"). A label that prints one line like "Ethiopia '
+    'Yirgacheffe", "Colombia - Huila" or "Huila, Colombia" is stating both: '
+    'split it, country into "origin" and the rest into "region". If the label '
+    'names only a region and no country, put the region in "region" and the '
+    'country it belongs to in "origin"; if it names only a country, leave '
+    '"region" empty rather than repeating the country there. Do not put a '
+    'farm, estate, mill or cooperative name in "region" -- those belong in '
+    '"farm". "producer" is the grower -- a person, a family or a '
     'cooperative -- and "farm" is the place the lot was grown or processed: '
     "an estate, finca, washing station or mill (e.g. \"Finca El Puente\", "
     '"Kii Factory"). A label often prints one and not the other; put each '
