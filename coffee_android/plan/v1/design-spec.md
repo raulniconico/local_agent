@@ -1175,6 +1175,79 @@ page fall. `page` became the whole gesture's clock in the same edit and
 cycle and eases nothing, since the leaf's width is a cosine of it and the
 reach and return are eased in the figure.
 
+#### 8.2a The sheets are frosted glass
+
+2026-09-17, direct product request: "apply this effect on the newspapers in can
+read page". The same material as Home's panes (§8.3a), on an object that is not
+a pane.
+
+**The page is the light thing and the glass is the grey one.** That relationship
+is the whole effect and the first pass had it backwards: panes *lighter* than
+the page, keeping dark ink — which on a white page is a translucent white card,
+i.e. nothing. Reported as "the newspaper should be more grey and blur, just as
+the sample … The text be white". The mock's panes are darker than what they lie
+on and carry near-white text.
+
+So the sheet fills from `inverseSurface` at `NewsprintGlassAlpha` 0.74 and inks
+from `inverseOnSurface` — the pair scheme E already defines for exactly this
+inversion, so no colour is introduced and `check_design.py` has the same token
+table to diff. Three things followed, and each was a colour that had been chosen
+to work on white stock and was invisible on dark glass: the graded rules became
+the ink held back (`ink.copy(alpha = 0.38f)`) instead of `outlineVariant`, the
+folio date became `ink` at 0.72 instead of `onSurfaceVariant`, and `OpenMark`'s
+tint became a parameter instead of `primary` #196D2E — the one affordance on the
+card had become the one thing on it nobody could see.
+
+**0.74 is a legibility floor, not a taste setting.** The standfirst is
+`inverseOnSurface` over whatever the fill mixes to against the page's bloom;
+below about 0.7 that drops under 4.5:1 and stops meeting AA. That leaves only a
+quarter of the backdrop coming through, which is why `FrostRadiusPx` went 72 →
+110 in the same change: a quarter of a *heavily* diffused field reads as
+frosting where a quarter of a lightly blurred one reads as dirt. And
+`BackdropVeil` went 0.45 → 0.62 ("the background is too grey, reduce the grey")
+— the bloom had been carrying the separation between page and surface, which is
+the wrong way round; the glass carries it now.
+
+**What did not change is the sheet.** The torn `PaperSheet` outline, the
+nameplate, the graded double rule, the fold and the headline's per-call-site
+size override are untouched — none of them depended on the stock being opaque or
+pale. `NewspaperCard` is a `Box` wearing `Modifier.glassSurface` instead of a
+`Card`: a Card would paint its container colour over the glass, and the three
+things it was providing (shape, click, border) are all still there.
+
+**`Modifier.glassSurface` exists because of this screen.** Home's sections are
+rectangles and could be a `GlassPanel`; a sheet of newsprint has its own
+outline, its own click and its own edge colour. Handing the material out as a
+modifier is what lets the two share every ingredient — clip, backdrop blur,
+fill, sheen, lit edge — without the sheet having to pretend to be a pane. The
+shape it is given is used for the clip **and** the border, so those cannot
+disagree.
+
+**The edge is lit at the top and printed at the foot.** The default glass edge
+falls from white 0.60 to white 0.10, which leaves the bottom of a sheet
+undefined; the sheets pass a gradient ending at their own hairline instead, so
+the pile does not dissolve into itself.
+
+**Home's panes are still light glass**, and after this change the two pages no
+longer wear the same face — `00` has near-white panes with dark ink, `-1` has
+grey ones with white. They still share the material, the backdrop and every
+constant but the fill and the ink, so matching Home to the mock is a two-argument
+change at its `GlassPanel` call sites if that is wanted.
+
+**`paperTone()` and `NewsprintStock` are gone.** Both existed to answer "how far
+from white must a white sheet be to read as paper on a white page", and the
+answer had been round three times — a warm grey, then a third of the way to
+`surfaceContainerLow`, then flat #FFFFFF, i.e. white paper on a white page held
+apart by a hairline alone. The sheet no longer answers it with a *tone*: it
+separates by **material**, which is the one axis this screen had not used. The
+file keeps a comment naming them, because the question was real and someone will
+be tempted to reintroduce it.
+
+**The feed has no photographs of its own** — a news item carries five text
+fields and no image (`legal-accounts.md` rule 74) — so this page borrows the
+shelf's through `beanBackdropPhotos`, reading `observeBeans()` for the backdrop
+and nothing else. That is also what keeps the two pager pages on one backdrop.
+
 ### 8.3 `00` Home
 
 Bean shelf, **Brewing activity** contribution calendar, and **My flavor** — an
@@ -1334,6 +1407,107 @@ mechanism changed, which is the same fact the renumbering in §7.1 records.
 been both things twice; the current call is 2026-08-19. Adding a bean did not
 lose its door: that sheet offers "Add a new bean", and an empty shelf shows its
 own CTA.
+
+#### 8.3a Each section is a pane of frosted glass
+
+2026-09-17, direct product request against an Apple "Liquid Glass" mock: on Home
+"each section is shown into a frosted glass". `ui/components/GlassPanel.kt`.
+
+**Four ingredients, and the first one is not on the panel.** A translucent pane
+over `background` is a white rectangle on a white page — `background` *is*
+`Surface`, #FFFFFF — and a *blurred* white rectangle is the same white
+rectangle. The mock gets its glass for free from a photograph behind it. This
+was got wrong twice before it was got right: first a pane on the bare white page
+(nothing to see), then a green wash behind it — reported as "the glass is not
+blur … make the background white".
+
+**The backdrop is the user's own bags.** `GlassBackdropHost` draws up to
+`BackdropPhotos` = 3 of the shelf's photographs full-bleed behind everything,
+blurred past recognition (`BackdropSoftness` 56dp), held at `BackdropAlpha` 0.70,
+under a veil of `background` at `BackdropVeil` 0.45. What survives is a soft
+field of colour with no edges in it — white paper with a bloom on it. They are
+already on this screen, one per card, so the page is tinted by the coffee the
+user actually owns and changes when the shelf does; a texture would be
+decoration, this is the same content at a different distance.
+
+**And the pane's blur is real.** Compose has no backdrop filter —
+`Modifier.blur` blurs the node it is on, never what is behind it, which is why
+§8.8a's `CardOverlay` blurs the *page*. What Compose 1.7 does have is
+`GraphicsLayer`, and that is the mechanism:
+
+| Layer | Holds | Drawn |
+| --- | --- | --- |
+| `backdrop` | `HomeBackdrop`, recorded | once, sharp, as the page |
+| `frosted` | `drawLayer(backdrop)` under a `BlurEffect(FrostRadiusPx)` | by **each pane**, behind itself, translated by its own position |
+
+`GlassBackdrop` (layer + origin) travels down on `LocalGlassBackdrop`; a surface
+with none just draws its fill. Since 2026-09-17 the host is **shared with `-1`**
+(§8.2a) — Home and Can read are two pages of one `HorizontalPager`, and a
+backdrop that changed between them would be a material change you watch happen
+mid-swipe. Both positions are *measured* — the backdrop node
+is inside a `Scaffold` and the pane is inside a scrolling column, and only one of
+those is stable. `clip` comes before `drawBehind` in the pane's modifier chain,
+so the blurred copy stops at the pane's rounded edge instead of painting a
+full-screen rectangle out from its corner.
+
+Two layers and not one, because one cannot be both: the backdrop has to be sharp
+outside a pane and diffuse inside it, and that difference **is** the glass. It is
+the one signature no amount of translucency imitates.
+
+**Below API 31 the page is plain white and the panes are fill alone.**
+`RenderEffect` is 31+, and `Modifier.blur` is a no-op there — so the backdrop
+photographs would arrive *sharp* at 70% under the body copy, which is worse than
+having no backdrop at all. Both floors are the same floor, and it is the one
+`AxisChromeAlpha` documents.
+
+The pane itself is a fill at `GlassFillAlpha` 0.70, `axisChromeSheen()` over it,
+and a 1dp **gradient** border, white 0.60 at the top falling to 0.10. The lit top
+edge is what separates "frosted glass" from "a translucent rectangle".
+
+
+**The sheen is the bars' own.** `axisChromeSheen` already frosts the top bars and
+the floating capsule, and its own note states this panel's argument — "real glass
+catches more light where it meets an edge". A pane with a private gradient would
+be a second frosted material in an app that has one. What the pane does **not**
+borrow is `AxisChromeAlpha` (0.88): that is tuned for chrome over scrolling
+content, and at 0.88 over a wash a pane is opaque.
+
+**No backdrop blur, and none is needed.** Compose has no backdrop filter —
+`Modifier.blur` blurs the node it is on, not what is behind it (§8.8a's
+`CardOverlay` blurs the *page* for that reason). Frosting would mean blurring a
+copy of the wash behind each pane, and the wash has no detail in it, so the blur
+is indistinguishable from it. The effect renders identically on every API level
+the app ships to, which is the bar `AxisChromeAlpha` sets for an always-visible
+surface.
+
+**No golden can show any of this.** `TestFakes` beans carry no image files, so
+every Home golden records the backdrop as plain white and the panes as very
+nearly invisible. That is correct, and it is the limit: the frames verify the
+*layout* of the panes and nothing about the material. The effect needs eyes on a
+device with real photographs on the shelf, running 12 or newer.
+
+**Three things went out with the panes, as one decision:**
+
+| Removed | Why |
+| --- | --- |
+| The two `SectionRule()`s | A hairline *and* a glass edge are two marks for one boundary. Separation is now the wash showing through a `GlassPanelGap` |
+| The white `Card` round the calendar and the radar | `CardColor` is #FFFFFF; a card inside a pane is an opaque rectangle covering the material it stands on. The pane **is** the card |
+| `BeanCard`'s `CardColor` container → `Color.Transparent` | Same reason, three times over. It never read as a surface anyway — it was white on white, and the rule between bags went on 2026-08-30 |
+
+**`GlassPanel`'s `contentPadding` defaults to vertical only, and that is
+load-bearing.** Two of the three panes hold something that must keep its current
+width. The shelf's cards were widened out of the page gutter to `ShelfGutter`
+(0dp) by direct request on 2026-08-24/25; and `ContributionCalendar` clamps its
+column count to `(width − inset) / pitch` with a **fixed** cell size, so 16dp of
+pane padding per side silently costs it two weeks of history rather than drawing
+the same grid smaller. So the panes bleed and each heading pays `GlassPadH` by
+hand — which is also what the mock does, its rows running to the pane edge under
+an inset label.
+
+That does move the shelf's breakout one level down: the cards now run to the
+**pane's** edges rather than the screen's, so they sit at the page `Gutter`
+where they used to sit at 0. The margin the 2026-08-24 request was about is now
+carried by the pane, which is the object that has one.
 
 ### 8.4 `0.1` / `0.2` / `0.2b` Bean Detail
 
@@ -1525,6 +1699,33 @@ arrives absent, which is what an unread field has always looked like.
 **`frozenDate` is deliberately not on the list** — a bag label cannot state the
 day its owner put it in a freezer, and the same exclusion is made on the
 desktop (`repo.LABEL_FIELDS`) and on the server for the same reason.
+
+**Apply dismisses the sheet before it does the work, and nothing after the row
+lands may kill the process** (2026-09-17, direct product report: saving a bean
+added by scanning a label "will break and exit although the data is saved").
+
+`applyScan` cleared `scanPhoto`/`scanResult` as the *last* statements of its
+coroutine — after `showSnackbar`, which suspends for the snackbar's whole life.
+So for about four seconds after Apply the review sheet was still up, still
+offering its Apply button, over a page that had already flipped from `0.1` to
+`0.2` underneath it. A second press re-entered with the same `scanPhoto`, whose
+file `ImageIngest.attach` had already **moved**: `renameTo` fails on a source
+that is gone, `copyTo` throws `NoSuchFileException`, and an uncaught throw in a
+`rememberCoroutineScope` launch is fatal. The bean row had been written by then,
+which is exactly what was reported.
+
+Two rules follow, and both are general to this screen rather than to the scan:
+
+- **State that guards re-entry is cleared synchronously**, before the first
+  suspend point. It also means the `isNew` branch swap `persist()` triggers
+  happens with no sheet standing on top of it.
+- **Every file/Room write in a `rememberCoroutineScope` launch here is
+  guarded.** `applyScan`, the Images strip's `addPhoto` and the foot capsule's
+  Save all `runCatching` and report in a snackbar (`bean_photo_attach_failed`,
+  `bean_save_failed`). This screen already reports every gateway failure in a
+  sentence; a crash is the one report the user cannot act on. The same ordering
+  bug held the page in modify mode for four seconds after a save, and `editing`
+  now drops before the snackbar rather than after it.
 
 ### 8.6 `+1` Can travel
 
@@ -2555,6 +2756,89 @@ pour the timer never closed reads as a bare `0:00`.
 clock icon on each of `At (time)` and `Ends`, tapping anywhere on the field
 opens `DurationPickerDialog`. They write `m:ss`; `parseSeconds` still accepts
 `"105"` and `"1m45"` for AI suggestions and older rows.
+
+### 8.8a `0.31c` A session as a card over its bean — `BrewPresentation.Card`
+
+**Tapping a session on `0.2` no longer navigates** (2026-09-17, direct product
+request: it "won't redirect to the session page, but show a carte pop upon the
+bean profile page … the carte is slightly smaller than the screen, when it pops
+up, the background (bean page) is blured out … in this carte, the format is
+identical to the original page but remove the head page and bean detail").
+
+**It is `0.31`, not a summary of one.** `BrewSessionScreen` takes a
+`BrewPresentation` (`Page` | `Card`); everything the page can do to a session —
+modify, save, share, delete, add a pour stage, ask the gateway — the card does,
+because it is the same composable. `Card` drops exactly two blocks:
+
+| Dropped | Why |
+| --- | --- |
+| **the head page** — `PhotoHeroPage`: the photograph, the floating back disc, the pinned frosted title | A hero inside a card is a second page inside the first, and the bean's photographs are what the blurred page behind it is showing |
+| **the bean detail** — `BeanHeaderSummary` and `BeanDetailsSection` | The card is opened from that bean's own profile; both restate, a centimetre away, what the reader was looking at when they tapped |
+
+The headline stays and gains a `Close` `IconButton` beside it: the headline is
+not the head page, and the hero's back disc — the page's way out — went with the
+hero. `BrewCanvas` is the one call site that swaps the frame, so the body
+between the two presentations cannot drift.
+
+**Only existing sessions.** The Sessions heading's `+` and the foot capsule's
+green disc still navigate to `0.31` as a destination. A new brew is a form to
+fill in, often with a running pour timer; a card over the bean it is about would
+be standing in for a page rather than summarising one.
+
+**The card and the blur — `CardOverlay` / `Modifier.pageBehindCard`.** The card
+is `SheetCorner`, `background`, 16dp of elevation, inset from the **safe** area
+by 12dp horizontally and 20dp vertically. Behind it: `blur(20.dp)` on the bean
+page under a 40% `scrim` tint — `coffee_website`'s `.lb-scrim` recipe
+(`blur(20px) saturate(135%)` over `--deep` at 40%), because the two surfaces mean
+the same thing and should not look like two effects.
+
+Three consequences, each of which has a reason to exist:
+
+- **It is not a dialog or a sheet.** Those are new windows, and a new window
+  cannot blur what is behind it, because what is behind it belongs to another
+  window. The overlay lives inside `BeanDetailScreen`'s composition, which is the
+  only way `pageBehindCard` can reach that screen's nodes at all.
+- **`Modifier.blur` is API 31+, and `minSdk` is 26.** This is the wall
+  `AxisChromeAlpha` documents (§7.1) and it has not moved. What has changed is
+  the surface: a transient modal may be richer on newer devices where a
+  permanently visible bar may not — provided the floor still reads, which is why
+  the scrim goes to 0.55 where there is no blur and 0.40 where there is.
+- **`DetailActionBar` gained `insetNavigationBar`** (default `true`, so no
+  existing caller changed). The card's foot is already clear of the navigation
+  bar; paying the inset twice floats the capsule a gesture-bar's height up inside
+  its own card.
+
+**It moves in, it does not appear** (2026-09-17, direct product request: "add a
+move in for the card, not jump out"). `CardOverlay` holds a
+`MutableTransitionState` that starts false and is flipped true on its first
+composition, so the entrance has somewhere to begin: the card rises an eighth of
+the screen and fades in over 260ms on `LinearOutSlowIn`, the scrim fades on its
+own curve beside it, and the exit mirrors both at 180ms on `FastOutLinearIn` —
+the pair `Nav.kt`'s camera flood already uses. The transition state is what buys
+the **exit**, which a plain `if (open)` cannot have at all, and it is why the
+content lambda is handed a `dismiss`: a close button wired to the caller's
+`onDismiss` would cut the card out of the composition mid-animation.
+
+**And it opens filled, never on a default form** (2026-09-17, direct product
+report: the card "will load a default page then load the information"). Room
+answers a flow after the first composition, so `0.31`'s first frames are a blank
+`SessionDraft` under `brew_title_fallback`. On a page that is invisible — the
+navigation transition covers it. A card has no cover: it opens in the same
+window, over a page the reader is still looking at. `BrewCanvas` therefore draws
+nothing in card mode until `hydrated && beanHydrated` — the same two flags the
+draft itself waits on, not a third test that could disagree — and an empty card
+rather than a skeleton, because a skeleton is a second layout to keep in step
+and this wait is measured in frames. Both flags are `rememberSaveable`, so a card
+restored after process death comes back filled instead of blanking itself.
+
+`SessionCardOverlayScreenshotTest` is the golden. It reconstructs the stack
+rather than tapping into it. **The blur does render in it** — layoutlib applies
+the `RenderEffect` — so the frame is evidence for the API 31+ path; what it
+cannot show is the API 26..30 path, where `Modifier.blur` is a no-op and the
+0.55 scrim is the whole effect. It provides `LocalInspectionMode` so the
+entrance is photographed at its resting state, the way `FlavorNoteSheet` does:
+Paparazzi's frame clock never advances, and the first recording of this golden
+was an invisible card over a blurred page.
 
 ### 8.9 `+2` I can
 
